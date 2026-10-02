@@ -263,7 +263,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=11"></script>
+<script src="channels.js?v=12"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -462,8 +462,15 @@
     showOsd();
   }
   // One reusable player window: switching channels re-uses it instead of piling up tabs.
-  function openExternal(ch) {
+  async function openExternal(ch) {
     if (kiosk) {
+      const need = needCountry(ch);
+      if (need && VPN.bridge && VPN.country !== need) {
+        vpnCard(ch, `🔒 VPN wird auf ${VPN_NAME[need]} umgestellt …`);
+        const r = await vpnCall('set', need);
+        if (channels[index] !== ch) return;                 // zapped on meanwhile
+        if (!r.ok) { vpnCard(ch, `⚠️ VPN-Umschaltung fehlgeschlagen: ${esc(r.error || 'unbekannt')}`); return; }
+      }
       location.replace(ch.url + '#mytv=' + ch.number + '&n=' + encodeURIComponent(ch.name));
       return;
     }

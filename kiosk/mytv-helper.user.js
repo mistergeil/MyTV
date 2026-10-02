@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.3.2
+// @version      1.4.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -24,9 +24,10 @@
 
   const MYTV = 'https://mistergeil.github.io/MyTV/';
 
-  // ---- Official SRG player (SRF/RTS/RSI) embedded inside MyTV ----
-  if (/(^|\.)(srf|rts|rsi)\.ch$/.test(location.hostname)) {
-    if (window.top === window) return;                       // only when embedded (in MyTV)
+  const IS_SRG = /(^|\.)(srf|rts|rsi)\.ch$/.test(location.hostname);
+
+  // ---- Official SRG player (SRF/RTS/RSI) framed inside MyTV (legacy path) ----
+  if (IS_SRG && window.top !== window) {
     const MYTV_ORIGIN = new URL(MYTV).origin;
     // Remote keys → MyTV (so ↑/↓, digits, G, L … keep working after a click into the player)
     const PASS = /^(Arrow(Up|Down)|Page(Up|Down)|[0-9]|Backspace|BrowserBack|Escape|Enter|[gGlLiImMvVfF?+=_-])$/;
@@ -80,12 +81,14 @@
   const css = `
     html, body { margin:0 !important; padding:0 !important; width:100% !important; height:100% !important;
                  background:#000 !important; overflow:hidden !important; cursor:none !important; }
+    #mytv-overlay { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
+                    border:0 !important; z-index:2147483646 !important; background:transparent !important; color-scheme:normal !important; }
+  ` + (IS_SRG ? '' : `
     body > a, body > p, body > h1, body > h2, body > h3 { display:none !important; }
     iframe { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
              border:0 !important; z-index:1 !important; }
     .jwplayer { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important; }
-    #mytv-overlay { z-index:2147483646 !important; background:transparent !important; color-scheme:normal !important; }
-  `;
+  `);
   function addStyle() {
     const s = document.createElement('style');
     s.textContent = css;
@@ -147,11 +150,20 @@
   // capture phase so JW Player's own shortcuts (arrows = seek/volume) don't fire
   window.addEventListener('keydown', onKey, true);
 
-  // ---- Find the JW Player in whichever frame it lives ----
+  // ---- Find the player: JW Player (livehdtv, any same-origin frame) or a plain <video> (SRG) ----
+  function videoAdapter(v) {
+    return {
+      getState() { if (v.error) return 'error'; if (!v.paused && !v.ended) return v.readyState > 2 ? 'playing' : 'buffering'; return 'paused'; },
+      play() { v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); },
+      setMute(b) { v.muted = !!b; }, getMute() { return v.muted; },
+      setVolume(x) { v.volume = Math.max(0, Math.min(1, x / 100)); }, getVolume() { return Math.round(v.volume * 100); },
+    };
+  }
   function findPlayer(w) {
     try {
       if (w.jwplayer && w.document.querySelector('.jwplayer')) return w.jwplayer();
       for (let i = 0; i < w.frames.length; i++) { const p = findPlayer(w.frames[i]); if (p) return p; }
+      if (IS_SRG && w === window.top) { const v = w.document.querySelector('video'); if (v) return videoAdapter(v); }
     } catch (e) {}
     return null;
   }
@@ -229,7 +241,7 @@
           try { p.setMute(false); p.play(); } catch (e) {}
         }
       }
-      if (tries > 40) {           // ~20 s
+      if (tries > (IS_SRG ? 80 : 40)) {           // ~20 s (SRG ~40 s)
         clearInterval(timer);
         if (!started) osd(CH, NAME + ' — kein Signal (↑/↓ zum Weiterschalten)', true);
       }
