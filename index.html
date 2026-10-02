@@ -259,7 +259,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=9"></script>
+<script src="channels.js?v=10"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -334,9 +334,16 @@
     flash('🔒 VPN → ' + VPN_NAME[next] + ' …');
     const r = await vpnCall('set', next);
     flash(r.ok ? '🔒 VPN: ' + VPN_NAME[r.country] : '⚠️ VPN: ' + (r.error || 'Fehler'));
-    if (r.ok && channels[index].type === 'hls') tune(index, { remember: false });
+    if (r.ok && channels[index].mode !== 'external') tune(index, { remember: false });
   }
   if (VPN.bridge && !overlay) vpnCall('status');
+  // Remote keys pressed while an embedded SRG player (SRF/RTS/RSI) has focus are forwarded by the helper
+  const EMBED_ORIGINS = ['https://www.srf.ch', 'https://www.rts.ch', 'https://www.rsi.ch'];
+  window.addEventListener('message', ev => {
+    const d = ev.data;
+    if (!d || d.mytv !== 1 || d.type !== 'key' || !EMBED_ORIGINS.includes(ev.origin)) return;
+    handleKey({ key: d.key, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
+  });
 
   // ---------- tuning ----------
   function tune(i, { remember = true, vpnDone = false } = {}) {
@@ -359,7 +366,7 @@
     $('soundHint').classList.remove('show');
 
     const need = needCountry(ch);
-    if (ch.type === 'hls' && need && VPN.bridge && !vpnDone && VPN.country !== need) {
+    if (ch.mode !== 'external' && need && VPN.bridge && !vpnDone && VPN.country !== need) {
       store.set('mytv.channel', ch.number);
       document.title = `${ch.number} · ${ch.name} — MyTV`;
       renderList(); showOsd();

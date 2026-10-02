@@ -1,10 +1,13 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.2.0
+// @version      1.3.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
+// @match        https://www.srf.ch/play/embed*
+// @match        https://www.rts.ch/play/embed*
+// @match        https://www.rsi.ch/play/embed*
 // @run-at       document-start
 // @grant        none
 // @updateURL    https://mistergeil.github.io/MyTV/kiosk/mytv-helper.user.js
@@ -20,6 +23,31 @@
   'use strict';
 
   const MYTV = 'https://mistergeil.github.io/MyTV/';
+
+  // ---- Official SRG player (SRF/RTS/RSI) embedded inside MyTV ----
+  if (/(^|\.)(srf|rts|rsi)\.ch$/.test(location.hostname)) {
+    if (window.top === window) return;                       // only when embedded (in MyTV)
+    const MYTV_ORIGIN = new URL(MYTV).origin;
+    // Remote keys → MyTV (so ↑/↓, digits, G, L … keep working after a click into the player)
+    const PASS = /^(Arrow(Up|Down)|Page(Up|Down)|[0-9]|Backspace|BrowserBack|Escape|Enter|[gGlLiImMvVfF?+=_-])$/;
+    window.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.altKey || e.metaKey || !PASS.test(e.key)) return;
+      window.parent.postMessage({ mytv: 1, type: 'key', key: e.key }, MYTV_ORIGIN);
+      e.preventDefault(); e.stopImmediatePropagation();
+    }, true);
+    // Autoplay: keep nudging the player until the live stream runs (gives up after ~25 s)
+    let tries = 0;
+    const t = setInterval(() => {
+      tries++;
+      const v = document.querySelector('video');
+      if (v && !v.paused && v.readyState > 2) { clearInterval(t); return; }
+      if (v) { v.muted = false; v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); }
+      const btn = document.querySelector('[class*="play-button" i], [class*="PlayButton" i], button[aria-label*="Play" i], button[aria-label*="Abspielen" i], button[aria-label*="Lire" i], button[aria-label*="Riprodu" i]');
+      if (btn && tries % 4 === 1) btn.click();
+      if (tries > 50) clearInterval(t);
+    }, 500);
+    return;
+  }
 
   // ---- Are we in a MyTV session? (works in nested same-origin frames too) ----
   let topHash = '';

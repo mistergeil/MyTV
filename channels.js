@@ -51,12 +51,17 @@ window.CHANNELS = [
   { number: 38, name: "Disney Channel", short: "Disny", mode: "external", xmltv: "Disney.Channel.de", url: "https://www.livehdtv.net/embed/disney-channel-germany/" },
   { number: 39, name: "Nickelodeon", short: "Nick", mode: "external", xmltv: "nick.de", url: "https://www.livehdtv.net/embed/ch474/" },
   { number: 40, name: "DW Deutsch", short: "DW", mode: "external", url: "https://www.livehdtv.net/embed/dw-deutsche-welle-deutsch/" },
-  // Switzerland
-  { number: 41, name: "SRF 1",       short: "SRF1",  mode: "external", xmltv: "SRF.1.ch", url: "https://www.livehdtv.net/embed/srf-1/" },
-  { number: 42, name: "RTS 1",       short: "RTS1",  mode: "external", xmltv: "RTS.1.ch", url: "https://www.livehdtv.net/embed/rts-1-switzerland/" },
-  { number: 43, name: "RTS Info",    short: "RTSi",  type: "hls", geo: "CH", url: "https://rtsinfo-d.akamaized.net/out/v1/2b7ae2e1ba3f43c6aba15bced153baf5/index.m3u8" },
-  { number: 44, name: "Tele 1",      short: "Tele1", mode: "external", xmltv: "Tele.1.ch", url: "https://www.livehdtv.net/embed/tele-1-switzerland/" },
-  { number: 45, name: "TeleTicino",  short: "TTi",   type: "hls", xmltv: "Tele.Ticino.ch", url: "https://vstream-cdn.ch/hls/teleticino.m3u8" },
-  { number: 46, name: "Canal Alpha", short: "Alpha", type: "hls", url: "https://canalalphaju.vedge.infomaniak.com/livecast/ik:canalalphaju/playlist.m3u8" },
-  { number: 47, name: "Canal 9",     short: "C9",    type: "hls", geo: "CH", xmltv: "Canal.9.ch", url: "https://livehd.vedge.infomaniak.com/livecast/livehd/master.m3u8" }
+  // Switzerland — SRG channels via the official Play SRF/RTS/RSI embed player (Swiss IP needed → VPN CH)
+  { number: 41, name: "SRF 1",       short: "SRF1",  geo: "CH", xmltv: "SRF.1.ch",    url: "https://www.srf.ch/play/embed?autoplay=true&urn=urn:srf:video:c4927fcf-e1a0-0001-7edd-1ef01d441651" },
+  { number: 42, name: "SRF zwei",    short: "SRF2",  geo: "CH", xmltv: "SRF.zwei.ch", url: "https://www.srf.ch/play/embed?autoplay=true&urn=urn:srf:video:c49c1d64-9f60-0001-1c36-43c288c01a10" },
+  { number: 43, name: "SRF info",    short: "SRFi",  geo: "CH", xmltv: "SRF.info.ch", url: "https://www.srf.ch/play/embed?autoplay=true&urn=urn:srf:video:c49c1d73-2f70-0001-138a-15e0c4ccd3d0" },
+  { number: 44, name: "RTS 1",       short: "RTS1",  geo: "CH", xmltv: "RTS.1.ch",    url: "https://www.rts.ch/play/embed?autoplay=true&urn=urn:rts:video:3608506" },
+  { number: 45, name: "RTS 2",       short: "RTS2",  geo: "CH", xmltv: "RTS.2.ch",    url: "https://www.rts.ch/play/embed?autoplay=true&urn=urn:rts:video:3608517" },
+  { number: 46, name: "RTS Info",    short: "RTSi",  geo: "CH",                       url: "https://www.rts.ch/play/embed?autoplay=true&urn=urn:rts:video:1967124" },
+  { number: 47, name: "RSI LA 1",    short: "LA1",   geo: "CH", xmltv: "RSI.La.1.ch", url: "https://www.rsi.ch/play/embed?autoplay=true&urn=urn:rsi:video:livestream_La1" },
+  { number: 48, name: "RSI LA 2",    short: "LA2",   geo: "CH", xmltv: "RSI.La.2.ch", url: "https://www.rsi.ch/play/embed?autoplay=true&urn=urn:rsi:video:livestream_La2" },
+  { number: 49, name: "Tele 1",      short: "Tele1", mode: "external", xmltv: "Tele.1.ch", url: "https://www.livehdtv.net/embed/tele-1-switzerland/" },
+  { number: 50, name: "TeleTicino",  short: "TTi",   type: "hls", xmltv: "Tele.Ticino.ch", url: "https://vstream-cdn.ch/hls/teleticino.m3u8" },
+  { number: 51, name: "Canal Alpha", short: "Alpha", type: "hls", url: "https://canalalphaju.vedge.infomaniak.com/livecast/ik:canalalphaju/playlist.m3u8" },
+  { number: 52, name: "Canal 9",     short: "C9",    type: "hls", geo: "CH", xmltv: "Canal.9.ch", url: "https://livehd.vedge.infomaniak.com/livecast/livehd/master.m3u8" }
 ];
