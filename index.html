@@ -43,6 +43,9 @@
   .launch-btn:hover, .launch-btn:focus-visible { transform: scale(1.05); outline: none; }
   .launch-hint { color: var(--muted); font-size: 14px; }
 
+  .geo-badge { padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,.08); font-weight: 600; }
+  #list .tag { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
+
   /* ---------- On-screen display ---------- */
   #osd {
     position: fixed; top: 24px; left: 24px; display: flex; align-items: center; gap: 16px;
@@ -246,6 +249,7 @@
       });
       if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = ch.url; start();                    // Safari: native HLS
+        v.addEventListener('error', () => showError(ch, !!ch.geo), { once: true });
       } else if (window.Hls && Hls.isSupported()) {
         hls = new Hls({ lowLatencyMode: false, backBufferLength: 30 });
         hls.loadSource(ch.url); hls.attachMedia(v);
@@ -254,6 +258,7 @@
           if (!d.fatal) return;
           if (d.type === Hls.ErrorTypes.NETWORK_ERROR && d.details !== 'manifestLoadError') hls.startLoad();
           else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+          else if (d.response && d.response.code === 403) showError(ch, true);
           else showError(ch);
         });
       }
@@ -302,13 +307,16 @@
     const w = window.open(ch.url, 'mytv-player');
     if (w) w.focus();
   }
-  function showError(ch) {
+  function showError(ch, geo = false) {
     if (hls) { hls.destroy(); hls = null; }
     if (frame) frame.remove();
     frame = document.createElement('div');
     frame.className = 'launch';
     frame.innerHTML = `<div class="launch-num">${ch.number}</div><div class="launch-name">${ch.name}</div>
-      <div class="launch-hint">Kein Signal — Sender gerade nicht verfügbar.</div>`;
+      ${geo
+        ? `<div class="geo-badge">🇩🇪 Nur in Deutschland verfügbar</div>
+           <div class="launch-hint">Mit einem VPN (Server in Deutschland) läuft dieser Sender direkt hier.</div>`
+        : `<div class="launch-hint">Kein Signal — Sender gerade nicht verfügbar.</div>`}`;
     screen.insertBefore(frame, staticCv);
     staticOff();
   }
@@ -351,7 +359,7 @@
         <button data-i="${i}">
           <span class="n">${c.number}</span>
           <span class="logo">${c.logo ? `<img src="${c.logo}" alt="">` : (c.short || c.name).slice(0, 5)}</span>
-          <span>${c.name}</span>
+          <span>${c.name}</span>${c.geo ? '<span class="tag">DE</span>' : ''}${c.mode === 'external' ? '<span class="tag">↗</span>' : ''}
         </button>
       </li>`).join('');
   }
