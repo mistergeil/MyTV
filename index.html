@@ -569,7 +569,7 @@
             style="left:calc(${l.toFixed(3)}% + 2px);width:calc(${(rgt - l).toFixed(3)}% - 4px)">${esc(p.title)}</div>`;
         }
       } else {
-        const txt = ch.mode === 'external' ? 'Keine Programmdaten (Privatsender)' : 'Keine Programmdaten';
+        const txt = 'Keine Programmdaten';
         blocks = `<div class="g-prog none${i === G.row ? ' sel' : ''}" data-i="${i}" style="left:2px;right:2px">${txt}</div>`;
         if (i === G.row) G.sel = { ch, p: null };
       }
