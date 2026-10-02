@@ -22,6 +22,9 @@ $trigger   = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction SilentlyContinue
+# stop a switcher that is still running (otherwise the old version keeps the port)
+Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*mytv-vpn-agent.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+Start-Sleep -Seconds 1
 Register-ScheduledTask -TaskName $Task -Description 'MyTV: switches Proton WireGuard tunnel (DE/CH) on request from MyTV. Remove with VPN-Uninstall.bat.' -Action $action -Trigger $trigger -Principal $principal -Settings $settings | Out-Null
 Start-ScheduledTask -TaskName $Task
 Write-Host "Installed scheduled task '$Task' and started it."
