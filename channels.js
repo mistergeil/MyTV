@@ -35,5 +35,20 @@ window.CHANNELS = [
   { number: 22, name: "ProSieben",    short: "PRO7",  mode: "external", xmltv: "ProSieben.de", url: "https://www.livehdtv.net/embed/pro7/" },
   { number: 23, name: "VOX",          short: "VOX",   mode: "external", xmltv: "VOX.de", url: "https://www.livehdtv.net/embed/vox/" },
   { number: 24, name: "kabel eins",   short: "kab1",  mode: "external", xmltv: "kabel.eins.de", url: "https://www.livehdtv.net/embed/kabel-1/" },
-  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", xmltv: "RTLZWEI.de", url: "https://www.livehdtv.net/embed/rtl2/" }
+  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", xmltv: "RTLZWEI.de", url: "https://www.livehdtv.net/embed/rtl2/" },
+  { number: 26, name: "ProSieben MAXX", short: "MAXX", mode: "external", xmltv: "ProSieben.MAXX.de", url: "https://www.livehdtv.net/embed/prosieben-maxx/" },
+  { number: 27, name: "SAT.1 Gold", short: "Gold", mode: "external", xmltv: "SAT.1.Gold.de", url: "https://www.livehdtv.net/embed/sat1-gold/" },
+  { number: 28, name: "sixx", short: "sixx", mode: "external", xmltv: "sixx.de", url: "https://www.livehdtv.net/embed/sixx/" },
+  { number: 29, name: "kabel eins Doku", short: "k1Dok", mode: "external", xmltv: "kabel.eins.Doku.de", url: "https://www.livehdtv.net/embed/kabel-1-doku/" },
+  { number: 30, name: "Super RTL", short: "SRTL", mode: "external", xmltv: "SUPER.RTL.de", url: "https://www.livehdtv.net/embed/super-rtl/" },
+  { number: 31, name: "RTL Nitro", short: "Nitro", mode: "external", xmltv: "NITRO.de", url: "https://www.livehdtv.net/embed/rtl-nitro/" },
+  { number: 32, name: "n-tv", short: "n-tv", mode: "external", xmltv: "ntv.de", url: "https://www.livehdtv.net/embed/ntv-german/" },
+  { number: 33, name: "WELT", short: "WELT", mode: "external", xmltv: "WELT.de", url: "https://www.livehdtv.net/embed/welt/" },
+  { number: 34, name: "Tele 5", short: "Tele5", mode: "external", xmltv: "Tele.5.de", url: "https://www.livehdtv.net/embed/tele-5-germany/" },
+  { number: 35, name: "DMAX", short: "DMAX", mode: "external", xmltv: "DMAX.de", url: "https://www.livehdtv.net/embed/dmax-germany/" },
+  { number: 36, name: "TLC", short: "TLC", mode: "external", xmltv: "TLC.de", url: "https://www.livehdtv.net/embed/tlc-germany/" },
+  { number: 37, name: "Comedy Central", short: "CC", mode: "external", xmltv: "Comedy.Central.de", url: "https://www.livehdtv.net/embed/comedy-central-germany/" },
+  { number: 38, name: "Disney Channel", short: "Disny", mode: "external", xmltv: "Disney.Channel.de", url: "https://www.livehdtv.net/embed/disney-channel-germany/" },
+  { number: 39, name: "Nickelodeon", short: "Nick", mode: "external", xmltv: "nick.de", url: "https://www.livehdtv.net/embed/ch474/" },
+  { number: 40, name: "DW Deutsch", short: "DW", mode: "external", url: "https://www.livehdtv.net/embed/dw-deutsche-welle-deutsch/" }
 ];
