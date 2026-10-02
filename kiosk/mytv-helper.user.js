@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.0
+// @version      1.5.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -99,6 +99,7 @@
                           z-index:2147483000 !important; background:#000 !important; }
     .player-area-player > div { width:100% !important; height:100% !important; }
     .player-area-player video { width:100% !important; height:100% !important; object-fit:contain !important; }
+    html.mytv-dialog .player-area-player { z-index:auto !important; }
   ` : '') + (IS_OFFICIAL ? '' : `
     html, body { cursor:none !important; }
     body > a, body > p, body > h1, body > h2, body > h3 { display:none !important; }
@@ -216,14 +217,22 @@
     let wantSound = null;                       // {muted, volume 0..1} from MyTV
     const applySound = p => { if (!wantSound) return; try { p.setMute(!!wantSound.muted); p.setVolume(Math.round(wantSound.volume * 100)); } catch (e) {} };
 
-    const consentOpen = () => IS_ORF && document.body && document.body.classList.contains('didomi-popup-open');
+    const visible = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 40 && r.height > 20 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'; };
+    const consentOpen = () => {
+      if (!IS_ORF || !document.body) return false;
+      if (document.body.classList.contains('didomi-popup-open')) return true;
+      return [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open]')]
+        .some(el => !el.closest('#mytv-overlay') && visible(el));
+    };
     function mountOverlay() {
       if (window.__mytvOv) return;
       if (consentOpen()) {
-        osd(CH, NAME + ' — bitte zuerst die Cookie-Auswahl mit der Maus treffen (nur einmal)', true);
+        document.documentElement.classList.add('mytv-dialog');
+        osd(CH, NAME + ' — bitte das Fenster mit der Maus bestätigen/schliessen', true);
         setTimeout(mountOverlay, 1000);
         return;
       }
+      document.documentElement.classList.remove('mytv-dialog');
       if (osdEl) osdEl.style.opacity = '0';
       const f = document.createElement('iframe');
       f.id = 'mytv-overlay';
@@ -232,6 +241,12 @@
       f.allow = 'fullscreen';
       document.body.appendChild(f);
       window.__mytvOv = f;
+      if (IS_ORF) setInterval(() => {
+        const open = consentOpen();
+        document.documentElement.classList.toggle('mytv-dialog', open);
+        if (open && f.style.display !== 'none') { f.style.display = 'none'; osd(CH, NAME + ' — bitte das Fenster mit der Maus bestätigen/schliessen', true); }
+        else if (!open && f.style.display === 'none') { f.style.display = ''; if (osdEl) osdEl.style.opacity = '0'; }
+      }, 1000);
       // fallback: if the overlay doesn't come up, show the simple badge
       setTimeout(() => { if (!window.__mytvOvReady) osd(CH, NAME); }, 4000);
     }
