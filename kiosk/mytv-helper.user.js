@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -35,15 +35,29 @@
       window.parent.postMessage({ mytv: 1, type: 'key', key: e.key }, MYTV_ORIGIN);
       e.preventDefault(); e.stopImmediatePropagation();
     }, true);
-    // Autoplay: keep nudging the player until the live stream runs (gives up after ~25 s)
-    let tries = 0;
+    // Autoplay — careful: the player's play button is a play/pause TOGGLE, so never click it
+    // once the stream has started. Prefer video.play(); click only as a last resort.
+    let started = false, clicked = 0, tries = 0, hooked = null;
+    const hook = v => {
+      if (hooked === v) return; hooked = v;
+      v.addEventListener('playing', () => { started = true; });
+      // TV never pauses: if the live stream stops by itself, resume it
+      v.addEventListener('pause', () => {
+        if (!started) return;
+        setTimeout(() => { if (v.paused && !v.ended) v.play().catch(() => {}); }, 400);
+      });
+    };
     const t = setInterval(() => {
       tries++;
       const v = document.querySelector('video');
-      if (v && !v.paused && v.readyState > 2) { clearInterval(t); return; }
-      if (v) { v.muted = false; v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); }
-      const btn = document.querySelector('[class*="play-button" i], [class*="PlayButton" i], button[aria-label*="Play" i], button[aria-label*="Abspielen" i], button[aria-label*="Lire" i], button[aria-label*="Riprodu" i]');
-      if (btn && tries % 4 === 1) btn.click();
+      if (v) hook(v);
+      if (started || (v && !v.paused)) { started = true; clearInterval(t); return; }
+      if (v) { v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); }
+      // still nothing after ~4 s: click the big start button once (and once more after ~10 s)
+      if ((tries === 8 || tries === 20) && clicked < 2 && (!v || v.paused)) {
+        const btn = document.querySelector('button[aria-label*="Play" i], button[aria-label*="Abspielen" i], button[aria-label*="Lire" i], button[aria-label*="Riprodu" i], [class*="big-play" i], [class*="BigPlay" i]');
+        if (btn) { btn.click(); clicked++; }
+      }
       if (tries > 50) clearInterval(t);
     }, 500);
     return;
