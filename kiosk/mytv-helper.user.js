@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.3.1
+// @version      1.3.2
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -35,6 +35,10 @@
       window.parent.postMessage({ mytv: 1, type: 'key', key: e.key }, MYTV_ORIGIN);
       e.preventDefault(); e.stopImmediatePropagation();
     }, true);
+    // Mouse over the player → show MyTV's remote bar
+    let lastWake = 0;
+    const wake = () => { const n = Date.now(); if (n - lastWake > 400) { lastWake = n; window.parent.postMessage({ mytv: 1, type: 'wake' }, MYTV_ORIGIN); } };
+    ['mousemove', 'mousedown', 'touchstart', 'wheel'].forEach(ev => window.addEventListener(ev, wake, { passive: true, capture: true }));
     // Autoplay — careful: the player's play button is a play/pause TOGGLE, so never click it
     // once the stream has started. Prefer video.play(); click only as a last resort.
     let started = false, clicked = 0, tries = 0, hooked = null;

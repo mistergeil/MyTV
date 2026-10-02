@@ -345,8 +345,9 @@
   const EMBED_ORIGINS = ['https://www.srf.ch', 'https://www.rts.ch', 'https://www.rsi.ch'];
   window.addEventListener('message', ev => {
     const d = ev.data;
-    if (!d || d.mytv !== 1 || d.type !== 'key' || !EMBED_ORIGINS.includes(ev.origin)) return;
-    handleKey({ key: d.key, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
+    if (!d || d.mytv !== 1 || !EMBED_ORIGINS.includes(ev.origin)) return;
+    if (d.type === 'key') handleKey({ key: d.key, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
+    else if (d.type === 'wake') wake();
   });
 
   // ---------- tuning ----------
@@ -447,7 +448,6 @@
     // no 'fullscreen': the embedded player must not take over the screen (MyTV's own F does fullscreen)
     frame.allow = 'autoplay; encrypted-media';
     frame.tabIndex = -1;
-    $('shield').classList.add('on');
     frame.setAttribute('scrolling', 'no');
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
     frame.title = ch.name;
@@ -763,12 +763,6 @@
       case 'Enter': {
         const ch = channels[index];
         if (!overlay && !listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
-        else if (!overlay && !listOpen && frame && frame.tagName === 'IFRAME') {
-          e.preventDefault();
-          const sh = $('shield');
-          sh.classList.toggle('on');
-          flash(sh.classList.contains('on') ? '📺 TV-Steuerung' : '🖱️ Player-Steuerung (OK = zurück)');
-        }
         break;
       }
       case 'Escape': toggleList(false); $('help').classList.remove('open'); break;
@@ -786,12 +780,7 @@
   }
   ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
   $('shield').addEventListener('dblclick', toggleFull);
-  // If an embedded player still grabbed the focus, take it back so the remote keeps working
-  window.addEventListener('blur', () => setTimeout(() => {
-    if (!overlay && $('shield').classList.contains('on') && document.activeElement && document.activeElement.tagName === 'IFRAME') {
-      document.activeElement.blur(); window.focus();
-    }
-  }, 50));
+
   // Resume if the browser paused the stream while the window was hidden/minimized
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && frame && frame.tagName === 'VIDEO' && frame.paused) frame.play().catch(() => {});
