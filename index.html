@@ -245,7 +245,8 @@
       screen.insertBefore(v, staticCv);
       const start = () => v.play().catch(() => {
         // Browser blocked autoplay with sound → play muted, ask for one click.
-        v.muted = true; v.play().catch(() => {}); $('soundHint').classList.add('show');
+        v.muted = true; v.play().catch(() => {});
+        if (frame === v) $('soundHint').classList.add('show');
       });
       if (v.canPlayType('application/vnd.apple.mpegurl')) {
         v.src = ch.url; start();                    // Safari: native HLS
@@ -309,6 +310,7 @@
   }
   function showError(ch, geo = false) {
     if (hls) { hls.destroy(); hls = null; }
+    $('soundHint').classList.remove('show');
     if (frame) frame.remove();
     frame = document.createElement('div');
     frame.className = 'launch';
