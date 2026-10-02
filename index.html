@@ -216,7 +216,7 @@
         <div class="launch-num">${ch.number}</div>
         <div class="launch-name">${ch.name}</div>
         <button class="launch-btn" type="button">▶&nbsp; Ansehen</button>
-        <div class="launch-hint">Öffnet den Player in einem eigenen Fenster · Enter / OK</div>`;
+        <div class="launch-hint">Öffnet den Player als Vollbild-Fenster · Enter / OK<br>Im Player dann ⛶ für Vollbild</div>`;
       frame.querySelector('.launch-btn').onclick = () => openExternal(ch);
       screen.insertBefore(frame, staticCv);
       setTimeout(staticOff, 350);
@@ -244,8 +244,13 @@
   }
   // One reusable player window: switching channels re-uses it instead of piling up tabs.
   function openExternal(ch) {
-    const w = window.open(ch.url, 'mytv-player');
-    if (w) w.focus();
+    // Frameless pop-up filling the screen (no tabs/address bar in Chrome; Safari may still show a minimal bar).
+    const W = screen.availWidth, H = screen.availHeight;
+    const L = screen.availLeft || 0, T = screen.availTop || 0;
+    const feats = `popup=yes,width=${W},height=${H},left=${L},top=${T},toolbar=no,location=no,menubar=no,status=no,scrollbars=no,resizable=yes`;
+    const w = window.open(ch.url, 'mytv-player', feats);
+    if (w) { try { w.resizeTo(W, H); w.moveTo(L, T); } catch {} w.focus(); }
+    else window.location.href = ch.url; // pop-up blocked → just go there
   }
   const tuneNumber = n => { const i = channels.findIndex(c => c.number === n); if (i >= 0) tune(i); };
 
