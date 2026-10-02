@@ -455,6 +455,10 @@
     }, 3500);
   }
   ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
+  // Resume if the browser paused the stream while the window was hidden/minimized
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && frame && frame.tagName === 'VIDEO' && frame.paused) frame.play().catch(() => {});
+  });
 
   // ---------- start ----------
   const byNum = n => channels.findIndex(c => c.number === n);
