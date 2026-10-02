@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.3
+// @version      1.5.4
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -189,6 +189,13 @@
   function clickPlay(reason) {
     const v = pickVideo();
     if (v && !v.paused) return false;                      // already playing → never touch (play/pause toggles!)
+    // ORF ON: exact big play button (label "Wiedergabe starten" is hidden text inside it)
+    const orfBtn = document.querySelector('[data-test-id="player-overlay-play-button"]');
+    if (orfBtn && !orfBtn.closest('.is-hidden')) {
+      (window.__mytvLog || []).push('click ORF play button (' + reason + ')');
+      orfBtn.click();
+      return true;
+    }
     const sel = [
       '[class*="hugeplayback" i]', '[class*="playbacktoggle" i]', '[class*="big-play" i]', '[class*="bigplay" i]',
       '[class*="play-button" i]', '[class*="playbutton" i]', '[class*="vjs-big-play" i]',
