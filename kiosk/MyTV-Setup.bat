@@ -18,4 +18,4 @@ start "" "%CHROME%" ^
   --no-first-run ^
   --no-default-browser-check ^
   "https://chromewebstore.google.com/detail/tampermonkey/dhdgffkkebhmkfjojejmpbldmpobfkfo" ^
-  "https://mistergeil.github.io/MyTV/kiosk/"
+  "https://mistergeil.github.io/MyTV/kiosk/?v=%RANDOM%"
