@@ -4,21 +4,17 @@
 <body><h3>Stream test</h3><table id="t"></table>
 <script>
 const S = [
- ["ONE","https://mcdn-one.ard.de/ardone/hls/master.m3u8"],
- ["ARD alpha","https://mcdn.br.de/br/fs/ard_alpha/hls/de/master.m3u8"],
- ["KiKA","https://kikageohls.akamaized.net/hls/live/2022693/livetvkika_de/master.m3u8"],
- ["DW","https://dwamdstream111.akamaized.net/hls/live/2017972/dwstream111/index.m3u8"],
- ["MDR Sachsen","https://mdrtvsnhls.akamaized.net/hls/live/2016928/mdrtvsn/master.m3u8"],
- ["rbb Berlin","https://rbb-hls-berlin.akamaized.net/hls/live/2017824/rbb_berlin/master.m3u8"],
- ["BR Süd","https://mcdn.br.de/br/fs/bfs_sued/hls/de/master.m3u8"],
- ["NDR Hamburg","https://mcdn.ndr.de/ndr/hls/ndr_fs/ndr_hh/master.m3u8"],
- ["WDR (ww)","https://mcdn.wdr.de/wdr/wdrfs/de/master.m3u8"],
- ["WDR (de)","https://wdrfs247.akamaized.net/hls/live/681509/wdr_msl4_fs247/index.m3u8"],
- ["SWR BW","https://swrbwd-hls.akamaized.net/hls/live/2018672/swrbwd/master.m3u8"],
- ["hr","https://hrhls.akamaized.net/hls/live/2024525/hrhls/master.m3u8"],
- ["SR","https://srfs.akamaized.net/hls/live/689649/srfsgeo/index.m3u8"],
- ["Das Erste","https://daserste-live.ard-mcdn.de/daserste/live/hls/int/master.m3u8"],
- ["tagesschau24","https://tagesschau.akamaized.net/hls/live/2020115/tagesschau/tagesschau_1/master.m3u8"]
+ ["TeleZüri","https://cdnapisec.kaltura.com/p/1719221/sp/171922100/playManifest/entryId/1_se36k3uk/format/applehttp/protocol/https/a.m3u8"],
+ ["Tele M1","https://cdnapisec.kaltura.com/p/1719221/sp/171922100/playManifest/entryId/1_ljzy3evp/format/applehttp/protocol/https/a.m3u8"],
+ ["TeleTicino","https://vstream-cdn.ch/hls/teleticino.m3u8"],
+ ["RTS Info","https://rtsinfo-d.akamaized.net/out/v1/2b7ae2e1ba3f43c6aba15bced153baf5/index.m3u8"],
+ ["Couleur 3","https://visualradio-rts-couleur3-d.akamaized.net/out/v1/6a1472634ad745f59a9e63ee8adbbc00/index.m3u8"],
+ ["Léman Bleu","https://livevideo.infomaniak.com/streaming/livecast/naxoo/playlist.m3u8"],
+ ["Canal 9","https://livehd.vedge.infomaniak.com/livecast/livehd/master.m3u8"],
+ ["Canal Alpha JU","https://canalalphaju.vedge.infomaniak.com/livecast/ik:canalalphaju/playlist.m3u8"],
+ ["TVM3","https://livevideo.infomaniak.com/streaming/livecast/tvm3/playlist.m3u8"],
+ ["Meteonews","https://streaming.meteonews.net/hls/stream.m3u8"],
+ ["Radio 3i","https://vstream-cdn.ch/hls/radio3i.m3u8"]
 ];
 const t = document.getElementById('t'); window.RESULTS = {};
 function test([name,url]) {
