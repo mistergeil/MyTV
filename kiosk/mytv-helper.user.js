@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.1.0
+// @version      1.2.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -38,6 +38,7 @@
     iframe { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
              border:0 !important; z-index:1 !important; }
     .jwplayer { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important; }
+    #mytv-overlay { z-index:2147483646 !important; background:transparent !important; color-scheme:normal !important; }
   `;
   function addStyle() {
     const s = document.createElement('style');
@@ -49,11 +50,24 @@
   // ---- Navigation back into MyTV (always replace → no history pile-up) ----
   function go(q) { window.top.location.replace(MYTV + '?kiosk=1&' + q); }
 
+  // ---- MyTV overlay: the real MyTV interface (remote bar, list, guide, volume, info)
+  //      loaded transparently on top of the player. Keys are forwarded to it. ----
+  const OV_ORIGIN = new URL(MYTV).origin;
+  function overlayWin() {
+    try { const f = window.top.__mytvOv; return window.top.__mytvOvReady && f && f.contentWindow; } catch (e) { return null; }
+  }
+
   // ---- Remote / keyboard ----
   let digits = '', digitTimer = null;
   function onKey(e) {
     const k = e.key;
     let handled = true;
+    const ov = overlayWin();
+    if (ov && !e.ctrlKey && !e.altKey && !e.metaKey && !k.startsWith('Audio')) {
+      ov.postMessage({ mytv: 1, type: 'key', key: k }, OV_ORIGIN);
+      e.preventDefault(); e.stopImmediatePropagation();
+      return;
+    }
     if (/^[0-9]$/.test(k)) {
       digits = (digits + k).slice(-3);
       osd(digits, '');
@@ -120,8 +134,35 @@
 
   // ---- Autoplay with sound (top frame drives it) ----
   if (isTop) {
-    const showFirst = () => osd(CH, NAME);
-    if (document.body) showFirst(); else document.addEventListener('DOMContentLoaded', showFirst);
+    let wantSound = null;                       // {muted, volume 0..1} from MyTV
+    const applySound = p => { if (!wantSound) return; try { p.setMute(!!wantSound.muted); p.setVolume(Math.round(wantSound.volume * 100)); } catch (e) {} };
+
+    function mountOverlay() {
+      if (window.__mytvOv) return;
+      const f = document.createElement('iframe');
+      f.id = 'mytv-overlay';
+      f.src = MYTV + '?overlay=1&ch=' + CH;
+      f.setAttribute('allowtransparency', 'true');
+      f.allow = 'fullscreen';
+      document.body.appendChild(f);
+      window.__mytvOv = f;
+      // fallback: if the overlay doesn't come up, show the simple badge
+      setTimeout(() => { if (!window.__mytvOvReady) osd(CH, NAME); }, 4000);
+    }
+    if (document.body) mountOverlay(); else document.addEventListener('DOMContentLoaded', mountOverlay);
+
+    window.addEventListener('message', ev => {
+      if (ev.origin !== OV_ORIGIN) return;
+      const d = ev.data;
+      if (!d || d.mytv !== 1) return;
+      if (d.type === 'ready') window.__mytvOvReady = true;
+      else if (d.type === 'tune') go('ch=' + d.number + '&from=' + CH);
+      else if (d.type === 'back') go('back=1&from=' + CH);
+      else if (d.type === 'sound') { wantSound = { muted: d.muted, volume: d.volume }; withPlayer(applySound); }
+      else if (d.type === 'fullscreen') {
+        if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {});
+      }
+    });
 
     let tries = 0, started = false;
     const timer = setInterval(() => {
@@ -130,7 +171,11 @@
       if (p && typeof p.getState === 'function') {
         const st = p.getState();
         if (st === 'playing' || st === 'buffering') {
-          if (!started) { started = true; try { p.setMute(false); if (p.getVolume() < 10) p.setVolume(100); } catch (e) {} }
+          if (!started) {
+            started = true;
+            if (wantSound) applySound(p);
+            else { try { p.setMute(false); if (p.getVolume() < 10) p.setVolume(100); } catch (e) {} }
+          }
         } else if (st === 'error') {
           clearInterval(timer);
           osd(CH, NAME + ' — kein Signal (↑/↓ zum Weiterschalten)', true);

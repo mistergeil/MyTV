@@ -46,6 +46,10 @@
   .geo-badge { padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,.08); font-weight: 600; }
   #list .tag { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
 
+  /* ---------- Overlay mode (MyTV UI on top of an external player page) ---------- */
+  html.overlay, html.overlay body { background: transparent !important; }
+  html.overlay #screen, html.overlay #soundHint { display: none !important; }
+
   /* ---------- Now / next in OSD ---------- */
   #osd { max-width: min(560px, calc(100vw - 48px)); }
   #osdNow { margin-top: 6px; font-size: 14px; color: var(--muted); display: none; }
@@ -254,7 +258,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=6"></script>
+<script src="channels.js?v=7"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -268,6 +272,12 @@
   };
   // Kiosk mode (dedicated TV notebook): external channels open in place, automatically.
   const params = new URLSearchParams(location.search);
+  // Overlay mode: loaded by the MyTV Helper as a transparent layer over an external channel.
+  // No video here — channel switches / volume are sent to the helper via postMessage.
+  const overlay = params.get('overlay') === '1' && window.parent !== window;
+  const toHost = msg => { if (overlay) window.parent.postMessage(Object.assign({ mytv: 1 }, msg), '*'); };
+  if (overlay) document.documentElement.classList.add('overlay');
+  let overlayReady = false;
   if (params.has('kiosk')) store.set('mytv.kiosk', params.get('kiosk') === '1' ? '1' : '0');
   const kiosk = store.get('mytv.kiosk') === '1';
   let extTimer = null;
@@ -292,6 +302,11 @@
   // ---------- tuning ----------
   function tune(i, { remember = true } = {}) {
     if (!channels.length) return;
+    if (overlay) {
+      i = (i + channels.length) % channels.length;
+      if (overlayReady) { if (i !== index) toHost({ type: 'tune', number: channels[i].number }); return; }
+      index = i; renderList(); showOsd(); return;
+    }
     i = (i + channels.length) % channels.length;
     if (remember && i !== index) prevIndex = index;
     index = i;
@@ -404,6 +419,7 @@
 
   // ---------- sound ----------
   function applySound() {
+    toHost({ type: 'sound', muted, volume });
     if (frame && frame.tagName === 'VIDEO') { frame.muted = muted; frame.volume = volume; if (!muted) frame.play().catch(() => {}); }
     $('soundHint').classList.remove('show');
     store.set('mytv.muted', muted ? '1' : '0'); store.set('mytv.volume', String(volume));
@@ -619,6 +635,7 @@
 
   // ---------- fullscreen ----------
   function toggleFull() {
+    if (overlay) return toHost({ type: 'fullscreen' });
     if (document.fullscreenElement) document.exitFullscreen();
     else document.documentElement.requestFullscreen?.().catch(() => {});
   }
@@ -636,7 +653,8 @@
   $('btnHelp').onclick = () => $('help').classList.toggle('open');
   $('help').onclick = e => { if (e.target.id === 'help') $('help').classList.remove('open'); };
 
-  document.addEventListener('keydown', e => {
+  document.addEventListener('keydown', handleKey);
+  function handleKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const listOpen = $('list').classList.contains('open');
     if ($('guide').classList.contains('open')) {
@@ -667,16 +685,19 @@
       case 'i': case 'I': showOsd(); break;
       case 'f': case 'F': toggleFull(); break;
       case '?': $('help').classList.toggle('open'); break;
-      case 'Backspace': case 'BrowserBack': e.preventDefault(); tune(prevIndex); break;
+      case 'Backspace': case 'BrowserBack':
+        e.preventDefault();
+        if (overlay) toHost({ type: 'back' }); else tune(prevIndex);
+        break;
       case 'Enter': {
         const ch = channels[index];
-        if (!listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
+        if (!overlay && !listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
         break;
       }
       case 'Escape': toggleList(false); $('help').classList.remove('open'); break;
     }
     wake();
-  });
+  }
 
   // auto-hide remote + cursor
   function wake() {
@@ -694,6 +715,24 @@
 
   // ---------- start ----------
   const byNum = n => channels.findIndex(c => c.number === n);
+  if (overlay) {
+    // keys pressed while the external player has focus are forwarded by the helper
+    window.addEventListener('message', ev => {
+      const d = ev.data;
+      if (!d || d.mytv !== 1 || ev.source !== window.parent) return;
+      if (d.type === 'key') handleKey({ key: d.key, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
+      if (d.type === 'osd') showOsd();
+    });
+    const i0 = Math.max(0, byNum(parseInt(params.get('ch'), 10)));
+    renderList();
+    tune(i0);
+    overlayReady = true;
+    toHost({ type: 'ready' });
+    toHost({ type: 'sound', muted, volume });
+    if (params.get('guide') === '1') openGuide();
+    wake();
+    return;
+  }
   const saved = parseInt(store.get('mytv.channel'), 10);
   let start = Math.max(0, byNum(saved)), prev = start;
   // Coming back from the helper script on an external channel:
