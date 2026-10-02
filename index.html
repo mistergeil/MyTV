@@ -254,7 +254,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=5"></script>
+<script src="channels.js?v=6"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -425,6 +425,16 @@
   const hm = d => d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
   const berlinDay = off => new Date(Date.now() + off * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
   async function loadEpg() {
+    // 1) ZDF + private channels: epg.json in this repo (built by a GitHub Action from a public XMLTV guide)
+    if (channels.some(c => c.xmltv)) {
+      try {
+        const j = await (await fetch('epg.json?t=' + Math.floor(Date.now() / 6e5))).json();
+        for (const [id, list] of Object.entries(j.channels || {})) {
+          EPG['x:' + id] = list.map((p, n) => ({ id: id + n, start: new Date(p.s * 1000), end: new Date(p.e * 1000), title: p.t, sub: p.st || '', text: p.d || '' }));
+        }
+      } catch (e) { /* no guide file yet */ }
+    }
+    // 2) ARD family: official ARD program API
     if (!channels.some(c => c.epg)) return;
     const res = await Promise.allSettled([-1, 0, 1].map(o =>
       fetch('https://programm-api.ard.de/program/api/program?day=' + berlinDay(o)).then(r => r.json())));
@@ -447,7 +457,7 @@
     if ($('osd').classList.contains('show')) showOsd();
     if ($('guide').classList.contains('open')) renderGuide();
   }
-  function progsOf(ch) { return (ch && ch.epg && EPG[ch.epg]) || []; }
+  function progsOf(ch) { return (ch && ((ch.epg && EPG[ch.epg]) || (ch.xmltv && EPG['x:' + ch.xmltv]))) || []; }
   function nowNext(ch, t = new Date()) {
     const ps = progsOf(ch);
     const i = ps.findIndex(p => p.start <= t && t < p.end);
@@ -563,7 +573,7 @@
       const ch = channels[G.row];
       $('gWhen').textContent = `${ch.number} ${ch.name}`;
       $('gTitle').textContent = progsOf(ch).length ? 'Keine Sendung in diesem Zeitraum' : 'Keine Programmdaten';
-      $('gSub').textContent = ''; $('gText').textContent = ch.epg ? '' : 'Für diesen Sender gibt es (noch) keine Programmdaten.';
+      $('gSub').textContent = ''; $('gText').textContent = (ch.epg || ch.xmltv) ? '' : 'Für diesen Sender gibt es (noch) keine Programmdaten.';
     }
   }
   function guideMove(dRow, dProg) {

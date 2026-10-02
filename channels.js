@@ -6,17 +6,18 @@
 //           (omitted)  → iframe embed
 //   geo:    true       → official stream only available in Germany (works with a German VPN)
 //   epg:    channel id in the ARD program API (programm-api.ard.de) → program guide
+//   xmltv:  channel id in epg.json (built every 6 h by .github/workflows/epg.yml from epgshare01)
 //   mode:   "external" → provider blocks embedding; opens its player in a new tab
 // Tested from Canada on 2026-10-02.
 window.CHANNELS = [
   { number: 1,  name: "Das Erste",    short: "ARD",   type: "hls", epg: "daserste", url: "https://daserste-live.ard-mcdn.de/daserste/live/hls/int/master.m3u8" },
-  { number: 2,  name: "ZDF",          short: "ZDF",   type: "hls", geo: true, url: "https://zdf-hls-15.akamaized.net/hls/live/2016498/de/high/master.m3u8" },
+  { number: 2,  name: "ZDF",          short: "ZDF",   type: "hls", geo: true, xmltv: "ZDF.de", url: "https://zdf-hls-15.akamaized.net/hls/live/2016498/de/high/master.m3u8" },
   { number: 3,  name: "tagesschau24", short: "TS24",  type: "hls", epg: "tagesschau24", url: "https://tagesschau.akamaized.net/hls/live/2020115/tagesschau/tagesschau_1/master.m3u8" },
   { number: 4,  name: "phoenix",      short: "phx",   type: "hls", geo: true, epg: "phoenix", url: "https://zdf-hls-19.akamaized.net/hls/live/2016502/de/high/master.m3u8" },
   { number: 5,  name: "3sat",         short: "3sat",  type: "hls", geo: true, epg: "3sat", url: "https://zdf-hls-18.akamaized.net/hls/live/2016501/dach/high/master.m3u8" },
   { number: 6,  name: "arte",         short: "arte",  type: "hls", geo: true, epg: "arte", url: "https://artesimulcast.akamaized.net/hls/live/2030993/artelive_de/index.m3u8" },
-  { number: 7,  name: "ZDFneo",       short: "neo",   type: "hls", geo: true, url: "https://zdf-hls-16.akamaized.net/hls/live/2016499/de/high/master.m3u8" },
-  { number: 8,  name: "ZDFinfo",      short: "info",  type: "hls", geo: true, url: "https://zdf-hls-17.akamaized.net/hls/live/2016500/de/high/master.m3u8" },
+  { number: 7,  name: "ZDFneo",       short: "neo",   type: "hls", geo: true, xmltv: "ZDFneo.de", url: "https://zdf-hls-16.akamaized.net/hls/live/2016499/de/high/master.m3u8" },
+  { number: 8,  name: "ZDFinfo",      short: "info",  type: "hls", geo: true, xmltv: "ZDFinfo.de", url: "https://zdf-hls-17.akamaized.net/hls/live/2016500/de/high/master.m3u8" },
   { number: 9,  name: "ONE",          short: "ONE",   type: "hls", geo: true, epg: "one", url: "https://mcdn-one.ard.de/ardone/hls/master.m3u8" },
   { number: 10, name: "ARD alpha",    short: "alpha", type: "hls", epg: "alpha", url: "https://mcdn.br.de/br/fs/ard_alpha/hls/de/master.m3u8" },
   { number: 11, name: "KiKA",         short: "KiKA",  type: "hls", epg: "kika", url: "https://kikageohls.akamaized.net/hls/live/2022693/livetvkika_de/master.m3u8" },
@@ -29,10 +30,10 @@ window.CHANNELS = [
   { number: 18, name: "SWR",          short: "SWR",   type: "hls", geo: true, epg: "swr", url: "https://swrbwd-hls.akamaized.net/hls/live/2018672/swrbwd/master.m3u8" },
   { number: 19, name: "rbb",          short: "rbb",   type: "hls", geo: true, epg: "rbb", url: "https://rbb-hls-berlin.akamaized.net/hls/live/2017824/rbb_berlin/master.m3u8" },
   // Private channels: no embeddable stream → open provider player in a new tab
-  { number: 20, name: "RTL",          short: "RTL",   mode: "external", url: "https://www.livehdtv.net/embed/rtl-germany/" },
-  { number: 21, name: "SAT.1",        short: "SAT.1", mode: "external", url: "https://www.livehdtv.net/embed/sat-1-germany/" },
-  { number: 22, name: "ProSieben",    short: "PRO7",  mode: "external", url: "https://www.livehdtv.net/embed/pro7/" },
-  { number: 23, name: "VOX",          short: "VOX",   mode: "external", url: "https://www.livehdtv.net/embed/vox/" },
-  { number: 24, name: "kabel eins",   short: "kab1",  mode: "external", url: "https://www.livehdtv.net/embed/kabel-1/" },
-  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", url: "https://www.livehdtv.net/embed/rtl2/" }
+  { number: 20, name: "RTL",          short: "RTL",   mode: "external", xmltv: "RTL.de", url: "https://www.livehdtv.net/embed/rtl-germany/" },
+  { number: 21, name: "SAT.1",        short: "SAT.1", mode: "external", xmltv: "SAT.1.de", url: "https://www.livehdtv.net/embed/sat-1-germany/" },
+  { number: 22, name: "ProSieben",    short: "PRO7",  mode: "external", xmltv: "ProSieben.de", url: "https://www.livehdtv.net/embed/pro7/" },
+  { number: 23, name: "VOX",          short: "VOX",   mode: "external", xmltv: "VOX.de", url: "https://www.livehdtv.net/embed/vox/" },
+  { number: 24, name: "kabel eins",   short: "kab1",  mode: "external", xmltv: "kabel.eins.de", url: "https://www.livehdtv.net/embed/kabel-1/" },
+  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", xmltv: "RTLZWEI.de", url: "https://www.livehdtv.net/embed/rtl2/" }
 ];
