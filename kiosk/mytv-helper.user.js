@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.4
+// @version      1.5.5
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -177,7 +177,7 @@
   function videoAdapter(v) {
     return {
       getState() { if (v.error) return 'error'; if (!v.paused && !v.ended) return v.readyState > 2 ? 'playing' : 'buffering'; return 'paused'; },
-      play() { v.play().catch(() => {}); },
+      play() { if (v.currentSrc) v.play().catch(() => {}); },
       setMute(b) { v.muted = !!b; }, getMute() { return v.muted; },
       setVolume(x) { v.volume = Math.max(0, Math.min(1, x / 100)); }, getVolume() { return Math.round(v.volume * 100); },
     };
@@ -215,7 +215,7 @@
       b.click();
       ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(t => b.dispatchEvent(new MouseEvent(t, { bubbles: true })));
     }
-    if (v) v.play().catch(() => {});
+    if (v && v.currentSrc && !IS_ORF) v.play().catch(() => {});
     return !!b;
   }
   function findPlayer(w) {
@@ -342,7 +342,15 @@
         L('video #' + document.querySelectorAll('video').length + ' found, muted=' + v.muted);
         ['play', 'playing', 'waiting', 'stalled', 'emptied', 'abort', 'ended'].forEach(ev => v.addEventListener(ev, () => L(ev)));
         v.addEventListener('volumechange', () => L('volumechange → ' + (v.muted ? 'muted' : Math.round(v.volume * 100))));
-        v.addEventListener('error', () => { L('ERROR code ' + (v.error && v.error.code)); showLog('Player-Fehler'); });
+        v.addEventListener('error', () => {
+          const c = v.error && v.error.code;
+          L('ERROR code ' + c + (c === 4 ? ' (Quelle nicht abspielbar' + (v.currentSrc ? '' : ', noch keine Quelle') + ')' : '') + (v.error && v.error.message ? ' – ' + v.error.message : ''));
+          if (navigator.requestMediaKeySystemAccess) {
+            navigator.requestMediaKeySystemAccess('com.widevine.alpha', [{ initDataTypes: ['cenc'], videoCapabilities: [{ contentType: 'video/mp4; codecs="avc1.42E01E"' }] }])
+              .then(() => { L('Widevine DRM: OK'); showLog('Player-Fehler'); })
+              .catch(e => { L('Widevine DRM: NICHT verfügbar (' + e.name + ')'); showLog('Player-Fehler'); });
+          } else showLog('Player-Fehler');
+        });
         v.addEventListener('playing', () => { if (!started) { started = true; setTimeout(() => unmuteOnce(v), 300); } });
         v.addEventListener('pause', () => {
           L('pause at ' + v.currentTime.toFixed(1) + 's, muted=' + v.muted);
