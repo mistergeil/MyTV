@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyTV Setup</title>
+<style>
+  :root { --bg:#0b0d11; --card:#151922; --line:rgba(255,255,255,.1); --text:#eef0f3; --muted:#9aa0a6; --accent:#ffcc33; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.55 -apple-system,"Segoe UI",Roboto,sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 80px; }
+  h1 { font-size: 30px; margin: 0 0 6px; }
+  .sub { color: var(--muted); margin: 0 0 32px; }
+  ol { list-style: none; counter-reset: s; padding: 0; margin: 0; display: grid; gap: 14px; }
+  li { counter-increment: s; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px 18px 64px; position: relative; }
+  li::before { content: counter(s); position: absolute; left: 18px; top: 16px; width: 32px; height: 32px; border-radius: 50%;
+               background: var(--accent); color: #111; font-weight: 800; display: grid; place-items: center; }
+  li h2 { font-size: 17px; margin: 2px 0 6px; }
+  li p, li ul { margin: 6px 0 0; color: var(--muted); }
+  li ul { padding-left: 18px; }
+  code { background: rgba(255,255,255,.08); padding: 1px 6px; border-radius: 5px; font-size: 14px; color: var(--text); }
+  .btn { display: inline-block; margin-top: 10px; padding: 10px 18px; border-radius: 999px; background: var(--accent); color: #111;
+         font-weight: 700; text-decoration: none; }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); margin-left: 6px; }
+  .keys { margin-top: 36px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .keys h2 { font-size: 17px; margin: 0 0 10px; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0; }
+  dt { color: var(--accent); font-weight: 700; }
+  dd { margin: 0; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <h1>MyTV on the TV notebook</h1>
+  <p class="sub">One-time setup on Windows 11, about 10 minutes. Afterwards the notebook boots straight into MyTV and you zap through all channels with the arrow keys.</p>
+
+  <ol>
+    <li>
+      <h2>Install Google Chrome</h2>
+      <p>If it's not already on the notebook.</p>
+      <a class="btn" href="https://www.google.com/chrome/">Get Chrome</a>
+    </li>
+    <li>
+      <h2>Download the MyTV scripts</h2>
+      <p>Unzip to a fixed place, e.g. <code>C:\MyTV</code>. Windows may warn about unknown .bat files: <em>More info → Run anyway</em>.</p>
+      <a class="btn" href="MyTV-Windows.zip" download>Download MyTV-Windows.zip</a>
+    </li>
+    <li>
+      <h2>Run <code>MyTV-Setup.bat</code></h2>
+      <p>Opens a separate “MyTV” Chrome profile with two tabs: Tampermonkey and this page.</p>
+      <ul>
+        <li>In the Tampermonkey tab click <b>Add to Chrome</b>.</li>
+        <li>Open <code>chrome://extensions</code> → Tampermonkey → <b>Details</b> → turn on <b>Allow User Scripts</b> (on older Chrome: turn on <b>Developer mode</b> top right instead).</li>
+      </ul>
+    </li>
+    <li>
+      <h2>Install the MyTV Helper script</h2>
+      <p>Still in that MyTV Chrome window, click the button — Tampermonkey opens, then click <b>Install</b>. Updates install themselves.</p>
+      <a class="btn" href="mytv-helper.user.js">Install MyTV Helper</a>
+    </li>
+    <li>
+      <h2>Close Chrome, then run <code>MyTV-Kiosk.bat</code></h2>
+      <p>MyTV starts full screen with sound. Test a private channel (20 RTL – 25 RTLZWEI): it should load and play on its own. Exit kiosk with <code>Alt+F4</code>.</p>
+    </li>
+    <li>
+      <h2>Optional: start automatically</h2>
+      <p>Run <code>Autostart-Install.bat</code> — MyTV starts after Windows login and the notebook won't sleep while plugged in. For a true TV box also turn on automatic sign-in for Windows. Undo with <code>Autostart-Remove.bat</code>.</p>
+    </li>
+  </ol>
+
+  <section class="keys">
+    <h2>Remote / keyboard</h2>
+    <dl>
+      <dt>↑ / ↓</dt><dd>Channel up / down (works on every channel)</dd>
+      <dt>0–9</dt><dd>Type a channel number</dd>
+      <dt>Back / Backspace</dt><dd>Previous channel</dd>
+      <dt>L</dt><dd>Channel list</dd>
+      <dt>I</dt><dd>Show channel info</dd>
+      <dt>+ / − · M</dt><dd>Volume · mute</dd>
+      <dt>Alt+F4</dt><dd>Quit MyTV</dd>
+    </dl>
+    <p style="color:var(--muted);margin:12px 0 0">Tip: a cheap air-mouse remote with arrow, OK and Back keys works perfectly.</p>
+  </section>
+</main>
+</body>
+</html>

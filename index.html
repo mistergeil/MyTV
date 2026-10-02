@@ -202,6 +202,11 @@
     get(k) { try { return localStorage.getItem(k); } catch { return null; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch {} }
   };
+  // Kiosk mode (dedicated TV notebook): external channels open in place, automatically.
+  const params = new URLSearchParams(location.search);
+  if (params.has('kiosk')) store.set('mytv.kiosk', params.get('kiosk') === '1' ? '1' : '0');
+  const kiosk = store.get('mytv.kiosk') === '1';
+  let extTimer = null;
   let muted = store.get('mytv.muted') === '1';
   let volume = parseFloat(store.get('mytv.volume')); if (isNaN(volume)) volume = 1;
 
@@ -228,6 +233,8 @@
     index = i;
     const ch = channels[i];
 
+    clearTimeout(extTimer);
+    if (ch.mode !== 'external') store.set('mytv.lastInternal', ch.number);
     staticOn();
     if (hls) { hls.destroy(); hls = null; }
     if (frame) { if (frame.tagName === 'VIDEO') { frame.pause(); frame.removeAttribute('src'); frame.load(); } frame.remove(); }
@@ -273,12 +280,16 @@
       // Provider doesn't allow third-party embedding → show a launch card instead.
       frame = document.createElement('div');
       frame.className = 'launch';
-      frame.innerHTML = `
+      frame.innerHTML = kiosk ? `
+        <div class="launch-num">${ch.number}</div>
+        <div class="launch-name">${ch.name}</div>
+        <div class="launch-hint">Sender wird geladen …</div>` : `
         <div class="launch-num">${ch.number}</div>
         <div class="launch-name">${ch.name}</div>
         <button class="launch-btn" type="button">▶&nbsp; Ansehen</button>
         <div class="launch-hint">Öffnet den Player in einem eigenen Fenster · Enter / OK</div>`;
-      frame.querySelector('.launch-btn').onclick = () => openExternal(ch);
+      if (kiosk) extTimer = setTimeout(() => { if (channels[index] === ch) openExternal(ch); }, 1300);
+      else frame.querySelector('.launch-btn').onclick = () => openExternal(ch);
       screen.insertBefore(frame, staticCv);
       setTimeout(staticOff, 350);
       store.set('mytv.channel', ch.number);
@@ -305,6 +316,10 @@
   }
   // One reusable player window: switching channels re-uses it instead of piling up tabs.
   function openExternal(ch) {
+    if (kiosk) {
+      location.replace(ch.url + '#mytv=' + ch.number + '&n=' + encodeURIComponent(ch.name));
+      return;
+    }
     const w = window.open(ch.url, 'mytv-player');
     if (w) w.focus();
   }
@@ -420,7 +435,7 @@
       case 'i': case 'I': showOsd(); break;
       case 'f': case 'F': toggleFull(); break;
       case '?': $('help').classList.toggle('open'); break;
-      case 'Backspace': e.preventDefault(); tune(prevIndex); break;
+      case 'Backspace': case 'BrowserBack': e.preventDefault(); tune(prevIndex); break;
       case 'Enter': {
         const ch = channels[index];
         if (!listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
@@ -442,11 +457,28 @@
   ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
 
   // ---------- start ----------
+  const byNum = n => channels.findIndex(c => c.number === n);
   const saved = parseInt(store.get('mytv.channel'), 10);
-  const start = Math.max(0, channels.findIndex(c => c.number === saved));
+  let start = Math.max(0, byNum(saved)), prev = start;
+  // Coming back from the helper script on an external channel:
+  //   ?ch=N            → jump to channel N
+  //   ?from=N&step=±1  → zap up/down from external channel N
+  //   ?back=1          → return to the last non-external channel
+  const pCh = parseInt(params.get('ch'), 10), pFrom = parseInt(params.get('from'), 10), pStep = parseInt(params.get('step'), 10);
+  if (!isNaN(pCh) && byNum(pCh) >= 0) { start = byNum(pCh); prev = Math.max(0, byNum(pFrom)); }
+  else if (!isNaN(pFrom) && byNum(pFrom) >= 0 && !isNaN(pStep)) {
+    prev = byNum(pFrom);
+    start = ((prev + pStep) % channels.length + channels.length) % channels.length;
+  } else if (params.get('back') === '1') {
+    prev = Math.max(0, byNum(pFrom));
+    const li = byNum(parseInt(store.get('mytv.lastInternal'), 10));
+    if (li >= 0) start = li;
+  }
+  if (params.has('ch') || params.has('from') || params.has('back')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
   renderList();
   tune(start, { remember: false });
-  prevIndex = index;
+  prevIndex = prev;
+  if (params.get('list') === '1') toggleList(true);
   wake();
 })();
 </script>
