@@ -26,6 +26,20 @@
   #static { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity .25s; image-rendering: pixelated; }
   #static.on { opacity: 1; }
 
+  /* launch card for channels that can't be embedded */
+  .launch {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: radial-gradient(ellipse at center, #1b1f27 0%, #000 70%); text-align: center; padding: 16px;
+  }
+  .launch-num { font-size: 72px; font-weight: 800; color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+  .launch-name { font-size: 32px; font-weight: 600; }
+  .launch-btn {
+    margin-top: 12px; padding: 16px 36px; border-radius: 999px; background: var(--accent); color: #111; font-size: 20px; font-weight: 700;
+    box-shadow: 0 8px 30px rgba(255, 204, 51, .25); transition: transform .15s;
+  }
+  .launch-btn:hover, .launch-btn:focus-visible { transform: scale(1.05); outline: none; }
+  .launch-hint { color: var(--muted); font-size: 14px; }
+
   /* ---------- On-screen display ---------- */
   #osd {
     position: fixed; top: 24px; left: 24px; display: flex; align-items: center; gap: 16px;
@@ -193,6 +207,25 @@
 
     staticOn();
     if (frame) frame.remove();
+
+    if (ch.mode === 'external') {
+      // Provider doesn't allow third-party embedding → show a launch card instead.
+      frame = document.createElement('div');
+      frame.className = 'launch';
+      frame.innerHTML = `
+        <div class="launch-num">${ch.number}</div>
+        <div class="launch-name">${ch.name}</div>
+        <button class="launch-btn" type="button">▶&nbsp; Ansehen</button>
+        <div class="launch-hint">Öffnet den Player in einem eigenen Fenster · Enter / OK</div>`;
+      frame.querySelector('.launch-btn').onclick = () => openExternal(ch);
+      screen.insertBefore(frame, staticCv);
+      setTimeout(staticOff, 350);
+      store.set('mytv.channel', ch.number);
+      document.title = `${ch.number} · ${ch.name} — MyTV`;
+      renderList(); showOsd();
+      return;
+    }
+
     frame = document.createElement('iframe');
     frame.src = ch.url;
     frame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
@@ -208,6 +241,11 @@
     document.title = `${ch.number} · ${ch.name} — MyTV`;
     renderList();
     showOsd();
+  }
+  // One reusable player window: switching channels re-uses it instead of piling up tabs.
+  function openExternal(ch) {
+    const w = window.open(ch.url, 'mytv-player');
+    if (w) w.focus();
   }
   const tuneNumber = n => { const i = channels.findIndex(c => c.number === n); if (i >= 0) tune(i); };
 
@@ -286,6 +324,11 @@
       case 'f': case 'F': toggleFull(); break;
       case '?': $('help').classList.toggle('open'); break;
       case 'Backspace': e.preventDefault(); tune(prevIndex); break;
+      case 'Enter': {
+        const ch = channels[index];
+        if (!listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
+        break;
+      }
       case 'Escape': toggleList(false); $('help').classList.remove('open'); break;
     }
     wake();
