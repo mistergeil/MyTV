@@ -244,6 +244,7 @@
       <dt>↓ / PgDn</dt><dd>Vorheriger Sender</dd>
       <dt>0–9</dt><dd>Sendernummer eingeben</dd>
       <dt>G</dt><dd>Programmführer</dd>
+      <dt>V</dt><dd>VPN umschalten (aus / DE / CH)</dd>
       <dt>L</dt><dd>Senderliste</dd>
       <dt>M</dt><dd>Ton an/aus</dd>
       <dt>+ / −</dt><dd>Lautstärke</dd>
@@ -299,8 +300,46 @@
   function staticOn() { staticCv.classList.add('on'); if (!noiseRaf) noise(); }
   function staticOff() { staticCv.classList.remove('on'); setTimeout(() => { cancelAnimationFrame(noiseRaf); noiseRaf = null; }, 300); }
 
+  // ---------- VPN auto-switch (only on the TV notebook: MyTV VPN Bridge + switcher installed) ----------
+  const VPN = { get bridge() { return document.documentElement.dataset.mytvVpnBridge === '1'; }, country: null, seq: 0, pending: new Map() };
+  const VPN_NAME = { DE: 'Deutschland', CH: 'Schweiz', OFF: 'aus' };
+  function vpnCall(type, country) {
+    return new Promise(res => {
+      if (!VPN.bridge) return res({ ok: false, error: 'no bridge' });
+      const id = ++VPN.seq;
+      VPN.pending.set(id, res);
+      window.postMessage({ mytvVpn: 1, type, country, id }, location.origin);
+      setTimeout(() => { if (VPN.pending.has(id)) { VPN.pending.delete(id); res({ ok: false, error: 'timeout' }); } }, type === 'set' ? 35000 : 4000);
+    });
+  }
+  window.addEventListener('message', ev => {
+    const d = ev.data;
+    if (!d || d.mytvVpn !== 1 || d.type !== 'result' || ev.origin !== location.origin) return;
+    if (d.country) VPN.country = d.country;
+    const r = VPN.pending.get(d.id); if (r) { VPN.pending.delete(d.id); r(d); }
+  });
+  const needCountry = ch => ch.geo === 'CH' ? 'CH' : ch.geo ? 'DE' : null;
+  function vpnCard(ch, text) {
+    if (frame) frame.remove();
+    frame = document.createElement('div');
+    frame.className = 'launch';
+    frame.innerHTML = `<div class="launch-num">${ch.number}</div><div class="launch-name">${esc(ch.name)}</div>
+      <div class="geo-badge">${text}</div>`;
+    screen.insertBefore(frame, staticCv);
+    staticOff();
+  }
+  async function vpnManual() {           // V key: OFF → DE → CH → OFF
+    const order = ['OFF', 'DE', 'CH'];
+    const next = order[(order.indexOf(VPN.country || 'OFF') + 1) % 3];
+    flash('🔒 VPN → ' + VPN_NAME[next] + ' …');
+    const r = await vpnCall('set', next);
+    flash(r.ok ? '🔒 VPN: ' + VPN_NAME[r.country] : '⚠️ VPN: ' + (r.error || 'Fehler'));
+    if (r.ok && channels[index].type === 'hls') tune(index, { remember: false });
+  }
+  if (VPN.bridge && !overlay) vpnCall('status');
+
   // ---------- tuning ----------
-  function tune(i, { remember = true } = {}) {
+  function tune(i, { remember = true, vpnDone = false } = {}) {
     if (!channels.length) return;
     if (overlay) {
       i = (i + channels.length) % channels.length;
@@ -318,6 +357,20 @@
     if (hls) { hls.destroy(); hls = null; }
     if (frame) { if (frame.tagName === 'VIDEO') { frame.pause(); frame.removeAttribute('src'); frame.load(); } frame.remove(); }
     $('soundHint').classList.remove('show');
+
+    const need = needCountry(ch);
+    if (ch.type === 'hls' && need && VPN.bridge && !vpnDone && VPN.country !== need) {
+      store.set('mytv.channel', ch.number);
+      document.title = `${ch.number} · ${ch.name} — MyTV`;
+      renderList(); showOsd();
+      vpnCard(ch, `🔒 VPN wird auf ${VPN_NAME[need]} umgestellt …`);
+      vpnCall('set', need).then(r => {
+        if (channels[index] !== ch) return;                 // user zapped on meanwhile
+        if (!r.ok) vpnCard(ch, `⚠️ VPN-Umschaltung fehlgeschlagen: ${esc(r.error || 'unbekannt')}`);
+        setTimeout(() => { if (channels[index] === ch) tune(index, { remember: false, vpnDone: true }); }, r.ok ? 0 : 2500);
+      });
+      return;
+    }
 
     if (ch.type === 'hls') {
       // Official HLS stream → our own <video> player, fully integrated.
@@ -491,7 +544,7 @@
     const ch = channels[index];
     $('osdNum').textContent = ch.number;
     $('osdName').textContent = ch.name;
-    $('osdClock').textContent = clock();
+    $('osdClock').textContent = clock() + (VPN.country && VPN.country !== 'OFF' ? ` · 🔒 VPN ${VPN.country}` : '');
     const { now, next } = nowNext(ch);
     const box = $('osdNow');
     if (now || next) {
@@ -683,6 +736,7 @@
       case 'l': case 'L': toggleList(); break;
       case 'g': case 'G': case 'Guide': openGuide(); break;
       case 'm': case 'M': toggleMute(); break;
+      case 'v': case 'V': if (VPN.bridge) vpnManual(); break;
       case '+': case '=': setVolume(0.1); break;
       case '-': case '_': setVolume(-0.1); break;
       case 'i': case 'I': showOsd(); break;

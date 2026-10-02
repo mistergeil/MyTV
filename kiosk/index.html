@@ -68,6 +68,37 @@
     </li>
   </ol>
 
+  <h1 style="margin-top:44px">Optional: automatic VPN (Proton Plus)</h1>
+  <p class="sub">MyTV switches the VPN to Germany 🇩🇪 or Switzerland 🇨🇭 by itself when you pick a channel that needs it (ZDF, phoenix, RTS Info …). Uses WireGuard instead of the Proton app.</p>
+  <ol>
+    <li>
+      <h2>Install WireGuard for Windows</h2>
+      <a class="btn" href="https://www.wireguard.com/install/">Get WireGuard</a>
+    </li>
+    <li>
+      <h2>Download two Proton WireGuard configs</h2>
+      <ul>
+        <li>Sign in at <a href="https://account.protonvpn.com/downloads" style="color:var(--accent)">account.protonvpn.com/downloads</a> → <b>WireGuard configuration</b>.</li>
+        <li>Platform <b>Windows</b> → pick a server in <b>Germany</b> → <b>Create</b> / download. Rename the file to <code>DE.conf</code>.</li>
+        <li>Same again for a server in <b>Switzerland</b> → rename to <code>CH.conf</code>.</li>
+        <li>Put both files into <code>C:\MyTV\vpn\</code> (the folder from the zip).</li>
+      </ul>
+    </li>
+    <li>
+      <h2>Run <code>vpn\VPN-Install.bat</code></h2>
+      <p>Windows asks for admin rights — that's needed to switch the VPN. It installs a small switcher that starts with Windows (hidden) and only listens on the notebook itself. Remove it any time with <code>VPN-Uninstall.bat</code>.</p>
+    </li>
+    <li>
+      <h2>Install the MyTV VPN Bridge script</h2>
+      <p>In the MyTV Chrome profile (<code>MyTV-Setup.bat</code>) click the button, then <b>Install</b> in Tampermonkey. On first use Tampermonkey may ask to allow access to <code>127.0.0.1</code> → <b>Always allow</b>.</p>
+      <a class="btn" href="mytv-vpn-bridge.user.js">Install MyTV VPN Bridge</a>
+    </li>
+    <li>
+      <h2>Quit the Proton VPN app</h2>
+      <p>Don't run the Proton app at the same time — two VPNs conflict. Start MyTV and pick ZDF (2): you'll see “VPN wird auf Deutschland umgestellt …”, then it plays.</p>
+    </li>
+  </ol>
+
   <section class="keys">
     <h2>Remote / keyboard</h2>
     <dl>
@@ -75,6 +106,7 @@
       <dt>0–9</dt><dd>Type a channel number</dd>
       <dt>Back / Backspace</dt><dd>Previous channel</dd>
       <dt>G</dt><dd>Program guide</dd>
+      <dt>V</dt><dd>VPN: off → Germany → Switzerland</dd>
       <dt>L</dt><dd>Channel list</dd>
       <dt>I</dt><dd>Show channel info</dd>
       <dt>+ / − · M</dt><dd>Volume · mute</dd>
