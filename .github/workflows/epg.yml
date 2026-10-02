@@ -33,6 +33,6 @@ jobs:
           git config user.email "mytv-bot@users.noreply.github.com"
           git add epg.json
           if git diff --cached --quiet; then echo "no changes"; exit 0; fi
-          git commit -m "Update program guide [skip ci]"
+          git commit -m "Update program guide"
           git pull --rebase
           git push
