@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyTV</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='6' width='26' height='18' rx='3' fill='%23111' stroke='%23e8e8e8' stroke-width='2'/><path d='M11 28h10' stroke='%23e8e8e8' stroke-width='2'/></svg>">
+<style>
+  :root {
+    --bg: #000;
+    --panel: rgba(12, 14, 18, 0.88);
+    --line: rgba(255, 255, 255, 0.10);
+    --text: #f2f2f2;
+    --muted: #9aa0a6;
+    --accent: #ffcc33;
+    --radius: 14px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: var(--font); overflow: hidden; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+
+  /* ---------- Screen ---------- */
+  #screen { position: fixed; inset: 0; background: #000; }
+  #screen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+  #static { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity .25s; image-rendering: pixelated; }
+  #static.on { opacity: 1; }
+
+  /* ---------- On-screen display ---------- */
+  #osd {
+    position: fixed; top: 24px; left: 24px; display: flex; align-items: center; gap: 16px;
+    padding: 14px 22px 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    backdrop-filter: blur(8px); opacity: 0; transform: translateY(-8px); transition: opacity .3s, transform .3s; pointer-events: none;
+  }
+  #osd.show { opacity: 1; transform: none; }
+  #osd .num { font-size: 44px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; min-width: 2ch; text-align: center; line-height: 1; }
+  #osd .meta { display: flex; flex-direction: column; gap: 4px; }
+  #osd .name { font-size: 22px; font-weight: 600; }
+  #osd .clock { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #osd img { height: 40px; max-width: 120px; object-fit: contain; }
+
+  /* number entry */
+  #entry {
+    position: fixed; top: 24px; right: 24px; font-size: 56px; font-weight: 700; color: var(--accent);
+    font-variant-numeric: tabular-nums; text-shadow: 0 2px 12px rgba(0,0,0,.8); opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #entry.show { opacity: 1; }
+
+  /* ---------- Channel list ---------- */
+  #list {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(340px, 86vw); background: var(--panel); border-left: 1px solid var(--line);
+    backdrop-filter: blur(10px); transform: translateX(100%); transition: transform .3s ease; display: flex; flex-direction: column; z-index: 20;
+  }
+  #list.open { transform: none; }
+  #list header { padding: 20px 20px 12px; font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  #list ul { list-style: none; margin: 0; padding: 0 10px 20px; overflow-y: auto; }
+  #list li button { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 10px; text-align: left; }
+  #list li button:hover, #list li button:focus-visible { background: rgba(255,255,255,.07); outline: none; }
+  #list li.active button { background: rgba(255, 204, 51, .14); }
+  #list .n { width: 3ch; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  #list li.active .n { color: var(--accent); }
+  #list .logo { width: 44px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: rgba(255,255,255,.08); font-size: 10px; font-weight: 700; overflow: hidden; }
+  #list .logo img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+  /* ---------- Remote / control bar ---------- */
+  #remote {
+    position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 0); display: flex; gap: 6px; padding: 8px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; backdrop-filter: blur(8px);
+    transition: opacity .3s, transform .3s; z-index: 10;
+  }
+  body.idle #remote { opacity: 0; transform: translate(-50%, 12px); pointer-events: none; }
+  body.idle { cursor: none; }
+  #remote button { min-width: 48px; height: 44px; padding: 0 14px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; }
+  #remote button:hover, #remote button:focus-visible { background: rgba(255,255,255,.1); outline: none; }
+  #remote .sep { width: 1px; background: var(--line); margin: 6px 2px; }
+  #remote svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* help */
+  #help {
+    position: fixed; inset: 0; display: none; place-items: center; background: rgba(0,0,0,.6); z-index: 30;
+  }
+  #help.open { display: grid; }
+  #help .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px 28px; min-width: 280px; max-width: calc(100vw - 32px); }
+  #help h2 { margin: 0 0 14px; font-size: 18px; }
+  #help dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 18px; margin: 0; font-size: 14px; }
+  #help dt { color: var(--accent); font-weight: 700; }
+  #help dd { margin: 0; color: var(--muted); }
+
+  @media (max-width: 600px) {
+    #osd { top: 16px; left: 16px; padding: 10px 16px 10px 12px; }
+    #osd .num { font-size: 32px; }
+    #osd .name { font-size: 17px; }
+    #remote { bottom: 16px; }
+    #remote button { min-width: 40px; padding: 0 10px; }
+    #remote .label { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="screen">
+  <canvas id="static" width="160" height="90"></canvas>
+</div>
+
+<div id="osd" aria-live="polite">
+  <div class="num" id="osdNum">1</div>
+  <img id="osdLogo" alt="" hidden>
+  <div class="meta">
+    <div class="name" id="osdName">—</div>
+    <div class="clock" id="osdClock"></div>
+  </div>
+</div>
+
+<div id="entry"></div>
+
+<aside id="list" aria-label="Senderliste">
+  <header><span>Sender</span><button id="closeList" aria-label="Schliessen">✕</button></header>
+  <ul id="listItems"></ul>
+</aside>
+
+<nav id="remote" aria-label="Fernbedienung">
+  <button id="btnDown" title="Kanal runter (↓)" aria-label="Kanal runter">
+    <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg><span class="label">CH</span>
+  </button>
+  <button id="btnUp" title="Kanal hoch (↑)" aria-label="Kanal hoch">
+    <svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg><span class="label">CH</span>
+  </button>
+  <div class="sep"></div>
+  <button id="btnList" title="Senderliste (L)" aria-label="Senderliste">
+    <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+  </button>
+  <button id="btnInfo" title="Info (I)" aria-label="Info">
+    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+  </button>
+  <button id="btnFull" title="Vollbild (F)" aria-label="Vollbild">
+    <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+  </button>
+  <button id="btnHelp" title="Tastenkürzel (?)" aria-label="Hilfe">?</button>
+</nav>
+
+<div id="help" role="dialog" aria-label="Tastenkürzel">
+  <div class="card">
+    <h2>Fernbedienung</h2>
+    <dl>
+      <dt>↑ / PgUp</dt><dd>Nächster Sender</dd>
+      <dt>↓ / PgDn</dt><dd>Vorheriger Sender</dd>
+      <dt>0–9</dt><dd>Sendernummer eingeben</dd>
+      <dt>L</dt><dd>Senderliste</dd>
+      <dt>I</dt><dd>Info einblenden</dd>
+      <dt>F</dt><dd>Vollbild</dd>
+      <dt>Backspace</dt><dd>Letzter Sender</dd>
+      <dt>Esc</dt><dd>Schliessen</dd>
+    </dl>
+    <p style="color:var(--muted);font-size:12px;margin:16px 0 0">Tipp: Nach einem Klick in den Player hören die Tasten auf zu funktionieren.<br>Einmal auf den Rand oder die Fernbedienung klicken.</p>
+  </div>
+</div>
+
+<script src="channels.js"></script>
+<script>
+(() => {
+  const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
+  const $ = id => document.getElementById(id);
+  const screen = $('screen'), staticCv = $('static');
+  let index = 0, prevIndex = 0, frame = null, osdTimer, entryBuf = '', entryTimer, idleTimer;
+
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+  };
+
+  // ---------- static noise between channels ----------
+  const ctx = staticCv.getContext('2d');
+  let noiseRaf = null;
+  function noise() {
+    const img = ctx.createImageData(staticCv.width, staticCv.height);
+    for (let i = 0; i < img.data.length; i += 4) {
+      const v = Math.random() * 255 | 0;
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    noiseRaf = requestAnimationFrame(noise);
+  }
+  function staticOn() { staticCv.classList.add('on'); if (!noiseRaf) noise(); }
+  function staticOff() { staticCv.classList.remove('on'); setTimeout(() => { cancelAnimationFrame(noiseRaf); noiseRaf = null; }, 300); }
+
+  // ---------- tuning ----------
+  function tune(i, { remember = true } = {}) {
+    if (!channels.length) return;
+    i = (i + channels.length) % channels.length;
+    if (remember && i !== index) prevIndex = index;
+    index = i;
+    const ch = channels[i];
+
+    staticOn();
+    if (frame) frame.remove();
+    frame = document.createElement('iframe');
+    frame.src = ch.url;
+    frame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+    frame.allowFullscreen = true;
+    frame.setAttribute('scrolling', 'no');
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.title = ch.name;
+    frame.addEventListener('load', () => setTimeout(staticOff, 250), { once: true });
+    setTimeout(staticOff, 4000); // fallback
+    screen.insertBefore(frame, staticCv);
+
+    store.set('mytv.channel', ch.number);
+    document.title = `${ch.number} · ${ch.name} — MyTV`;
+    renderList();
+    showOsd();
+  }
+  const tuneNumber = n => { const i = channels.findIndex(c => c.number === n); if (i >= 0) tune(i); };
+
+  // ---------- OSD ----------
+  function clock() { return new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }); }
+  function showOsd() {
+    const ch = channels[index];
+    $('osdNum').textContent = ch.number;
+    $('osdName').textContent = ch.name;
+    $('osdClock').textContent = clock();
+    const logo = $('osdLogo');
+    if (ch.logo) { logo.src = ch.logo; logo.hidden = false; } else logo.hidden = true;
+    $('osd').classList.add('show');
+    clearTimeout(osdTimer);
+    osdTimer = setTimeout(() => $('osd').classList.remove('show'), 4000);
+  }
+
+  // ---------- list ----------
+  function renderList() {
+    $('listItems').innerHTML = channels.map((c, i) => `
+      <li class="${i === index ? 'active' : ''}">
+        <button data-i="${i}">
+          <span class="n">${c.number}</span>
+          <span class="logo">${c.logo ? `<img src="${c.logo}" alt="">` : (c.short || c.name).slice(0, 5)}</span>
+          <span>${c.name}</span>
+        </button>
+      </li>`).join('');
+  }
+  $('listItems').addEventListener('click', e => {
+    const b = e.target.closest('button[data-i]');
+    if (b) { tune(+b.dataset.i); toggleList(false); }
+  });
+  function toggleList(force) {
+    const open = $('list').classList.toggle('open', force);
+    if (open) $('list').querySelector('li.active button')?.focus();
+  }
+
+  // ---------- number entry ----------
+  function digit(d) {
+    entryBuf = (entryBuf + d).slice(-3);
+    $('entry').textContent = entryBuf; $('entry').classList.add('show');
+    clearTimeout(entryTimer);
+    entryTimer = setTimeout(() => {
+      $('entry').classList.remove('show');
+      tuneNumber(parseInt(entryBuf, 10)); entryBuf = '';
+    }, 1200);
+  }
+
+  // ---------- fullscreen ----------
+  function toggleFull() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.().catch(() => {});
+  }
+
+  // ---------- controls ----------
+  $('btnUp').onclick = () => tune(index + 1);
+  $('btnDown').onclick = () => tune(index - 1);
+  $('btnList').onclick = () => toggleList();
+  $('closeList').onclick = () => toggleList(false);
+  $('btnInfo').onclick = showOsd;
+  $('btnFull').onclick = toggleFull;
+  $('btnHelp').onclick = () => $('help').classList.toggle('open');
+  $('help').onclick = e => { if (e.target.id === 'help') $('help').classList.remove('open'); };
+
+  document.addEventListener('keydown', e => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const listOpen = $('list').classList.contains('open');
+    if (/^[0-9]$/.test(e.key)) return digit(e.key);
+    switch (e.key) {
+      case 'ArrowUp': case 'PageUp':
+        if (listOpen) return; e.preventDefault(); tune(index + 1); break;
+      case 'ArrowDown': case 'PageDown':
+        if (listOpen) return; e.preventDefault(); tune(index - 1); break;
+      case 'l': case 'L': toggleList(); break;
+      case 'i': case 'I': showOsd(); break;
+      case 'f': case 'F': toggleFull(); break;
+      case '?': $('help').classList.toggle('open'); break;
+      case 'Backspace': e.preventDefault(); tune(prevIndex); break;
+      case 'Escape': toggleList(false); $('help').classList.remove('open'); break;
+    }
+    wake();
+  });
+
+  // auto-hide remote + cursor
+  function wake() {
+    document.body.classList.remove('idle');
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      if (!$('list').classList.contains('open')) document.body.classList.add('idle');
+    }, 3500);
+  }
+  ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
+
+  // ---------- start ----------
+  const saved = parseInt(store.get('mytv.channel'), 10);
+  const start = Math.max(0, channels.findIndex(c => c.number === saved));
+  renderList();
+  tune(start, { remember: false });
+  prevIndex = index;
+  wake();
+})();
+</script>
+</body>
+</html>
