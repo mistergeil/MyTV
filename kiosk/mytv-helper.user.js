@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.4.0
+// @version      1.4.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -154,16 +154,20 @@
   function videoAdapter(v) {
     return {
       getState() { if (v.error) return 'error'; if (!v.paused && !v.ended) return v.readyState > 2 ? 'playing' : 'buffering'; return 'paused'; },
-      play() { v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }); },
+      play() { v.play().catch(() => {}); },
       setMute(b) { v.muted = !!b; }, getMute() { return v.muted; },
       setVolume(x) { v.volume = Math.max(0, Math.min(1, x / 100)); }, getVolume() { return Math.round(v.volume * 100); },
     };
+  }
+  function pickVideo() {
+    const vs = [...document.querySelectorAll('video')];
+    return vs.find(v => !v.paused) || vs.find(v => v.currentSrc) || vs[0] || null;
   }
   function findPlayer(w) {
     try {
       if (w.jwplayer && w.document.querySelector('.jwplayer')) return w.jwplayer();
       for (let i = 0; i < w.frames.length; i++) { const p = findPlayer(w.frames[i]); if (p) return p; }
-      if (IS_SRG && w === window.top) { const v = w.document.querySelector('video'); if (v) return videoAdapter(v); }
+      if (IS_SRG && w === window.top) { const v = pickVideo(); if (v) return videoAdapter(v); }
     } catch (e) {}
     return null;
   }
@@ -221,6 +225,68 @@
         if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {});
       }
     });
+
+    if (IS_SRG) { srgWatch(); return; }
+
+    // ---- SRG: let the official player start by itself; only help if nothing happens.
+    //      Logs player events; shows the log on screen if the stream stops. ----
+    function srgWatch() {
+      const t0 = Date.now(), log = [];
+      const L = m => { log.push(((Date.now() - t0) / 1000).toFixed(1) + 's  ' + m); if (log.length > 16) log.shift(); };
+      let started = false, resumes = 0, logEl = null, logTimer = null;
+      const hooked = new WeakSet();
+      function showLog(title) {
+        if (!logEl) {
+          logEl = document.createElement('pre');
+          logEl.style.cssText = 'position:fixed;left:16px;bottom:90px;z-index:2147483647;margin:0;padding:10px 12px;max-width:46vw;' +
+            'background:rgba(0,0,0,.82);color:#ffcc33;font:12px/1.4 Consolas,monospace;border-radius:8px;white-space:pre-wrap;pointer-events:none';
+          document.body.appendChild(logEl);
+        }
+        logEl.textContent = 'MyTV Diagnose – ' + title + '\n' + log.join('\n');
+        logEl.style.display = 'block';
+        clearTimeout(logTimer); logTimer = setTimeout(() => { logEl.style.display = 'none'; }, 25000);
+      }
+      function unmuteOnce(v) {
+        try {
+          if (wantSound) { v.muted = !!wantSound.muted; v.volume = Math.max(0, Math.min(1, wantSound.volume)); }
+          else if (v.muted) v.muted = false;
+          L('sound set: ' + (v.muted ? 'muted' : Math.round(v.volume * 100)));
+        } catch (e) {}
+      }
+      function hook(v) {
+        if (hooked.has(v)) return; hooked.add(v);
+        L('video #' + document.querySelectorAll('video').length + ' found, muted=' + v.muted);
+        ['play', 'playing', 'waiting', 'stalled', 'emptied', 'abort', 'ended'].forEach(ev => v.addEventListener(ev, () => L(ev)));
+        v.addEventListener('volumechange', () => L('volumechange → ' + (v.muted ? 'muted' : Math.round(v.volume * 100))));
+        v.addEventListener('error', () => { L('ERROR code ' + (v.error && v.error.code)); showLog('Player-Fehler'); });
+        v.addEventListener('playing', () => { if (!started) { started = true; setTimeout(() => unmuteOnce(v), 300); } });
+        v.addEventListener('pause', () => {
+          L('pause at ' + v.currentTime.toFixed(1) + 's, muted=' + v.muted);
+          if (!started) return;
+          setTimeout(() => {
+            if (!v.paused || v.ended) return;
+            if (resumes < 5) { resumes++; L('resume #' + resumes); v.play().catch(e => L('resume failed: ' + e.name)); }
+            showLog('Stream hat gestoppt');
+          }, 1500);
+        });
+      }
+      let tries = 0;
+      const timer = setInterval(() => {
+        tries++;
+        const v = pickVideo();
+        if (v) hook(v);
+        if (started) { clearInterval(timer); return; }
+        // give the SRF player 6 s to start by itself, then nudge (never mute)
+        if (v && tries >= 12 && tries % 6 === 0 && v.paused && v.readyState >= 2) {
+          L('nudge play()'); v.play().catch(e => L('play failed: ' + e.name));
+        }
+        if (tries >= 80) {      // ~40 s
+          clearInterval(timer);
+          osd(CH, NAME + ' — kein Signal (↑/↓ zum Weiterschalten)', true);
+          showLog('kein Start');
+        }
+      }, 500);
+    }
 
     let tries = 0, started = false;
     const timer = setInterval(() => {
