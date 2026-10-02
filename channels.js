@@ -59,7 +59,7 @@ window.CHANNELS = [
   { number: 45, name: "RTS 2",       short: "RTS2",  geo: "CH", xmltv: "RTS.2.ch",    url: "https://www.rts.ch/play/embed?autoplay=true&urn=urn:rts:video:3608517" },
   { number: 46, name: "RTS Info",    short: "RTSi",  geo: "CH",                       url: "https://www.rts.ch/play/embed?autoplay=true&urn=urn:rts:video:1967124" },
   { number: 47, name: "RSI LA 1",    short: "LA1",   geo: "CH", xmltv: "RSI.La.1.ch", url: "https://www.rsi.ch/play/embed?autoplay=true&urn=urn:rsi:video:livestream_La1" },
-  { number: 48, name: "RSI LA 2",    short: "LA2",   geo: "CH", xmltv: "RSI.La.2.ch", url: "https://www.rsi.ch/play/embed?autoplay=true&urn=urn:rsi:video:livestream_La2" },
+  { number: 48, name: "RSI LA 2",    short: "LA2",   geo: "CH", xmltv: "RSI.LA.2.ch", url: "https://www.rsi.ch/play/embed?autoplay=true&urn=urn:rsi:video:livestream_La2" },
   { number: 49, name: "Tele 1",      short: "Tele1", mode: "external", xmltv: "Tele.1.ch", url: "https://www.livehdtv.net/embed/tele-1-switzerland/" },
   { number: 50, name: "TeleTicino",  short: "TTi",   type: "hls", xmltv: "Tele.Ticino.ch", url: "https://vstream-cdn.ch/hls/teleticino.m3u8" },
   { number: 51, name: "Canal Alpha", short: "Alpha", type: "hls", url: "https://canalalphaju.vedge.infomaniak.com/livecast/ik:canalalphaju/playlist.m3u8" },
