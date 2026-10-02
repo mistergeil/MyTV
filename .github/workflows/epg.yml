@@ -1,0 +1,38 @@
+name: Update program guide
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # every 6 hours
+  workflow_dispatch:          # manual "Run workflow" button
+  push:
+    paths:
+      - channels.js
+      - tools/build_epg.py
+      - .github/workflows/epg.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: epg
+  cancel-in-progress: true
+
+jobs:
+  epg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build epg.json
+        run: python tools/build_epg.py
+      - name: Commit if changed
+        run: |
+          git config user.name "mytv-bot"
+          git config user.email "mytv-bot@users.noreply.github.com"
+          git add epg.json
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Update program guide [skip ci]"
+          git pull --rebase
+          git push
