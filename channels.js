@@ -27,5 +27,11 @@ window.CHANNELS = [
   { number: 17, name: "MDR",          short: "MDR",   type: "hls", geo: true, url: "https://mdrtvsnhls.akamaized.net/hls/live/2016928/mdrtvsn/master.m3u8" },
   { number: 18, name: "SWR",          short: "SWR",   type: "hls", geo: true, url: "https://swrbwd-hls.akamaized.net/hls/live/2018672/swrbwd/master.m3u8" },
   { number: 19, name: "rbb",          short: "rbb",   type: "hls", geo: true, url: "https://rbb-hls-berlin.akamaized.net/hls/live/2017824/rbb_berlin/master.m3u8" },
-  { number: 20, name: "ProSieben",    short: "PRO7",  mode: "external", url: "https://www.livehdtv.net/embed/pro7/" }
+  // Private channels: no embeddable stream → open provider player in a new tab
+  { number: 20, name: "RTL",          short: "RTL",   mode: "external", url: "https://www.livehdtv.net/embed/rtl-germany/" },
+  { number: 21, name: "SAT.1",        short: "SAT.1", mode: "external", url: "https://www.livehdtv.net/embed/sat-1-germany/" },
+  { number: 22, name: "ProSieben",    short: "PRO7",  mode: "external", url: "https://www.livehdtv.net/embed/pro7/" },
+  { number: 23, name: "VOX",          short: "VOX",   mode: "external", url: "https://www.livehdtv.net/embed/vox/" },
+  { number: 24, name: "kabel eins",   short: "kab1",  mode: "external", url: "https://www.livehdtv.net/embed/kabel-1/" },
+  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", url: "https://www.livehdtv.net/embed/rtl2/" }
 ];
