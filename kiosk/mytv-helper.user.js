@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.0.0
+// @version      1.1.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -67,6 +67,8 @@
       go('back=1&from=' + CH);
     } else if (k === 'l' || k === 'L' || k === 'ContextMenu') {
       go('back=1&from=' + CH + '&list=1');
+    } else if (k === 'g' || k === 'G' || k === 'Guide') {
+      go('back=1&from=' + CH + '&guide=1');
     } else if (k === 'i' || k === 'I') {
       osd(CH, NAME);
     } else if (k === 'm' || k === 'M') {

@@ -46,6 +46,48 @@
   .geo-badge { padding: 8px 16px; border-radius: 999px; background: rgba(255,255,255,.08); font-weight: 600; }
   #list .tag { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 2px 6px; }
 
+  /* ---------- Now / next in OSD ---------- */
+  #osd { max-width: min(560px, calc(100vw - 48px)); }
+  #osdNow { margin-top: 6px; font-size: 14px; color: var(--muted); display: none; }
+  #osdNow.has { display: block; }
+  #osdNow .now { color: var(--text); font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #osdNow .t { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 6px; }
+  #osdNow .bar { height: 3px; background: rgba(255,255,255,.12); border-radius: 2px; margin: 6px 0; overflow: hidden; }
+  #osdNow .bar i { display: block; height: 100%; background: var(--accent); }
+  #osdNow .next { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ---------- Program guide ---------- */
+  #guide { position: fixed; inset: 0; z-index: 25; background: rgba(6,8,12,.96); display: none; flex-direction: column; }
+  #guide.open { display: flex; }
+  .g-head { display: flex; gap: 24px; justify-content: space-between; padding: 24px 28px 14px; min-height: 150px; }
+  .g-detail { min-width: 0; }
+  .g-when { color: var(--accent); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .g-title { font-size: 26px; font-weight: 700; margin: 4px 0 2px; }
+  .g-sub { color: var(--text); opacity: .8; font-size: 15px; }
+  .g-text { color: var(--muted); font-size: 14px; margin-top: 6px; max-width: 900px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .g-clock { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .g-grid { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 0 28px; }
+  .g-ruler { display: flex; margin-left: 190px; height: 28px; position: relative; border-bottom: 1px solid var(--line); }
+  .g-ruler span { position: absolute; top: 4px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; transform: translateX(-50%); }
+  .g-rows { flex: 1; overflow: hidden; position: relative; }
+  .g-row { display: flex; height: 52px; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .g-ch { width: 190px; flex: none; display: flex; align-items: center; gap: 10px; padding-right: 10px; cursor: pointer; }
+  .g-ch .n { width: 3ch; text-align: right; color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .g-ch .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .g-row.cur .g-ch .n { color: var(--accent); }
+  .g-track { flex: 1; position: relative; overflow: hidden; }
+  .g-prog { position: absolute; top: 4px; bottom: 4px; border-radius: 8px; background: rgba(255,255,255,.07); padding: 6px 10px;
+            font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; border: 1px solid transparent; }
+  .g-prog.live { background: rgba(255,255,255,.13); }
+  .g-prog.none { color: var(--muted); font-style: italic; background: rgba(255,255,255,.03); }
+  .g-prog.sel { background: var(--accent); color: #111; font-weight: 700; }
+  .g-nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff4d4d; z-index: 2; pointer-events: none; }
+  .g-hint { padding: 10px 28px 18px; color: var(--muted); font-size: 13px; }
+  @media (max-width: 700px) {
+    .g-head { padding: 16px; min-height: 120px; } .g-title { font-size: 20px; } .g-clock { display: none; }
+    .g-grid { padding: 0 8px; } .g-ruler { margin-left: 110px; } .g-ch { width: 110px; } .g-ch .n { display: none; }
+  }
+
   /* ---------- On-screen display ---------- */
   #osd {
     position: fixed; top: 24px; left: 24px; display: flex; align-items: center; gap: 16px;
@@ -128,7 +170,25 @@
   <div class="meta">
     <div class="name" id="osdName">—</div>
     <div class="clock" id="osdClock"></div>
+    <div id="osdNow"></div>
   </div>
+</div>
+
+<div id="guide" role="dialog" aria-label="Programmführer">
+  <div class="g-head">
+    <div class="g-detail">
+      <div class="g-when" id="gWhen"></div>
+      <div class="g-title" id="gTitle"></div>
+      <div class="g-sub" id="gSub"></div>
+      <div class="g-text" id="gText"></div>
+    </div>
+    <div class="g-clock" id="gClock"></div>
+  </div>
+  <div class="g-grid">
+    <div class="g-ruler" id="gRuler"></div>
+    <div class="g-rows" id="gRows"></div>
+  </div>
+  <div class="g-hint">↑ ↓ Sender · ← → Sendung · OK umschalten · G / Esc schliessen · Zeiten in Ortszeit</div>
 </div>
 
 <div id="entry"></div>
@@ -157,6 +217,9 @@
     <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5zM16 12h5M18.5 9.5v5"/></svg>
   </button>
   <div class="sep"></div>
+  <button id="btnGuide" title="Programmführer (G)" aria-label="Programmführer">
+    <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 13h3M15 16h3"/></svg>
+  </button>
   <button id="btnList" title="Senderliste (L)" aria-label="Senderliste">
     <svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
   </button>
@@ -176,6 +239,7 @@
       <dt>↑ / PgUp</dt><dd>Nächster Sender</dd>
       <dt>↓ / PgDn</dt><dd>Vorheriger Sender</dd>
       <dt>0–9</dt><dd>Sendernummer eingeben</dd>
+      <dt>G</dt><dd>Programmführer</dd>
       <dt>L</dt><dd>Senderliste</dd>
       <dt>M</dt><dd>Ton an/aus</dd>
       <dt>+ / −</dt><dd>Lautstärke</dd>
@@ -190,7 +254,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=4"></script>
+<script src="channels.js?v=5"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -355,6 +419,43 @@
 
   const tuneNumber = n => { const i = channels.findIndex(c => c.number === n); if (i >= 0) tune(i); };
 
+  // ---------- Program data (ARD program API, CORS-enabled) ----------
+  const EPG = {};                                   // epg id → [{id,start,end,title,sub,text}]
+  const esc = t => String(t ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const hm = d => d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+  const berlinDay = off => new Date(Date.now() + off * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Berlin' });
+  async function loadEpg() {
+    if (!channels.some(c => c.epg)) return;
+    const res = await Promise.allSettled([-1, 0, 1].map(o =>
+      fetch('https://programm-api.ard.de/program/api/program?day=' + berlinDay(o)).then(r => r.json())));
+    const map = {};
+    for (const r of res) {
+      if (r.status !== 'fulfilled') continue;
+      for (const c of r.value.channels || []) {
+        const arr = map[c.id] || (map[c.id] = []);
+        for (const sl of (c.timeSlots || []).flat()) {
+          const start = new Date(sl.broadcastedOn), end = new Date(sl.broadcastEnd);
+          if (isNaN(start) || isNaN(end) || end <= start) continue;
+          arr.push({ id: sl.id, start, end, title: sl.coreTitle || sl.title || '', sub: sl.coreSubline || '', text: sl.synopsis || '' });
+        }
+      }
+    }
+    for (const k in map) {
+      const seen = new Set();
+      EPG[k] = map[k].filter(p => !seen.has(p.id) && seen.add(p.id)).sort((a, b) => a.start - b.start);
+    }
+    if ($('osd').classList.contains('show')) showOsd();
+    if ($('guide').classList.contains('open')) renderGuide();
+  }
+  function progsOf(ch) { return (ch && ch.epg && EPG[ch.epg]) || []; }
+  function nowNext(ch, t = new Date()) {
+    const ps = progsOf(ch);
+    const i = ps.findIndex(p => p.start <= t && t < p.end);
+    return i < 0 ? { now: null, next: ps.find(p => p.start > t) || null } : { now: ps[i], next: ps[i + 1] || null };
+  }
+  loadEpg();
+  setInterval(loadEpg, 30 * 60 * 1000);
+
   // ---------- OSD ----------
   function clock() { return new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }); }
   function showOsd() {
@@ -362,6 +463,15 @@
     $('osdNum').textContent = ch.number;
     $('osdName').textContent = ch.name;
     $('osdClock').textContent = clock();
+    const { now, next } = nowNext(ch);
+    const box = $('osdNow');
+    if (now || next) {
+      const pct = now ? Math.min(100, Math.max(0, (Date.now() - now.start) / (now.end - now.start) * 100)) : 0;
+      box.innerHTML = (now ? `<div class="now"><span class="t">${hm(now.start)}–${hm(now.end)}</span>${esc(now.title)}</div>
+        <div class="bar"><i style="width:${pct.toFixed(1)}%"></i></div>` : '') +
+        (next ? `<div class="next"><span class="t">Danach ${hm(next.start)}</span>${esc(next.title)}</div>` : '');
+      box.classList.add('has');
+    } else box.classList.remove('has');
     const logo = $('osdLogo');
     if (ch.logo) { logo.src = ch.logo; logo.hidden = false; } else logo.hidden = true;
     $('osd').classList.add('show');
@@ -388,6 +498,103 @@
     const open = $('list').classList.toggle('open', force);
     if (open) $('list').querySelector('li.active button')?.focus();
   }
+
+  // ---------- Program guide ----------
+  const G = { row: 0, focus: new Date(), winStart: new Date(), sel: null };
+  const winMin = () => (innerWidth < 700 ? 120 : 180);
+  const floor30 = d => { const x = new Date(d); x.setMinutes(x.getMinutes() < 30 ? 0 : 30, 0, 0); return x; };
+  function openGuide() {
+    toggleList(false);
+    G.row = index; G.focus = new Date(); G.winStart = floor30(Date.now());
+    $('guide').classList.add('open');
+    renderGuide();
+  }
+  function closeGuide() { $('guide').classList.remove('open'); }
+  function progAt(ch, t) { return progsOf(ch).find(p => p.start <= t && t < p.end) || null; }
+  function ensureVisible(p) {
+    const wEnd = +G.winStart + winMin() * 6e4;
+    if (p.start < G.winStart && p.end <= G.winStart) G.winStart = floor30(p.start);
+    else if (p.start >= wEnd) G.winStart = floor30(+p.start - 30 * 6e4);
+  }
+  function renderGuide() {
+    const W = winMin() * 6e4, ws = +G.winStart, we = ws + W, now = Date.now();
+    $('gClock').textContent = clock();
+    // ruler
+    let r = '';
+    for (let t = ws; t <= we; t += 30 * 6e4) r += `<span style="left:${((t - ws) / W * 100).toFixed(3)}%">${hm(new Date(t))}</span>`;
+    $('gRuler').innerHTML = r;
+    // rows (keep selected row roughly centred)
+    const rowsEl = $('gRows');
+    const visible = Math.max(3, Math.floor(rowsEl.clientHeight / 52) || 8);
+    let first = Math.max(0, Math.min(G.row - Math.floor(visible / 2), channels.length - visible));
+    let html = '';
+    G.sel = null;
+    for (let i = first; i < Math.min(channels.length, first + visible); i++) {
+      const ch = channels[i], ps = progsOf(ch);
+      let blocks = '';
+      if (ps.length) {
+        for (const p of ps) {
+          if (p.end <= ws || p.start >= we) continue;
+          const l = Math.max(0, (p.start - ws) / W * 100), rgt = Math.min(100, (p.end - ws) / W * 100);
+          const isSel = i === G.row && p.start <= G.focus && G.focus < p.end;
+          if (isSel) G.sel = { ch, p };
+          const live = p.start <= now && now < p.end;
+          blocks += `<div class="g-prog${live ? ' live' : ''}${isSel ? ' sel' : ''}" data-i="${i}" data-t="${+p.start}"
+            style="left:calc(${l.toFixed(3)}% + 2px);width:calc(${(rgt - l).toFixed(3)}% - 4px)">${esc(p.title)}</div>`;
+        }
+      } else {
+        const txt = ch.mode === 'external' ? 'Keine Programmdaten (Privatsender)' : 'Keine Programmdaten';
+        blocks = `<div class="g-prog none${i === G.row ? ' sel' : ''}" data-i="${i}" style="left:2px;right:2px">${txt}</div>`;
+        if (i === G.row) G.sel = { ch, p: null };
+      }
+      if (now >= ws && now <= we) blocks += `<div class="g-nowline" style="left:${((now - ws) / W * 100).toFixed(3)}%"></div>`;
+      html += `<div class="g-row${i === index ? ' cur' : ''}">
+        <div class="g-ch" data-i="${i}"><span class="n">${ch.number}</span><span class="nm">${esc(ch.name)}</span></div>
+        <div class="g-track">${blocks}</div></div>`;
+    }
+    rowsEl.innerHTML = html;
+    // detail header
+    const s = G.sel;
+    if (s && s.p) {
+      const live = s.p.start <= now && now < s.p.end;
+      $('gWhen').textContent = `${s.ch.number} ${s.ch.name} · ${s.p.start.toLocaleDateString('de-CH', { weekday: 'short' })} ${hm(s.p.start)}–${hm(s.p.end)}${live ? ' · LÄUFT' : ''}`;
+      $('gTitle').textContent = s.p.title; $('gSub').textContent = s.p.sub; $('gText').textContent = s.p.text;
+    } else {
+      const ch = channels[G.row];
+      $('gWhen').textContent = `${ch.number} ${ch.name}`;
+      $('gTitle').textContent = progsOf(ch).length ? 'Keine Sendung in diesem Zeitraum' : 'Keine Programmdaten';
+      $('gSub').textContent = ''; $('gText').textContent = ch.epg ? '' : 'Für diesen Sender gibt es (noch) keine Programmdaten.';
+    }
+  }
+  function guideMove(dRow, dProg) {
+    if (dRow) {
+      G.row = Math.max(0, Math.min(channels.length - 1, G.row + dRow));
+      if (G.focus < G.winStart || G.focus >= +G.winStart + winMin() * 6e4) G.focus = new Date(Math.max(+G.winStart, Date.now()));
+    }
+    if (dProg) {
+      const ps = progsOf(channels[G.row]);
+      if (ps.length) {
+        let i = ps.findIndex(p => p.start <= G.focus && G.focus < p.end);
+        if (i < 0) i = dProg > 0 ? ps.findIndex(p => p.start > G.focus) : ps.length - 1 - [...ps].reverse().findIndex(p => p.end <= G.focus);
+        else i += dProg;
+        const p = ps[Math.max(0, Math.min(ps.length - 1, i))];
+        if (p) { G.focus = new Date(+p.start + 6e4); ensureVisible(p); }
+      } else {
+        G.winStart = new Date(+G.winStart + dProg * 30 * 6e4);
+      }
+    }
+    renderGuide();
+  }
+  $('gRows').addEventListener('click', e => {
+    const el = e.target.closest('[data-i]'); if (!el) return;
+    const i = +el.dataset.i;
+    if (el.classList.contains('g-prog') && el.dataset.t && !(i === G.row && el.classList.contains('sel'))) {
+      G.row = i; G.focus = new Date(+el.dataset.t + 6e4); renderGuide(); return;   // first click selects
+    }
+    closeGuide(); tune(i);                                                           // second click / channel name tunes
+  });
+  $('btnGuide').onclick = openGuide;
+  setInterval(() => { if ($('guide').classList.contains('open')) renderGuide(); }, 60 * 1000);
 
   // ---------- number entry ----------
   function digit(d) {
@@ -422,6 +629,20 @@
   document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const listOpen = $('list').classList.contains('open');
+    if ($('guide').classList.contains('open')) {
+      const k = e.key;
+      if (k === 'ArrowUp') guideMove(-1, 0);
+      else if (k === 'ArrowDown') guideMove(1, 0);
+      else if (k === 'ArrowLeft') guideMove(0, -1);
+      else if (k === 'ArrowRight') guideMove(0, 1);
+      else if (k === 'PageUp') guideMove(-5, 0);
+      else if (k === 'PageDown') guideMove(5, 0);
+      else if (k === 'Enter') { closeGuide(); tune(G.row); }
+      else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'g' || k === 'G' || k === 'Guide') closeGuide();
+      else if (/^[0-9]$/.test(k)) { closeGuide(); return digit(k); }
+      else return;
+      e.preventDefault(); wake(); return;
+    }
     if (/^[0-9]$/.test(e.key)) return digit(e.key);
     switch (e.key) {
       case 'ArrowUp': case 'PageUp':
@@ -429,6 +650,7 @@
       case 'ArrowDown': case 'PageDown':
         if (listOpen) return; e.preventDefault(); tune(index - 1); break;
       case 'l': case 'L': toggleList(); break;
+      case 'g': case 'G': case 'Guide': openGuide(); break;
       case 'm': case 'M': toggleMute(); break;
       case '+': case '=': setVolume(0.1); break;
       case '-': case '_': setVolume(-0.1); break;
@@ -478,11 +700,12 @@
     const li = byNum(parseInt(store.get('mytv.lastInternal'), 10));
     if (li >= 0) start = li;
   }
-  if (params.has('ch') || params.has('from') || params.has('back')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
+  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
   renderList();
   tune(start, { remember: false });
   prevIndex = prev;
   if (params.get('list') === '1') toggleList(true);
+  if (params.get('guide') === '1') openGuide();
   wake();
 })();
 </script>
