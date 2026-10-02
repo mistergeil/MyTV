@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 SOURCES = {   # id suffix -> XMLTV file
     "de": "https://epgshare01.online/epgshare01/epg_ripper_DE1.xml.gz",
     "ch": "https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz",
+    "at": "https://epgshare01.online/epgshare01/epg_ripper_AT1.xml.gz",
 }
 ROOT = __import__("pathlib").Path(__file__).resolve().parent.parent
 
@@ -78,7 +79,7 @@ def finish(ids, out, seen_channels, now):
     for k in out:
         out[k].sort(key=lambda p: p["s"])
         print(f"{k}: {len(out[k])} programmes")
-    doc = {"generated": int(now), "source": "epgshare01.online (DE1, CH1)", "channels": out}
+    doc = {"generated": int(now), "source": "epgshare01.online (DE1, CH1, AT1)", "channels": out}
     (ROOT / "epg.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("wrote epg.json", (ROOT / "epg.json").stat().st_size, "bytes")
 

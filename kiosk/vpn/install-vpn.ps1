@@ -12,7 +12,7 @@ if (-not (Test-Path $WG)) {
   Start-Process 'https://www.wireguard.com/install/'
   Read-Host "`nPress Enter to close"; exit 1
 }
-$missing = @('DE', 'CH') | Where-Object { -not (Test-Path (Join-Path $Dir "$_.conf")) }
+$missing = @('DE', 'CH', 'AT') | Where-Object { -not (Test-Path (Join-Path $Dir "$_.conf")) }
 if ($missing) {
   Write-Host ("Missing config file(s): " + (($missing | ForEach-Object { "$_.conf" }) -join ', ')) -ForegroundColor Yellow
   Write-Host "Download them from Proton (see the setup page) and save them in:`n  $Dir`n"

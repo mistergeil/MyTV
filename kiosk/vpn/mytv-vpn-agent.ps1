@@ -1,16 +1,16 @@
 # ============================================================
 #  MyTV VPN switcher (user-approved; starts at logon with admin rights)
 #  Listens ONLY on http://127.0.0.1:8765 (not reachable from the network)
-#    GET /status          -> {"ok":true,"country":"DE"|"CH"|"OFF"}
-#    GET /vpn?c=DE|CH|OFF -> switches the WireGuard tunnel
-#  Needs: WireGuard for Windows + DE.conf / CH.conf in this folder
+#    GET /status          -> {"ok":true,"country":"DE"|"CH"|"AT"|"OFF"}
+#    GET /vpn?c=DE|CH|AT|OFF -> switches the WireGuard tunnel
+#  Needs: WireGuard for Windows + DE.conf / CH.conf / AT.conf in this folder
 #  Remove any time with VPN-Uninstall.bat
 # ============================================================
 $ErrorActionPreference = 'Stop'
 $Dir     = Split-Path -Parent $MyInvocation.MyCommand.Path
 $WG      = Join-Path $env:ProgramFiles 'WireGuard\wireguard.exe'
 $Port    = 8765
-$Allowed = @('DE', 'CH')
+$Allowed = @('DE', 'CH', 'AT')
 $Log     = Join-Path $Dir 'agent.log'
 
 function Write-Log($m) { "$(Get-Date -Format s)  $m" | Out-File -FilePath $Log -Append -Encoding utf8 }

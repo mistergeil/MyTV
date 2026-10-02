@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.4.1
+// @version      1.5.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
 // @match        https://www.srf.ch/play/embed*
 // @match        https://www.rts.ch/play/embed*
 // @match        https://www.rsi.ch/play/embed*
+// @match        https://on.orf.at/*
 // @run-at       document-start
 // @grant        none
 // @updateURL    https://mistergeil.github.io/MyTV/kiosk/mytv-helper.user.js
@@ -25,6 +26,8 @@
   const MYTV = 'https://mistergeil.github.io/MyTV/';
 
   const IS_SRG = /(^|\.)(srf|rts|rsi)\.ch$/.test(location.hostname);
+  const IS_ORF = location.hostname === 'on.orf.at';
+  const IS_OFFICIAL = IS_SRG || IS_ORF;            // official broadcaster player pages (plain <video>)
 
   // ---- Official SRG player (SRF/RTS/RSI) framed inside MyTV (legacy path) ----
   if (IS_SRG && window.top !== window) {
@@ -71,7 +74,14 @@
   // ---- Are we in a MyTV session? (works in nested same-origin frames too) ----
   let topHash = '';
   try { topHash = window.top.location.hash; } catch (e) { return; }
-  const m = /mytv=(\d+)(?:&n=([^&]*))?/.exec(topHash);
+  const RX = /mytv=(\d+)(?:&n=([^&]*))?/;
+  let m = RX.exec(topHash);
+  if (IS_ORF && window.top === window) {          // ORF ON drops the hash → remember it for this tab
+    try {
+      if (m) sessionStorage.setItem('mytv.session', topHash);
+      else { const saved = sessionStorage.getItem('mytv.session'); if (saved) m = RX.exec(saved); }
+    } catch (e) {}
+  }
   if (!m) return;
   const CH = parseInt(m[1], 10);
   const NAME = decodeURIComponent(m[2] || '');
@@ -80,10 +90,17 @@
   // ---- Full-screen styling in every frame ----
   const css = `
     html, body { margin:0 !important; padding:0 !important; width:100% !important; height:100% !important;
-                 background:#000 !important; overflow:hidden !important; cursor:none !important; }
+                 background:#000 !important; overflow:hidden !important; }
     #mytv-overlay { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
                     border:0 !important; z-index:2147483646 !important; background:transparent !important; color-scheme:normal !important; }
-  ` + (IS_SRG ? '' : `
+  ` + (IS_ORF ? `
+    .player-area-player { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
+                          max-width:none !important; max-height:none !important; margin:0 !important; padding:0 !important;
+                          z-index:2147483000 !important; background:#000 !important; }
+    .player-area-player > div { width:100% !important; height:100% !important; }
+    .player-area-player video { width:100% !important; height:100% !important; object-fit:contain !important; }
+  ` : '') + (IS_OFFICIAL ? '' : `
+    html, body { cursor:none !important; }
     body > a, body > p, body > h1, body > h2, body > h3 { display:none !important; }
     iframe { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
              border:0 !important; z-index:1 !important; }
@@ -167,7 +184,7 @@
     try {
       if (w.jwplayer && w.document.querySelector('.jwplayer')) return w.jwplayer();
       for (let i = 0; i < w.frames.length; i++) { const p = findPlayer(w.frames[i]); if (p) return p; }
-      if (IS_SRG && w === window.top) { const v = pickVideo(); if (v) return videoAdapter(v); }
+      if (IS_OFFICIAL && w === window.top) { const v = pickVideo(); if (v) return videoAdapter(v); }
     } catch (e) {}
     return null;
   }
@@ -199,8 +216,15 @@
     let wantSound = null;                       // {muted, volume 0..1} from MyTV
     const applySound = p => { if (!wantSound) return; try { p.setMute(!!wantSound.muted); p.setVolume(Math.round(wantSound.volume * 100)); } catch (e) {} };
 
+    const consentOpen = () => IS_ORF && document.body && document.body.classList.contains('didomi-popup-open');
     function mountOverlay() {
       if (window.__mytvOv) return;
+      if (consentOpen()) {
+        osd(CH, NAME + ' — bitte zuerst die Cookie-Auswahl mit der Maus treffen (nur einmal)', true);
+        setTimeout(mountOverlay, 1000);
+        return;
+      }
+      if (osdEl) osdEl.style.opacity = '0';
       const f = document.createElement('iframe');
       f.id = 'mytv-overlay';
       f.src = MYTV + '?overlay=1&ch=' + CH;
@@ -226,7 +250,7 @@
       }
     });
 
-    if (IS_SRG) { srgWatch(); return; }
+    if (IS_OFFICIAL) { srgWatch(); return; }
 
     // ---- SRG: let the official player start by itself; only help if nothing happens.
     //      Logs player events; shows the log on screen if the stream stops. ----
@@ -272,9 +296,14 @@
       }
       let tries = 0;
       const timer = setInterval(() => {
+        if (consentOpen()) return;              // wait for the user's cookie choice
         tries++;
         const v = pickVideo();
         if (v) hook(v);
+        if (IS_ORF && !v && (tries === 12 || tries === 30)) {
+          const b = document.querySelector('.b-player-area button[aria-label*="abspielen" i], .b-player-area button[aria-label*="play" i], .b-player-area [class*="play-button" i], .player-area-poster');
+          if (b) { L('click start (' + b.tagName.toLowerCase() + ')'); b.click(); }
+        }
         if (started) { clearInterval(timer); return; }
         // give the SRF player 6 s to start by itself, then nudge (never mute)
         if (v && tries >= 12 && tries % 6 === 0 && v.paused && v.readyState >= 2) {
@@ -307,7 +336,7 @@
           try { p.setMute(false); p.play(); } catch (e) {}
         }
       }
-      if (tries > (IS_SRG ? 80 : 40)) {           // ~20 s (SRG ~40 s)
+      if (tries > (IS_OFFICIAL ? 80 : 40)) {           // ~20 s (SRG ~40 s)
         clearInterval(timer);
         if (!started) osd(CH, NAME + ' — kein Signal (↑/↓ zum Weiterschalten)', true);
       }

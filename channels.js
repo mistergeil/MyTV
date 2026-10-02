@@ -4,7 +4,7 @@
 //   logo:   optional image URL ("" = show short name)
 //   type:   "hls"      → official HLS stream (.m3u8), plays inside MyTV
 //           (omitted)  → iframe embed
-//   geo:    true / "CH" → official stream only available in Germany / Switzerland (works with a VPN there)
+//   geo:    true / "CH" / "AT" → only available in Germany / Switzerland / Austria (VPN switches automatically)
 //   epg:    channel id in the ARD program API (programm-api.ard.de) → program guide
 //   xmltv:  channel id in epg.json (built every 6 h by .github/workflows/epg.yml from epgshare01)
 //   mode:   "external" → provider blocks embedding; opens its player in a new tab
@@ -63,5 +63,9 @@ window.CHANNELS = [
   { number: 49, name: "Tele 1",      short: "Tele1", mode: "external", xmltv: "Tele.1.ch", url: "https://www.livehdtv.net/embed/tele-1-switzerland/" },
   { number: 50, name: "TeleTicino",  short: "TTi",   type: "hls", xmltv: "Tele.Ticino.ch", url: "https://vstream-cdn.ch/hls/teleticino.m3u8" },
   { number: 51, name: "Canal Alpha", short: "Alpha", type: "hls", url: "https://canalalphaju.vedge.infomaniak.com/livecast/ik:canalalphaju/playlist.m3u8" },
-  { number: 52, name: "Canal 9",     short: "C9",    type: "hls", geo: "CH", xmltv: "Canal.9.ch", url: "https://livehd.vedge.infomaniak.com/livecast/livehd/master.m3u8" }
+  { number: 52, name: "Canal 9",     short: "C9",    type: "hls", geo: "CH", xmltv: "Canal.9.ch", url: "https://livehd.vedge.infomaniak.com/livecast/livehd/master.m3u8" },
+  // Austria — ORF ON official player page (Austrian IP needed → VPN AT), opened full-screen with MyTV overlay
+  { number: 53, name: "ORF 1",   short: "ORF1", mode: "external", geo: "AT", xmltv: "ORF.1.at", url: "https://on.orf.at/live?channel=orf1" },
+  { number: 54, name: "ORF 2",   short: "ORF2", mode: "external", geo: "AT", xmltv: "ORF.2.at", url: "https://on.orf.at/live?channel=orf2" },
+  { number: 55, name: "ORF III", short: "ORF3", mode: "external", geo: "AT", xmltv: "ORF.3.at", url: "https://on.orf.at/live?channel=orf3" }
 ];
