@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.1
+// @version      1.5.2
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -218,17 +218,25 @@
     const applySound = p => { if (!wantSound) return; try { p.setMute(!!wantSound.muted); p.setVolume(Math.round(wantSound.volume * 100)); } catch (e) {} };
 
     const visible = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 40 && r.height > 20 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'; };
-    const consentOpen = () => {
-      if (!IS_ORF || !document.body) return false;
-      if (document.body.classList.contains('didomi-popup-open')) return true;
-      return [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open]')]
-        .some(el => !el.closest('#mytv-overlay') && visible(el));
+    const blocker = () => {
+      if (!IS_ORF || !document.body) return '';
+      if (document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
+      const el = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open]')]
+        .find(e => !e.closest('#mytv-overlay') && visible(e) && (e.innerText || '').trim().length > 0);
+      return el ? (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 50) : '';
     };
+    const consentOpen = () => !!blocker();
+    const LOG = window.__mytvLog = window.__mytvLog || [];
+    const t0 = Date.now();
+    const L0 = m => { LOG.push(((Date.now() - t0) / 1000).toFixed(1) + 's  ' + m); if (LOG.length > 16) LOG.shift(); };
+    let lastBlock = '';
+    const hint = () => '— Fenster offen: „' + blocker() + '…“ – bitte mit der Maus schliessen';
     function mountOverlay() {
       if (window.__mytvOv) return;
       if (consentOpen()) {
         document.documentElement.classList.add('mytv-dialog');
-        osd(CH, NAME + ' — bitte das Fenster mit der Maus bestätigen/schliessen', true);
+        const b = blocker(); if (b !== lastBlock) { lastBlock = b; L0('popup: ' + b); }
+        osd(CH, NAME + ' ' + hint(), true);
         setTimeout(mountOverlay, 1000);
         return;
       }
@@ -242,9 +250,10 @@
       document.body.appendChild(f);
       window.__mytvOv = f;
       if (IS_ORF) setInterval(() => {
-        const open = consentOpen();
+        const b = blocker(), open = !!b;
+        if (b !== lastBlock) { lastBlock = b; L0(open ? 'popup: ' + b : 'popup closed'); }
         document.documentElement.classList.toggle('mytv-dialog', open);
-        if (open && f.style.display !== 'none') { f.style.display = 'none'; osd(CH, NAME + ' — bitte das Fenster mit der Maus bestätigen/schliessen', true); }
+        if (open && f.style.display !== 'none') { f.style.display = 'none'; osd(CH, NAME + ' ' + hint(), true); }
         else if (!open && f.style.display === 'none') { f.style.display = ''; if (osdEl) osdEl.style.opacity = '0'; }
       }, 1000);
       // fallback: if the overlay doesn't come up, show the simple badge
@@ -270,8 +279,7 @@
     // ---- SRG: let the official player start by itself; only help if nothing happens.
     //      Logs player events; shows the log on screen if the stream stops. ----
     function srgWatch() {
-      const t0 = Date.now(), log = [];
-      const L = m => { log.push(((Date.now() - t0) / 1000).toFixed(1) + 's  ' + m); if (log.length > 16) log.shift(); };
+      const log = LOG, L = L0;
       let started = false, resumes = 0, logEl = null, logTimer = null;
       const hooked = new WeakSet();
       function showLog(title) {
