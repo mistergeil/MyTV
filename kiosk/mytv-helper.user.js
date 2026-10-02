@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.5
+// @version      1.5.6
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -100,6 +100,7 @@
     .player-area-player > div { width:100% !important; height:100% !important; }
     .player-area-player video { width:100% !important; height:100% !important; object-fit:contain !important; }
     html.mytv-dialog .player-area-player { z-index:auto !important; }
+    [aria-label="Bundesland hier wählen"] { display:none !important; }
   ` : '') + (IS_OFFICIAL ? '' : `
     html, body { cursor:none !important; }
     body > a, body > p, body > h1, body > h2, body > h3 { display:none !important; }
@@ -255,11 +256,20 @@
     const applySound = p => { if (!wantSound) return; try { p.setMute(!!wantSound.muted); p.setVolume(Math.round(wantSound.volume * 100)); } catch (e) {} };
 
     const visible = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 40 && r.height > 20 && cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0'; };
+    const isRegionHint = e => /Bundesland/i.test((e.getAttribute('aria-label') || '') + ' ' + (e.innerText || '')) &&
+      !e.querySelector('video, .player-area-player') && !e.closest('#regional-settings-menu');
+    const hideRegionHints = () => {
+      if (!IS_ORF || !document.body) return;
+      document.querySelectorAll('[role="dialog"], [role="tooltip"], [role="status"], [role="alert"], [aria-live], [class*="tooltip" i], [class*="toast" i], [class*="snackbar" i], [class*="notification" i]')
+        .forEach(e => { if (isRegionHint(e) && e.style.display !== 'none') { e.style.setProperty('display', 'none', 'important'); (window.__mytvLog || []).push('hid Bundesland hint'); } });
+    };
+    if (IS_ORF) setInterval(hideRegionHints, 1000);
     const blocker = () => {
       if (!IS_ORF || !document.body) return '';
+      hideRegionHints();
       if (document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
       const el = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open]')]
-        .find(e => !e.closest('#mytv-overlay') && visible(e) && (e.innerText || '').trim().length > 0);
+        .find(e => !e.closest('#mytv-overlay') && visible(e) && (e.innerText || '').trim().length > 0 && !isRegionHint(e));
       return el ? (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 50) : '';
     };
     const consentOpen = () => !!blocker();
