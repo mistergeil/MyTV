@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.2
+// @version      1.5.3
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -129,6 +129,11 @@
   function onKey(e) {
     const k = e.key;
     let handled = true;
+    if (IS_OFFICIAL && k === 'Enter' && window.top === window) {
+      clickPlay('OK');
+      e.preventDefault(); e.stopImmediatePropagation();
+      return;
+    }
     const ov = overlayWin();
     if (ov && !e.ctrlKey && !e.altKey && !e.metaKey && !k.startsWith('Audio')) {
       ov.postMessage({ mytv: 1, type: 'key', key: k }, OV_ORIGIN);
@@ -180,6 +185,31 @@
   function pickVideo() {
     const vs = [...document.querySelectorAll('video')];
     return vs.find(v => !v.paused) || vs.find(v => v.currentSrc) || vs[0] || null;
+  }
+  function clickPlay(reason) {
+    const v = pickVideo();
+    if (v && !v.paused) return false;                      // already playing → never touch (play/pause toggles!)
+    const sel = [
+      '[class*="hugeplayback" i]', '[class*="playbacktoggle" i]', '[class*="big-play" i]', '[class*="bigplay" i]',
+      '[class*="play-button" i]', '[class*="playbutton" i]', '[class*="vjs-big-play" i]',
+      'button[aria-label*="abspielen" i]', 'button[aria-label*="wiedergabe" i]', 'button[aria-label*="play" i]',
+      'button[title*="abspielen" i]', 'button[title*="play" i]', '[role="button"][aria-label*="play" i]',
+      '.player-area-poster'
+    ].join(',');
+    const cands = [...document.querySelectorAll(sel)].filter(e => {
+      if (e.closest('#mytv-overlay')) return false;
+      const r = e.getBoundingClientRect(); return r.width > 10 && r.height > 10;
+    });
+    // prefer the largest candidate (the big centre play button)
+    cands.sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return rb.width * rb.height - ra.width * ra.height; });
+    const b = cands[0];
+    if (b) {
+      (window.__mytvLog || []).push('click play (' + reason + '): ' + b.tagName.toLowerCase() + '.' + String(b.className).slice(0, 40));
+      b.click();
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup'].forEach(t => b.dispatchEvent(new MouseEvent(t, { bubbles: true })));
+    }
+    if (v) v.play().catch(() => {});
+    return !!b;
   }
   function findPlayer(w) {
     try {
@@ -323,9 +353,8 @@
         tries++;
         const v = pickVideo();
         if (v) hook(v);
-        if (IS_ORF && !v && (tries === 12 || tries === 30)) {
-          const b = document.querySelector('.b-player-area button[aria-label*="abspielen" i], .b-player-area button[aria-label*="play" i], .b-player-area [class*="play-button" i], .player-area-poster');
-          if (b) { L('click start (' + b.tagName.toLowerCase() + ')'); b.click(); }
+        if (IS_ORF && (tries === 4 || tries === 10 || tries === 20 || tries === 32) && (!v || v.paused)) {
+          if (!clickPlay('auto')) L('no play button found');
         }
         if (started) { clearInterval(timer); return; }
         // give the SRF player 6 s to start by itself, then nudge (never mute)
