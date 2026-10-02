@@ -26,6 +26,9 @@
   #screen video { object-fit: contain; }
   #soundHint { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); padding: 14px 26px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); font-size: 17px; font-weight: 600; display: none; z-index: 15; }
   #soundHint.show { display: block; }
+  /* invisible layer over embedded players: keeps mouse + keyboard with MyTV */
+  #shield { position: absolute; inset: 0; z-index: 2; background: transparent; display: none; }
+  #shield.on { display: block; }
   #static { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity .25s; image-rendering: pixelated; }
   #static.on { opacity: 1; }
 
@@ -166,6 +169,7 @@
 
 <div id="screen">
   <canvas id="static" width="160" height="90"></canvas>
+  <div id="shield"></div>
 </div>
 
 <div id="osd" aria-live="polite">
@@ -359,6 +363,7 @@
     const ch = channels[i];
 
     clearTimeout(extTimer);
+    $('shield').classList.remove('on');
     if (ch.mode !== 'external') store.set('mytv.lastInternal', ch.number);
     staticOn();
     if (hls) { hls.destroy(); hls = null; }
@@ -439,8 +444,10 @@
 
     frame = document.createElement('iframe');
     frame.src = ch.url;
-    frame.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
-    frame.allowFullscreen = true;
+    // no 'fullscreen': the embedded player must not take over the screen (MyTV's own F does fullscreen)
+    frame.allow = 'autoplay; encrypted-media';
+    frame.tabIndex = -1;
+    $('shield').classList.add('on');
     frame.setAttribute('scrolling', 'no');
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
     frame.title = ch.name;
@@ -756,6 +763,12 @@
       case 'Enter': {
         const ch = channels[index];
         if (!overlay && !listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
+        else if (!overlay && !listOpen && frame && frame.tagName === 'IFRAME') {
+          e.preventDefault();
+          const sh = $('shield');
+          sh.classList.toggle('on');
+          flash(sh.classList.contains('on') ? '📺 TV-Steuerung' : '🖱️ Player-Steuerung (OK = zurück)');
+        }
         break;
       }
       case 'Escape': toggleList(false); $('help').classList.remove('open'); break;
@@ -772,6 +785,13 @@
     }, 3500);
   }
   ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
+  $('shield').addEventListener('dblclick', toggleFull);
+  // If an embedded player still grabbed the focus, take it back so the remote keeps working
+  window.addEventListener('blur', () => setTimeout(() => {
+    if (!overlay && $('shield').classList.contains('on') && document.activeElement && document.activeElement.tagName === 'IFRAME') {
+      document.activeElement.blur(); window.focus();
+    }
+  }, 50));
   // Resume if the browser paused the stream while the window was hidden/minimized
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && frame && frame.tagName === 'VIDEO' && frame.paused) frame.play().catch(() => {});
