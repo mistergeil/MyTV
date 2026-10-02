@@ -258,7 +258,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=8"></script>
+<script src="channels.js?v=9"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -410,8 +410,11 @@
     frame.className = 'launch';
     frame.innerHTML = `<div class="launch-num">${ch.number}</div><div class="launch-name">${ch.name}</div>
       ${geo
-        ? `<div class="geo-badge">🇩🇪 Nur in Deutschland verfügbar</div>
-           <div class="launch-hint">Mit einem VPN (Server in Deutschland) läuft dieser Sender direkt hier.</div>`
+        ? (ch.geo === 'CH'
+          ? `<div class="geo-badge">🇨🇭 Nur in der Schweiz verfügbar</div>
+             <div class="launch-hint">Mit einem VPN (Server in der Schweiz) läuft dieser Sender direkt hier.</div>`
+          : `<div class="geo-badge">🇩🇪 Nur in Deutschland verfügbar</div>
+             <div class="launch-hint">Mit einem VPN (Server in Deutschland) läuft dieser Sender direkt hier.</div>`)
         : `<div class="launch-hint">Kein Signal — Sender gerade nicht verfügbar.</div>`}`;
     screen.insertBefore(frame, staticCv);
     staticOff();
@@ -512,7 +515,7 @@
         <button data-i="${i}">
           <span class="n">${c.number}</span>
           <span class="logo">${c.logo ? `<img src="${c.logo}" alt="">` : (c.short || c.name).slice(0, 5)}</span>
-          <span>${c.name}</span>${c.geo ? '<span class="tag">DE</span>' : ''}${c.mode === 'external' ? '<span class="tag">↗</span>' : ''}
+          <span>${c.name}</span>${c.geo ? `<span class="tag">${c.geo === 'CH' ? 'CH' : 'DE'}</span>` : ''}${c.mode === 'external' ? '<span class="tag">↗</span>' : ''}
         </button>
       </li>`).join('');
   }

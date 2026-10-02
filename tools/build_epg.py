@@ -8,7 +8,10 @@ import gzip, io, json, re, sys, time, urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
-SOURCE = "https://epgshare01.online/epgshare01/epg_ripper_DE1.xml.gz"
+SOURCES = {   # id suffix -> XMLTV file
+    "de": "https://epgshare01.online/epgshare01/epg_ripper_DE1.xml.gz",
+    "ch": "https://epgshare01.online/epgshare01/epg_ripper_CH1.xml.gz",
+}
 ROOT = __import__("pathlib").Path(__file__).resolve().parent.parent
 
 def wanted_ids():
@@ -29,13 +32,20 @@ def main():
     if not ids:
         print("no xmltv ids in channels.js"); return
     print("wanted:", ", ".join(sorted(ids)))
-    req = urllib.request.Request(SOURCE, headers={"User-Agent": "MyTV-EPG/1.0 (personal use)"})
-    raw = urllib.request.urlopen(req, timeout=120).read()
-    data = gzip.decompress(raw)
     now = time.time()
     lo, hi = now - 24 * 3600, now + 48 * 3600
     out = {i: [] for i in ids}
     seen_channels = set()
+    for cc, url in SOURCES.items():
+        if not any(i.lower().endswith("." + cc) for i in ids):
+            continue
+        print("fetching", url)
+        req = urllib.request.Request(url, headers={"User-Agent": "MyTV-EPG/1.0 (personal use)"})
+        data = gzip.decompress(urllib.request.urlopen(req, timeout=180).read())
+        parse(data, ids, lo, hi, out, seen_channels)
+    finish(ids, out, seen_channels, now)
+
+def parse(data, ids, lo, hi, out, seen_channels):
     for ev, el in ET.iterparse(io.BytesIO(data), events=("end",)):
         if el.tag == "channel":
             seen_channels.add(el.get("id"))
@@ -55,6 +65,8 @@ def main():
                 if len(d) > 400: d = d[:397].rstrip() + "…"
                 out[cid].append({"s": s, "e": e, "t": t, "st": st, "d": d})
         el.clear()
+
+def finish(ids, out, seen_channels, now):
     missing = [i for i in ids if i not in seen_channels]
     if missing:
         print("WARNING: ids not in source:", ", ".join(missing))
@@ -66,7 +78,7 @@ def main():
     for k in out:
         out[k].sort(key=lambda p: p["s"])
         print(f"{k}: {len(out[k])} programmes")
-    doc = {"generated": int(now), "source": "epgshare01.online (DE1)", "channels": out}
+    doc = {"generated": int(now), "source": "epgshare01.online (DE1, CH1)", "channels": out}
     (ROOT / "epg.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print("wrote epg.json", (ROOT / "epg.json").stat().st_size, "bytes")
 
