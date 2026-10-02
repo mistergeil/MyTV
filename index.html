@@ -448,6 +448,7 @@
     // no 'fullscreen': the embedded player must not take over the screen (MyTV's own F does fullscreen)
     frame.allow = 'autoplay; encrypted-media';
     frame.tabIndex = -1;
+    frame.style.pointerEvents = 'none';        // player can't grab focus → remote keys always reach MyTV
     frame.setAttribute('scrolling', 'no');
     frame.referrerPolicy = 'strict-origin-when-cross-origin';
     frame.title = ch.name;
@@ -762,10 +763,21 @@
         break;
       case 'Enter': {
         const ch = channels[index];
+        if (!overlay && !listOpen && frame && frame.tagName === 'IFRAME') {
+          e.preventDefault();
+          const on = frame.style.pointerEvents === 'none';
+          frame.style.pointerEvents = on ? 'auto' : 'none';
+          if (!on) { frame.blur(); window.focus(); }
+          flash(on ? '🖱️ Player bedienen – danach OK oder Esc' : '📺 TV-Steuerung');
+          break;
+        }
         if (!overlay && !listOpen && !$('help').classList.contains('open') && ch.mode === 'external') { e.preventDefault(); openExternal(ch); }
         break;
       }
-      case 'Escape': toggleList(false); $('help').classList.remove('open'); break;
+      case 'Escape':
+        toggleList(false); $('help').classList.remove('open');
+        if (frame && frame.tagName === 'IFRAME' && frame.style.pointerEvents !== 'none') { frame.style.pointerEvents = 'none'; frame.blur(); window.focus(); }
+        break;
     }
     wake();
   }
