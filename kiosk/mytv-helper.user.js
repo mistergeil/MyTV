@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.11.0
+// @version      1.12.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -134,8 +134,19 @@
     const st = document.createElement('style');
     st.textContent = 'html.mytv-idle, html.mytv-idle * { cursor: none !important; }';
     (document.head || document.documentElement).appendChild(st);
+    // the pointer can also sit over the provider's player iframe (ORF, Joyn/SAT.1 …), where our CSS can't reach →
+    // while idle, an invisible full-screen sheet without pointer lies on top (below the MyTV overlay); moving the mouse removes it
+    const shield = document.createElement('div');
+    shield.style.cssText = 'position:fixed;inset:0;z-index:2147483645;cursor:none;background:transparent;display:none';
     let idleT = null;
-    const idle = () => { clearTimeout(idleT); document.documentElement.classList.remove('mytv-idle'); idleT = setTimeout(() => document.documentElement.classList.add('mytv-idle'), 3000); };
+    const idle = () => {
+      clearTimeout(idleT); document.documentElement.classList.remove('mytv-idle'); shield.style.display = 'none';
+      idleT = setTimeout(() => {
+        document.documentElement.classList.add('mytv-idle');
+        if (!shield.isConnected && document.body) document.body.appendChild(shield);
+        shield.style.display = 'block';
+      }, 3000);
+    };
     ['mousemove', 'mousedown'].forEach(ev => window.addEventListener(ev, idle, { capture: true, passive: true }));
     idle();
   }

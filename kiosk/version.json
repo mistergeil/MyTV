@@ -1,12 +1,11 @@
 {
-  "version": "1.7.0",
+  "version": "1.7.1",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "1f13040f044b73c0aa445dd40b78a561e706a8f97ae6ce2d3ba2bae120d470e4",
-  "size": 29800,
+  "sha256": "b84c534b8d1ab3c06b5f06e974b7d9e4ac5d868686eba288417369f75f35794d",
+  "size": 30277,
   "notes": [
-    "Neuer Kanal für künftige Funktionen (Tampermonkey-Updates werden seltener)",
-    "Einstellungen → „Verbindung testen“: prüft Fernbedienung → Notebook → MyTV"
+    "Favoriten: Sender nach rechts wischen statt lang drücken (kein versehentliches Markieren beim Scrollen)"
   ],
   "installer": false
 }

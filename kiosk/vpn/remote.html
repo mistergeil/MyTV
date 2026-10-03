@@ -83,6 +83,14 @@
   .cell.primary { justify-content: center; color: var(--blue); }
   .cell.danger { justify-content: center; color: var(--red); }
   .cell:disabled { opacity: .4; }
+  /* swipe right on a channel = favorite (like iOS leading swipe actions) */
+  .sw { position: relative; overflow: hidden; }
+  .sw + .sw .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+  .sw .act-bg { position: absolute; inset: 0; background: var(--orange); display: flex; align-items: center; padding-left: 20px; gap: 8px;
+                font-size: 15px; font-weight: 600; color: #fff; }
+  .sw .act-bg.rm { background: #636366; }
+  .sw .cell { background: var(--g1); touch-action: pan-y; will-change: transform; }
+  .sw .cell.back { transition: transform .3s cubic-bezier(.2,.9,.25,1); }
   .note { font-size: 13px; color: var(--muted); margin: 7px 16px 0; line-height: 1.35; }
   .seg { display: flex; padding: 2px; border-radius: 9px; background: var(--g2); margin: 2px 0 6px; }
   .seg button { flex: 1; height: 30px; border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -156,7 +164,7 @@
 <section class="view" id="vCh"><div class="wrap">
   <h1>Sender</h1>
   <div class="seg" id="chSeg"><button class="on" data-s="list">Liste</button><button data-s="pad">Nummer</button></div>
-  <div id="chList"><div id="list"></div><div class="note">Lang drücken = Favorit hinzufügen oder entfernen.</div></div>
+  <div id="chList"><div id="list"></div><div class="note">Nach rechts wischen = Favorit hinzufügen oder entfernen.</div></div>
   <div id="chPad" hidden>
     <div id="num"></div>
     <div id="digits">
@@ -301,16 +309,31 @@
       }
       const fav = FAVS.includes(c.number);
       const tag = c.geo === 'CH' ? 'CH' : c.geo === 'AT' ? 'AT' : c.geo ? 'DE' : '';
+      const row = document.createElement('div'); row.className = 'sw';
+      const bg = document.createElement('div'); bg.className = 'act-bg' + (fav ? ' rm' : ''); bg.textContent = fav ? '☆  Entfernen' : '★  Favorit';
       const b = document.createElement('button'); b.className = 'cell';
       b.innerHTML = '<span class="n">' + c.number + '</span><span class="nm">' + c.name.replace(/[<>&]/g, '') + '</span>' +
         (fav ? '<span class="fav">★</span>' : '') + (tag ? '<span class="tg">' + tag + '</span>' : '');
-      let t = null, long = false;
-      const down = () => { long = false; b.classList.add('held'); t = setTimeout(() => { long = true; b.classList.remove('held'); haptic(); toggleFav(c, !fav); }, 550); };
-      const up = () => { clearTimeout(t); b.classList.remove('held'); };
-      b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
+      row.appendChild(bg); row.appendChild(b);
+      // horizontal swipe to the right → toggle favorite; vertical movement = normal scrolling
+      let sx = 0, sy = 0, mode = null, dx = 0, swiped = false, armed = false;
+      b.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; mode = null; dx = 0; swiped = false; armed = false; b.classList.remove('back'); });
+      b.addEventListener('pointermove', e => {
+        if (mode === 'v') return;
+        const mx = e.clientX - sx, my = e.clientY - sy;
+        if (!mode) { if (Math.abs(mx) > 8 && Math.abs(mx) > Math.abs(my) * 1.3) { mode = 'h'; b.setPointerCapture(e.pointerId); } else if (Math.abs(my) > 8) { mode = 'v'; return; } else return; }
+        dx = Math.max(0, mx); const shown = dx > 110 ? 110 + (dx - 110) * .3 : dx;
+        b.style.transform = 'translateX(' + shown + 'px)';
+        if (!armed && dx > 80) { armed = true; haptic(); } else if (armed && dx <= 80) armed = false;
+      });
+      const release = () => {
+        if (mode === 'h') { swiped = true; if (dx > 80) toggleFav(c, !fav); }
+        b.classList.add('back'); b.style.transform = ''; mode = null;
+      };
+      b.addEventListener('pointerup', release); b.addEventListener('pointercancel', () => { b.classList.add('back'); b.style.transform = ''; mode = null; });
       b.addEventListener('contextmenu', e => e.preventDefault());
-      b.addEventListener('click', () => { if (long) { long = false; return; } haptic(); send('do=ch&n=' + c.number); show('vRemote'); say(c.number + ' ' + c.name); });
-      group.appendChild(b);
+      b.addEventListener('click', () => { if (swiped) { swiped = false; return; } haptic(); send('do=ch&n=' + c.number); show('vRemote'); say(c.number + ' ' + c.name); });
+      group.appendChild(row);
     });
   }
   async function toggleFav(c, on) {
