@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MyTV</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect x='3' y='6' width='26' height='18' rx='3' fill='%23111' stroke='%23e8e8e8' stroke-width='2'/><path d='M11 28h10' stroke='%23e8e8e8' stroke-width='2'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #000;
@@ -258,6 +260,209 @@
     #remote button { min-width: 40px; padding: 0 10px; }
     #remote .label { display: none; }
   }
+
+  /* =====================================================================
+     Apple TV look (tvOS-inspired design system) — overrides everything above
+     10-foot type, white focus that lifts, glass materials, spring motion, safe margins
+     ===================================================================== */
+  :root {
+    --font: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --text: #ffffff;
+    --muted: rgba(235, 235, 245, .62);          /* secondary label */
+    --faint: rgba(235, 235, 245, .32);          /* tertiary label */
+    --fill: rgba(120, 120, 128, .22);           /* resting control / block */
+    --fill-2: rgba(120, 120, 128, .34);
+    --glass: rgba(30, 30, 34, .58);
+    --glass-strong: rgba(24, 24, 28, .82);
+    --accent: #ffffff;                          /* tvOS: focus is white, colour comes from content */
+    --live: #ff453a;
+    --orange: #ff9f0a;
+    --line: rgba(255, 255, 255, .08);
+    --panel: var(--glass-strong);
+    --r-l: 28px; --r-m: 18px; --r-s: 12px;
+    --spring: cubic-bezier(.2, .9, .25, 1.06);
+    --safe-x: max(32px, 4.5vw);                 /* overscan-safe margins */
+    --safe-y: max(24px, 5vh);
+    --t-title: clamp(26px, 2.5vw, 64px);
+    --t-head: clamp(20px, 1.6vw, 44px);
+    --t-body: clamp(16px, 1.2vw, 32px);
+    --t-call: clamp(14px, 1.0vw, 26px);
+    --t-cap: clamp(12px, .85vw, 22px);
+    --focus-shadow: 0 1.4vw 3vw rgba(0, 0, 0, .55);
+  }
+  html, body { font-family: var(--font); -webkit-font-smoothing: antialiased; letter-spacing: -.005em; }
+  .glass, #osd, #list, #help .card, #rmenu, #hlmenu, #remote, #soundHint {
+    background: var(--glass); -webkit-backdrop-filter: blur(40px) saturate(180%); backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, .06);
+  }
+
+  /* ---------- channel banner: bottom glass bar like Apple TV ---------- */
+  #osd { top: auto; bottom: var(--safe-y); left: 50%; right: auto; transform: translate(-50%, 2vh); width: min(78vw, 1500px); max-width: none;
+         padding: 1.6vw 2vw; gap: 1.8vw; border-radius: var(--r-l); transition: opacity .35s ease, transform .5s var(--spring); }
+  #osd.show { transform: translate(-50%, 0); }
+  #osd .num { font-size: clamp(34px, 3.4vw, 90px); font-weight: 700; color: #fff; min-width: 2ch; letter-spacing: -.03em; }
+  #osd .name { font-size: var(--t-head); font-weight: 700; }
+  #osd .clock { font-size: var(--t-call); color: var(--muted); }
+  #osd .meta { flex: 1; min-width: 0; }
+  #osd img { height: clamp(36px, 3vw, 80px); max-width: 10vw; }
+  #osdNow { font-size: var(--t-call); margin-top: .5vw; }
+  #osdNow .now { font-size: var(--t-body); font-weight: 600; }
+  #osdNow .t { color: var(--muted); font-weight: 500; }
+  #osdNow .bar { height: 4px; background: rgba(255,255,255,.18); border-radius: 2px; margin: .6vw 0; }
+  #osdNow .bar i { background: #fff; border-radius: 2px; }
+  #osdNow .next { color: var(--muted); }
+
+  #entry { top: var(--safe-y); right: var(--safe-x); font-size: clamp(36px, 3.4vw, 96px); color: #fff; font-weight: 700; letter-spacing: -.02em;
+           text-shadow: 0 .3vw 2vw rgba(0,0,0,.8); }
+  #soundHint { border-radius: 999px; font-size: var(--t-body); padding: 1vw 2vw; }
+
+  /* ---------- launch card (external channels) ---------- */
+  .launch { background: radial-gradient(ellipse at 50% 40%, #1c1c22 0%, #000 72%); gap: 1.2vw; }
+  .launch-num { color: #fff; font-size: clamp(56px, 6vw, 160px); font-weight: 800; letter-spacing: -.04em; }
+  .launch-name { font-size: var(--t-title); font-weight: 700; }
+  .launch-hint { font-size: var(--t-call); color: var(--muted); }
+  .launch-btn { background: #fff; color: #000; box-shadow: var(--focus-shadow); font-size: var(--t-body); padding: 1vw 2.6vw;
+                transition: transform .35s var(--spring); }
+  .launch-btn:hover, .launch-btn:focus-visible { transform: scale(1.08); }
+  .geo-badge { background: var(--fill); }
+
+  /* ---------- control bar (mouse / keys): top, glass ---------- */
+  #remote { top: var(--safe-y); bottom: auto; padding: 8px; transition: opacity .35s ease, transform .45s var(--spring); }
+  body.idle #remote { transform: translate(-50%, -12px); }
+  #remote button { transition: transform .3s var(--spring), background .2s; }
+  #remote button:hover, #remote button:focus-visible { background: #fff; color: #000; transform: scale(1.08); }
+
+  /* ---------- channel list: floating glass sidebar ---------- */
+  #list { top: var(--safe-y); bottom: var(--safe-y); right: var(--safe-x); width: min(30vw, 640px); min-width: 320px; border-radius: var(--r-l);
+          transform: translateX(calc(100% + var(--safe-x) + 20px)); transition: transform .5s var(--spring); }
+  #list header { font-size: var(--t-head); letter-spacing: 0; text-transform: none; color: #fff; font-weight: 700; padding: 1.4vw 1.6vw .8vw; }
+  #list ul { padding: 0 1vw 1.2vw; }
+  #list li button { gap: 1vw; padding: .8vw 1vw; border-radius: var(--r-m); font-size: var(--t-body); font-weight: 600;
+                    transition: transform .3s var(--spring), background .15s, color .15s; }
+  #list li button:hover, #list li button:focus-visible { background: #fff; color: #000; transform: scale(1.04); box-shadow: 0 .8vw 2vw rgba(0,0,0,.45); }
+  #list li button:focus-visible .n, #list li button:focus-visible .tag { color: rgba(0,0,0,.55); border-color: rgba(0,0,0,.2); }
+  #list li.active button { background: transparent; }
+  #list li.active .n { color: #fff; }
+  #list li.active button::after { content: ''; width: .55vw; height: .55vw; min-width: 8px; min-height: 8px; border-radius: 50%; background: var(--live); margin-left: .4vw; order: 9; }
+  #list .n { color: var(--muted); font-size: var(--t-call); }
+  #list .logo { width: 3vw; min-width: 44px; height: 1.9vw; min-height: 28px; border-radius: 8px; background: var(--fill); font-size: var(--t-cap); }
+  #list .tag { font-size: var(--t-cap); color: var(--faint); border-color: var(--line); }
+  #list li.lh { font-size: var(--t-call); color: var(--muted); letter-spacing: 0; padding: 1.2vw 1vw .4vw; }
+
+  /* ---------- program guide ---------- */
+  #guide { background: radial-gradient(ellipse at 20% 0%, rgba(60,60,80,.3), transparent 60%), rgba(0,0,0,.97);
+           -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px); }
+  /* full-screen overlays: nothing else on top or peeking through */
+  body:has(#guide.open, #hl.open, #lib.open) #remote, body:has(#guide.open, #hl.open, #lib.open) #osd { opacity: 0 !important; pointer-events: none; }
+  #guide.open, #hl.open, #lib.open { animation: ovIn .35s ease; }
+  @keyframes ovIn { from { opacity: 0; } }
+  .g-head { padding: var(--safe-y) var(--safe-x) 1vw; min-height: 22vh; }
+  .g-when { color: var(--muted); font-size: var(--t-call); font-weight: 600; }
+  .g-title { font-size: var(--t-title); font-weight: 800; letter-spacing: -.02em; margin: .4vw 0 .2vw; }
+  .g-sub { font-size: var(--t-body); opacity: .9; }
+  .g-text { font-size: var(--t-call); color: var(--muted); max-width: 60vw; line-height: 1.45; }
+  .g-clock { font-size: var(--t-head); color: var(--muted); font-weight: 600; }
+  .g-grid { padding: 0 var(--safe-x); }
+  .g-ruler { margin-left: 15vw; height: 2.2vw; min-height: 28px; border-bottom: 0; }
+  .g-ruler span { font-size: var(--t-cap); color: var(--muted); font-weight: 600; }
+  .g-row { height: 3.6vw; min-height: 52px; border-bottom: 0; }
+  .g-row.fav-end { border-bottom: 0; box-shadow: inset 0 -1px 0 rgba(255,255,255,.14); margin-bottom: .5vw; }
+  .g-ch { width: 15vw; min-width: 190px; gap: .8vw; }
+  .g-ch .n { color: var(--faint); font-size: var(--t-call); }
+  .g-ch .nm { font-size: var(--t-body); font-weight: 600; }
+  .g-ch .fv { color: #fff; }
+  .g-row.cur .g-ch .n { color: #fff; }
+  .g-prog { top: .25vw; bottom: .25vw; border-radius: var(--r-s); background: var(--fill); border: 0; padding: 0 1vw; display: flex; align-items: center;
+            font-size: var(--t-call); font-weight: 500; color: rgba(255,255,255,.88); transition: transform .3s var(--spring), background .15s; }
+  .g-prog.live { background: var(--fill-2); color: #fff; }
+  .g-prog.none { background: rgba(120,120,128,.08); color: var(--faint); }
+  .g-prog.sel { background: #fff; color: #000; font-weight: 700; transform: scale(1.04); z-index: 3; box-shadow: var(--focus-shadow); }
+  .g-nowline { width: 2px; background: var(--live); box-shadow: 0 0 8px rgba(255,69,58,.6); }
+  .g-hint { padding: 1vw var(--safe-x) var(--safe-y); font-size: var(--t-cap); color: var(--faint); }
+
+  /* ---------- action sheets (reminders) ---------- */
+  #rmenu, #hlmenu { border: 1px solid rgba(255,255,255,.08); border-radius: var(--r-l); padding: 1vw; min-width: 26vw; box-shadow: 0 2vw 5vw rgba(0,0,0,.6);
+                    background: var(--glass-strong); animation: sheetIn .4s var(--spring); }
+  #rmenu { right: var(--safe-x); top: var(--safe-y); }
+  #hlmenu { left: 50%; right: auto; top: 50%; transform: translate(-50%, -50%); animation: sheetInC .4s var(--spring); }
+  #rmenu .t, #hlmenu .t { font-size: var(--t-call); color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 600; padding: .4vw .8vw .8vw; }
+  #rmenu button, #hlmenu button { font-size: var(--t-body); padding: .9vw 1.1vw; border-radius: var(--r-m); transition: transform .3s var(--spring); }
+  #rmenu button.sel, #hlmenu button.sel { background: #fff; color: #000; transform: scale(1.03); }
+  @keyframes sheetIn { from { opacity: 0; transform: translateY(-10px) scale(.97); } }
+  @keyframes sheetInC { from { opacity: 0; transform: translate(-50%, -46%) scale(.96); } }
+
+  /* ---------- Mediathek launcher ---------- */
+  #lib { background: rgba(0,0,0,.94); padding: var(--safe-y) var(--safe-x); }
+  #lib h2 { font-size: var(--t-title); font-weight: 800; letter-spacing: -.02em; }
+  #lib .l-sub { font-size: var(--t-call); color: var(--muted); margin-bottom: 2vw; }
+  #libGrid { gap: 1.6vw; }
+  .l-tile { height: 8.5vw; min-height: 110px; border-radius: var(--r-m); border: 0; padding: 1.3vw 1.5vw; filter: saturate(.9) brightness(.85);
+            transition: transform .45s var(--spring), filter .3s, box-shadow .3s; }
+  .l-tile .nm { font-size: var(--t-head); }
+  .l-tile .ds { font-size: var(--t-cap); }
+  .l-tile .vp { font-size: var(--t-cap); background: rgba(0,0,0,.35); }
+  .l-tile.sel { transform: scale(1.1) perspective(800px) rotateX(3deg); filter: none; box-shadow: var(--focus-shadow); border: 0; }
+  .l-tile.sel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(120deg, rgba(255,255,255,.22), transparent 45%); pointer-events: none; }
+  #lib .l-hint { font-size: var(--t-cap); color: var(--faint); }
+
+  /* ---------- Highlights: Apple TV app style, full-bleed artwork behind the hero ---------- */
+  #hl { background: #000; }
+  #hl .h-backdrop { position: absolute; top: 0; right: 0; width: 72vw; height: 78vh; background-size: cover; background-position: center 20%;
+                    -webkit-mask-image: linear-gradient(to left, #000 45%, transparent 100%), linear-gradient(to top, transparent 0%, #000 45%);
+                    -webkit-mask-composite: source-in; mask-image: linear-gradient(to left, #000 45%, transparent 100%), linear-gradient(to top, transparent 0%, #000 45%);
+                    mask-composite: intersect; opacity: 0; transition: opacity .6s ease; pointer-events: none; }
+  #hl .h-backdrop.on { opacity: .9; }
+  #hl .h-top, #hl .h-hero, #hl .h-rows, #hl .h-hint { position: relative; z-index: 1; }
+  #hl .h-top { padding: var(--safe-y) var(--safe-x) 0; }
+  #hl .h-top h2 { font-size: var(--t-head); color: var(--muted); font-weight: 700; }
+  #hl .h-clock { font-size: var(--t-call); color: var(--muted); }
+  #hl .h-clock b { font-size: var(--t-head); color: #fff; }
+  #hl .h-hero { grid-template-columns: minmax(0, 46vw); padding: 1vw var(--safe-x) 1vw; min-height: 30vh; }
+  #hl .h-pic { display: none; }
+  #hl .h-time { font-size: clamp(36px, 3.6vw, 96px); color: #fff; font-weight: 800; letter-spacing: -.03em; }
+  #hl .h-day { font-size: var(--t-head); }
+  #hl .h-de { font-size: var(--t-call); color: var(--muted); }
+  #hl .h-live { color: var(--live); font-size: var(--t-head); }
+  #hl .h-title { font-size: var(--t-title); font-weight: 800; letter-spacing: -.02em; text-shadow: 0 2px 20px rgba(0,0,0,.6); }
+  #hl .h-sub { font-size: var(--t-body); }
+  #hl .h-meta { font-size: var(--t-call); color: var(--muted); }
+  #hl .h-text { font-size: var(--t-call); color: rgba(235,235,245,.78); max-width: 46vw; }
+  #hl .h-act { font-size: var(--t-call); color: #fff; opacity: .8; }
+  #hl .h-row h3 { margin: 0 var(--safe-x) .8vw; font-size: var(--t-body); font-weight: 700; color: #fff; }
+  #hl .h-row h3 small { font-size: var(--t-cap); color: var(--muted); }
+  #hl .h-row:not(.cur) h3 { color: var(--muted); }
+  #hl .h-strip { gap: 1.4vw; padding: 1vw var(--safe-x) 1.2vw; transition: transform .5s var(--spring); }
+  #hl .h-inner { transition: transform .5s var(--spring); }
+  .h-tile { width: 15vw; min-width: 220px; height: 8.6vw; min-height: 128px; border-radius: var(--r-m); border: 0; filter: brightness(.82);
+            transition: transform .45s var(--spring), filter .3s, box-shadow .3s; }
+  .h-tile .k { width: 4px; opacity: .9; }
+  .h-tile .t1 { font-size: var(--t-body); }
+  .h-tile .t1 small { font-size: var(--t-cap); }
+  .h-tile .t2 { font-size: var(--t-call); }
+  .h-tile .t3 { font-size: var(--t-cap); }
+  .h-tile .live { background: var(--live); font-size: var(--t-cap); border-radius: 6px; }
+  .h-tile .prog i { background: var(--live); }
+  .h-tile.sel { border: 0; transform: scale(1.12) perspective(900px) rotateX(3deg); filter: none; box-shadow: var(--focus-shadow); }
+  .h-tile.sel::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(120deg, rgba(255,255,255,.2), transparent 45%); pointer-events: none; }
+  #hl .h-hint { padding: .6vw var(--safe-x) var(--safe-y); font-size: var(--t-cap); color: var(--faint); }
+
+  /* ---------- help ---------- */
+  #help .card { border-radius: var(--r-l); padding: 2vw 2.4vw; }
+  #help h2 { font-size: var(--t-head); }
+  #help dl { font-size: var(--t-call); gap: .6vw 1.6vw; }
+  #help dt { color: #fff; }
+
+  /* ---------- standby ---------- */
+  #standby .t { font-size: clamp(56px, 7vw, 200px); font-weight: 200; color: #2a2a2e; letter-spacing: -.04em; }
+  #standby .h { font-size: var(--t-call); color: #2a2a2e; }
+
+  @media (max-width: 800px) {
+    #osd { width: calc(100vw - 32px); padding: 14px 16px; }
+    #list { min-width: 0; width: calc(100vw - 32px); right: 16px; }
+    .g-ch { min-width: 110px; width: 110px; } .g-ruler { margin-left: 110px; }
+    #hl .h-hero { grid-template-columns: 1fr; } #hl .h-backdrop { width: 100vw; height: 50vh; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 </style>
 </head>
 <body>
@@ -303,6 +508,7 @@
 </div>
 
 <div id="hl" role="dialog" aria-label="Highlights">
+  <div class="h-backdrop" id="hlBack"></div>
   <div class="h-top"><h2>Highlights</h2><div class="h-clock" id="hlClock"></div></div>
   <div class="h-hero" id="hlHero"></div>
   <div class="h-rows" id="hlRows"><div class="h-inner" id="hlInner"></div></div>
@@ -384,7 +590,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
 <script src="channels.js?v=19"></script>
-<script src="reminders.js?v=1"></script>
+<script src="reminders.js?v=2"></script>
 <script>
 (() => {
   // favorites (set on the iPhone remote, stored on the notebook) come first; numbers stay the same
@@ -878,7 +1084,7 @@
     if (s && s.p) {
       const live = s.p.start <= now && now < s.p.end;
       $('gWhen').textContent = `${s.ch.number} ${s.ch.name} · ${s.p.start.toLocaleDateString('de-CH', { weekday: 'short' })} ${hm(s.p.start)}–${hm(s.p.end)}${live ? ' · LÄUFT' : ''}`;
-      $('gTitle').textContent = s.p.title; $('gSub').textContent = s.p.sub; $('gText').textContent = s.p.text;
+      $('gTitle').textContent = s.p.title; $('gSub').textContent = s.p.sub; $('gText').textContent = (s.p.text || '').replace(/\\n/g, ' ');
     } else {
       const ch = channels[G.row];
       $('gWhen').textContent = `${ch.number} ${ch.name}`;
@@ -953,7 +1159,7 @@
   // ---------- Highlights (H): films, sport, shows of the week + new in the Mediatheken ----------
   // highlights.json is built by the same GitHub Action as epg.json (tools/build_highlights.py)
   const HL = { data: null, loaded: 0, rows: [], r: 0, c: [], menu: null };
-  const KIND_COL = { sport: '#2fbf71', film: '#ffcc33', event: '#b07cff', mt: '#4aa3ff', rem: '#ff8a3d' };
+  const KIND_COL = { sport: '#30d158', film: '#ffd60a', event: '#bf5af2', mt: '#0a84ff', rem: '#ff9f0a' };   // Apple system colours
   const chColor = n => { const h = (n * 47) % 360; return `linear-gradient(140deg, hsl(${h} 45% 28%), hsl(${(h + 40) % 360} 40% 12%))`; };
   const dayWord = d => {
     const a = new Date(); a.setHours(0, 0, 0, 0);
@@ -1033,8 +1239,13 @@
     const cur = rEls[HL.r];      // vertical: current row near the top
     $('hlInner').style.transform = cur && HL.r > 0 ? `translateY(${-cur.offsetTop}px)` : '';
     $('hlInner').querySelectorAll('.h-tile').forEach(b => b.onclick = () => { HL.r = +b.dataset.r; HL.c[HL.r] = +b.dataset.c; renderHl(); hlActivate(); });
-    // hero
+    // hero (+ full-bleed artwork behind it, like the Apple TV app)
     const it = hlItem(); if (!it) return;
+    const bk = $('hlBack'), want = it.img || '';
+    if (bk.dataset.src !== want) {
+      bk.dataset.src = want; bk.classList.remove('on');
+      if (want) { const im = new Image(); im.onload = () => { if (bk.dataset.src === want) { bk.style.backgroundImage = `url("${want.replace(/"/g, '')}")`; bk.classList.add('on'); } }; im.src = want; }
+    }
     if (it.kind === 'mt') {
       $('hlHero').innerHTML = `<div><div class="h-when"><span class="h-time">${esc(it.channel)}</span><span class="h-day">Mediathek · seit ${dayWord(new Date(it.ts))}</span></div>
         <div class="h-title">${esc(it.title)}</div><div class="h-sub">${esc(it.topic || '')}</div>

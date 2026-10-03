@@ -35,16 +35,16 @@
   function showBanner(r) {
     if (!banner) {
       banner = document.createElement('div');
-      banner.style.cssText = 'position:fixed;left:50%;top:28px;transform:translateX(-50%);z-index:2147483647;max-width:min(760px,calc(100vw - 32px));' +
-        'padding:16px 22px;border-radius:16px;background:rgba(12,14,18,.94);border:2px solid #ffcc33;color:#f2f2f2;' +
-        'font:600 17px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.6)';
+      banner.style.cssText = 'position:fixed;left:50%;top:max(24px,5vh);transform:translateX(-50%);z-index:2147483647;max-width:min(60vw,1100px);min-width:min(420px,90vw);' +
+        'padding:1.4vw 1.8vw;border-radius:28px;background:rgba(24,24,28,.82);-webkit-backdrop-filter:blur(40px) saturate(180%);backdrop-filter:blur(40px) saturate(180%);' +
+        'border:1px solid rgba(255,255,255,.08);color:#fff;font:600 clamp(16px,1.2vw,32px)/1.35 Inter,-apple-system,"Segoe UI",Roboto,sans-serif;box-shadow:0 2vw 5vw rgba(0,0,0,.6)';
       banner.addEventListener('click', () => R.bannerKey('Enter'));
       document.body.appendChild(banner);
     }
     const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-    banner.innerHTML = `<div style="color:#ffcc33;font-size:13px;font-weight:800;letter-spacing:.06em">🔔 ERINNERUNG · ${hm(r.start)}</div>
-      <div style="font-size:21px;font-weight:800;margin:4px 0 2px">${esc(r.title)}</div>
-      <div style="color:#9aa0a6">${r.ch} ${esc(r.chName)} · <b style="color:#f2f2f2">OK</b> = umschalten · Zurück = schliessen</div>`;
+    banner.innerHTML = `<div style="color:#ff9f0a;font-size:.8em;font-weight:700">🔔 Erinnerung · ${hm(r.start)}</div>
+      <div style="font-size:1.45em;font-weight:800;letter-spacing:-.02em;margin:.15em 0">${esc(r.title)}</div>
+      <div style="color:rgba(235,235,245,.62);font-size:.85em">${r.ch} ${esc(r.chName)} · <b style="color:#fff">OK</b> umschalten · Zurück schliessen</div>`;
     banner.style.display = 'block';
     bannerRem = r;
     clearTimeout(bannerT); bannerT = setTimeout(hideBanner, 45000);
