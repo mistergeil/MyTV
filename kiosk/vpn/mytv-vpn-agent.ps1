@@ -138,7 +138,14 @@ while ($l.IsListening) {
         if ($do -eq 'ch') { if ($n -notmatch '^\d{1,3}$') { throw 'ch needs n=<channel number>' } }
         elseif ($do -eq 'key') { if ($Keys -cnotcontains $k) { throw "key '$k' not allowed" } }
         elseif ($do -ne 'on') { throw "unknown command '$do'" }
-        if ($do -eq 'on') { $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)" }
+        if ($do -eq 'on') {
+          $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)"
+          # switch the TV to the notebook's HDMI input in the background (tv-remote.ps1, needs tv-ip.txt)
+          if (Test-Path (Join-Path $Dir 'tv-ip.txt')) {
+            Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $Dir 'tv-remote.ps1')`""
+            $out.hdmi = 'switching'
+          }
+        }
         Add-Cmd $do $n $k
         if ($do -ne 'key') { Write-Log "remote: $do $n from $($req.RemoteEndPoint.Address)" }
         $out.ok = $true

@@ -43,6 +43,18 @@ if ($m.Trim()) {
   if (($m -replace '[^0-9A-Fa-f]', '').Length -eq 12) { $m.Trim() | Set-Content -Path $MacFile -Encoding ascii -NoNewline }
   else { Write-Host "That doesn't look like a MAC address - skipped." -ForegroundColor Yellow }
 }
+# TV IP + HDMI port: the notebook switches the TV to MyTV's input over the network (Samsung "IP Remote")
+$IpFile = Join-Path $Dir 'tv-ip.txt'; $HdmiFile = Join-Path $Dir 'tv-hdmi.txt'
+$cur = if (Test-Path $IpFile) { (Get-Content $IpFile -Raw).Trim() } else { '' }
+$v = Read-Host ("TV IP address (e.g. 192.168.1.94)" + $(if ($cur) { " [Enter = keep $cur]" } else { ' [Enter = skip]' }))
+if ($v.Trim() -match '^\d{1,3}(\.\d{1,3}){3}$') { $v.Trim() | Set-Content -Path $IpFile -Encoding ascii -NoNewline }
+elseif ($v.Trim()) { Write-Host "That doesn't look like an IP address - skipped." -ForegroundColor Yellow }
+if (Test-Path $IpFile) {
+  $cur = if (Test-Path $HdmiFile) { (Get-Content $HdmiFile -Raw).Trim() } else { '1' }
+  $v = Read-Host "HDMI port number the notebook is plugged into (1-4) [Enter = $cur]"
+  if ($v.Trim() -match '^[1-4]$') { $cur = $v.Trim() }
+  $cur | Set-Content -Path $HdmiFile -Encoding ascii -NoNewline
+}
 $ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
   $_.IPAddress -notmatch '^(127|169\.254)\.' -and $_.InterfaceAlias -notmatch 'WireGuard|vEthernet|Loopback|^(DE|CH|AT)$' } |
   Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress
