@@ -306,7 +306,16 @@
     if (row.items || row.busy) return;
     row.busy = true;
     row.load().then(items => { row.items = items; }).catch(e => { row.items = []; row.err = e.message; })
-      .finally(() => { row.busy = false; if (view() && view().rows.includes(row)) { drawRow(view().rows.indexOf(row)); if (view().rows[view().r] === row) hero(curItem()); } });
+      .finally(() => {
+        row.busy = false;
+        const v = view(); if (!v || !v.rows.includes(row)) return;
+        const i = v.rows.indexOf(row);
+        if (!row.items.length && !row.err && !PROVIDERS[S.tab].search && v.rows.length > 1) {   // empty editorial row → drop it
+          v.rows.splice(i, 1); v.c.splice(i, 1); if (v.r > i || v.r >= v.rows.length) v.r = Math.max(0, v.r - 1);
+          renderRows(); loadVisible(); return;
+        }
+        drawRow(i); if (v.rows[v.r] === row) hero(curItem());
+      });
   }
   function loadVisible() { const v = view(); if (!v) return; for (let i = Math.max(0, v.r - 1); i < Math.min(v.rows.length, v.r + 4); i++) loadRow(v.rows[i]); }
 
@@ -429,7 +438,7 @@
       if (it.kind === 'ard') { const s = await ardStream(it.href); it.url = s.url; it.geo = s.geo; it.desc = it.desc || s.desc; it.key = it.href; }
       else it.key = it.url;
       if (cur !== it) return;
-      if (it.geo) await ensureVpn(it.geo);
+      await ensureVpn(it.geo || it.country);     // ARD/ZDF/arte … → DE, SRF → CH, ORF → AT (no-op if already right)
       if (cur !== it) return;
       load(it);
     } catch (e) { toast('⚠️ ' + e.message); stopPlayer(); }
