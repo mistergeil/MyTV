@@ -9,6 +9,7 @@
 #    GET /favs                -> favorite channel numbers (MyTV lists them first)
 #    GET /rem                 -> reminders (one list for MyTV, the overlay on every channel and the Mediathek)
 #    GET /rem/add?ch=&chName=&title=&start=&end=&mode=remind|auto   /rem/del?ch=&start=   /rem/take?ch=&start=&step=
+#    GET /pipe/test, /pipe/result?ok=1&where=  -> "Verbindung testen" (remote -> notebook -> MyTV -> notebook)
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
 #  Home network - port 8766, every request needs the secret key from remote.key
@@ -44,6 +45,7 @@ $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backsp
 $Boot    = [string][DateTime]::UtcNow.Ticks
 $FavFile = Join-Path $Dir 'favorites.txt'
 $RemFile = Join-Path $Dir 'reminders.json'
+$PipeTest = $null                                  # last pipe test result (shown in the remote settings)
 $GuideAt = [DateTime]::MinValue                   # last "guide is open" report from MyTV (expires after 12 s)
 $VerFile = Join-Path $Dir 'VERSION'
 $Version = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw).Trim() } else { '0' }
@@ -316,7 +318,7 @@ while ($l.IsListening) {
           $out.notes = @($i.notes); $out.date = [string]$i.date; $out.installer = [bool]$i.installer
           $out.checked = $UpdChecked.ToLocalTime().ToString('s')
         }
-        $out.state = Get-UpdateState; $out.backups = @(Get-BackupNames)
+        $out.state = Get-UpdateState; $out.backups = @(Get-BackupNames); $out.pipe = $PipeTest
       } elseif ($path -eq '/update/install') {
         $i = Get-UpdateInfo $true
         if (-not $i -or [string]$i.version -eq $Version) { throw 'Kein Update verfügbar' }
@@ -330,6 +332,7 @@ while ($l.IsListening) {
         $k  = [string]$req.QueryString['k']
         if ($do -eq 'ch') { if ($n -notmatch '^\d{1,3}$') { throw 'ch needs n=<channel number>' } }
         elseif ($do -eq 'key') { if ($Keys -cnotcontains $k) { throw "key '$k' not allowed" } }
+        elseif ($do -eq 'test') { $PipeTest = $null }
         elseif ($do -ne 'on') { throw "unknown command '$do'" }
         if ($do -eq 'on') {
           $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)"
@@ -382,6 +385,11 @@ while ($l.IsListening) {
           if ($r -and -not $r.PSObject.Properties[$step]) { $r | Add-Member -NotePropertyName $step -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); Save-Rems $l; $out.took = $true }
         }
         $out.ok = $true; $out.list = @(Get-Rems)
+      } elseif ($path -eq '/pipe/test') {
+        $out.ok = $true; $out.pong = $true; $out.version = $Version
+      } elseif ($path -eq '/pipe/result') {
+        $PipeTest = [ordered]@{ ok = ([string]$req.QueryString['ok'] -eq '1'); where = [string]$req.QueryString['where']; t = (Get-Date).ToString('HH:mm:ss') }
+        $out.ok = $true
       } elseif ($path -eq '/ui') {
         $GuideAt = if ([string]$req.QueryString['guide'] -eq '1') { [DateTime]::UtcNow } else { [DateTime]::MinValue }
         $out.ok = $true

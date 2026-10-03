@@ -181,6 +181,11 @@
     <div class="cell"><span class="nm">Zuletzt geprüft</span><span class="val" id="sChecked">–</span></div>
     <button class="cell primary" id="sCheck">Nach Updates suchen</button>
   </div>
+  <h2>Verbindung</h2>
+  <div class="group">
+    <button class="cell primary" id="sPipe">Verbindung testen</button>
+  </div>
+  <div class="note" id="sPipeRes">Prüft Fernbedienung → Notebook → MyTV → Notebook. Das Ergebnis erscheint auch kurz am TV.</div>
   <div id="sNew" hidden>
     <h2>Neue Version</h2>
     <div class="group">
@@ -379,6 +384,15 @@
     $('sInstall').disabled = $('sRollback').disabled = false;
   }
   $('sCheck').addEventListener('click', () => check(true));
+  $('sPipe').addEventListener('click', async () => {
+    haptic(); $('sPipeRes').textContent = 'Teste …';
+    try { await api('/cmd', '&do=test'); } catch (e) { $('sPipeRes').textContent = '✗ Notebook nicht erreichbar'; return; }
+    for (let i = 0; i < 8; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      try { const j = await api('/update'); if (j.pipe) { $('sPipeRes').textContent = j.pipe.ok ? `✓ Alles verbunden (${j.pipe.where === 'overlay' ? 'Overlay auf dem Sender' : 'MyTV'}, ${j.pipe.t})` : '✗ MyTV erreicht das Notebook nicht'; return; } } catch (e) {}
+    }
+    $('sPipeRes').textContent = '✗ Keine Antwort von MyTV – Bridge 1.9 installiert? MyTV offen?';
+  });
   $('sInstall').addEventListener('click', () => start('/update/install', `MyTV ${U && U.latest} installieren? Das TV-Bild läuft weiter, die Fernbedienung ist ca. 20 Sekunden weg.`));
   $('sRollback').addEventListener('click', () => start('/update/rollback', 'Vorherige Version wiederherstellen?'));
 

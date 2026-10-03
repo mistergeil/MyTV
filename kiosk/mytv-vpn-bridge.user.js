@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.8.0
+// @version      1.9.0
 // @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites, iPhone remote commands; switches to another VPN server when a site says "VPN erkannt".
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
@@ -44,13 +44,17 @@
     });
   }
 
+  // generic pipe (since 1.9): any path on the local switcher (127.0.0.1:8765 only, never anything else), so new
+  // features need no new bridge version. The update / settings endpoints are not here - they live on the LAN port with a key.
+  const PIPE_PATH = /^\/[A-Za-z0-9_\-\/]{1,60}(\?[^#\s]{0,1500})?$/;
+  const pipeOk = p => typeof p === 'string' && PIPE_PATH.test(p) && !p.includes('..') && !p.includes('//');
   // shared data on the notebook (favorites, reminders) - the only paths MyTV may read/write through the bridge
   const DATA_PATH = /^\/(favs|rem)(\/(add|del|take))?(\?[^#]*)?$/;
 
   // ---- VPN (MyTV pages only) ----
   if (IS_MYTV) {
     // tell MyTV that the bridge exists (the <html> element may not exist yet at document-start)
-    const mark = () => { if (!document.documentElement) return false; document.documentElement.dataset.mytvVpnBridge = '1'; return true; };
+    const mark = () => { if (!document.documentElement) return false; const ds = document.documentElement.dataset; ds.mytvVpnBridge = '1'; ds.mytvPipe = '1'; ds.mytvBridgeVersion = '1.9.0'; return true; };
     if (!mark()) new MutationObserver((m, o) => { if (mark()) o.disconnect(); }).observe(document, { childList: true });
 
     window.addEventListener('message', async ev => {
@@ -62,6 +66,7 @@
       else if (d.type === 'tvon') r = await call('/tv/on', 5000);
       else if (d.type === 'favs') r = await call('/favs', 3000);
       else if (d.type === 'agent' && DATA_PATH.test(d.path || '')) r = await call(d.path, 4000);
+      else if (d.type === 'pipe' && pipeOk(d.path)) r = await call(d.path, Math.min(+d.timeout || 8000, 40000));
       else if (d.type === 'state') r = await call('/ui?guide=' + (d.country === 'guide' ? 1 : 0), 2000);
       else return;
       window.postMessage(Object.assign({ mytvVpn: 1, type: 'result', id: d.id }, r), location.origin);
@@ -82,6 +87,9 @@
       if (!d || ev.origin !== OV) return;
       if (d.mytvState === 1) call('/ui?guide=' + (d.guide ? 1 : 0), 2000);
       if (d.mytvFavsReq === 1) pushFavs(ev.source);
+      if (d.mytvPipe === 1 && pipeOk(d.path)) {                       // generic pipe for the MyTV overlay
+        call(d.path, Math.min(+d.timeout || 8000, 40000)).then(r => { try { ev.source.postMessage(Object.assign({ mytvPipeRes: 1, id: d.id }, r), OV); } catch (e) {} });
+      }
       if (d.mytvAgent === 1 && DATA_PATH.test(d.path || '')) {       // MyTV overlay asks for shared data
         call(d.path, 4000).then(r => { try { ev.source.postMessage(Object.assign({ mytvAgentRes: 1, id: d.id }, r), OV); } catch (e) {} });
       }
@@ -153,7 +161,12 @@
     if (c.do === 'on') {
       if (IS_INDEX) window.postMessage({ mytvRemote: 1, do: 'on' }, location.origin);
       // on a channel / in the Mediathek MyTV is already "on" → nothing to do
+      return;
     }
+    // generic pipe: anything else from the remote goes straight to MyTV (page or overlay) - new remote buttons need no bridge update
+    const msg = Object.assign({}, c, { mytvRemote: 1, pipe: 1 });
+    if (IS_MYTV) window.postMessage(msg, location.origin);
+    else document.querySelectorAll('iframe').forEach(f => { try { f.contentWindow.postMessage(msg, OV); } catch (e) {} });
   }
   let busy = false;
   async function poll() {

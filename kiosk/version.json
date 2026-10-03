@@ -1,11 +1,12 @@
 {
-  "version": "1.6.2",
+  "version": "1.7.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "28055455264afcc1d79dd1ea6734540466d12bf4cc61a7684664af51462dd642",
-  "size": 29365,
+  "sha256": "1f13040f044b73c0aa445dd40b78a561e706a8f97ae6ce2d3ba2bae120d470e4",
+  "size": 29800,
   "notes": [
-    "Guide-Leiste: Taste heisst jetzt „Primetime“ (20:15 deutsche Zeit)"
+    "Neuer Kanal für künftige Funktionen (Tampermonkey-Updates werden seltener)",
+    "Einstellungen → „Verbindung testen“: prüft Fernbedienung → Notebook → MyTV"
   ],
   "installer": false
 }

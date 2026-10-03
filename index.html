@@ -1402,6 +1402,36 @@
     if (standby) $('sbClock').textContent = clock();
     else if (!overlay && Date.now() - lastInput > IDLE_MS) enterStandby();
   }, 30e3);
+  // ---------- generic pipe to the notebook (bridge 1.9+): pipe('/path?x=1') → agent answer, also from the overlay ----------
+  const PIPE = { seq: 0, pending: new Map() };
+  function pipe(path, timeout = 8000) {
+    return new Promise(res => {
+      const id = 'p' + (++PIPE.seq) + '_' + Date.now();
+      PIPE.pending.set(id, res);
+      if (overlay) window.parent.postMessage({ mytvPipe: 1, id, path, timeout }, '*');
+      else if (document.documentElement.dataset.mytvPipe === '1') window.postMessage({ mytvVpn: 1, type: 'pipe', path, timeout, id }, location.origin);
+      else { PIPE.pending.delete(id); return res({ ok: false, error: 'Bridge 1.9 fehlt' }); }
+      setTimeout(() => { if (PIPE.pending.has(id)) { PIPE.pending.delete(id); res({ ok: false, error: 'timeout' }); } }, timeout + 1000);
+    });
+  }
+  window.addEventListener('message', ev => {
+    const d = ev.data; if (!d) return;
+    const fromPipe = (d.mytvPipeRes === 1 && ev.source === window.parent) || (d.mytvVpn === 1 && d.type === 'result' && ev.origin === location.origin);
+    if (fromPipe && PIPE.pending.has(d.id)) { const f = PIPE.pending.get(d.id); PIPE.pending.delete(d.id); f(d); }
+    // commands from the remote that only exist since the pipe (page: same origin, overlay: from the provider page)
+    const fromRemote = d.mytvRemote === 1 && d.pipe === 1 && (ev.origin === location.origin || (overlay && ev.source === window.parent));
+    if (fromRemote) onPipeCommand(d);
+  });
+  window.MyTVPipe = { call: pipe };
+  async function onPipeCommand(c) {
+    if (c.do === 'test') {                 // ⚙︎ → "Verbindung testen" on the remote: remote → notebook → MyTV → notebook
+      const r = await pipe('/pipe/test');
+      flash(r.ok ? `✓ Verbindung ok · MyTV ${r.version || ''}${overlay ? ' · Overlay' : ''}` : `⚠️ Pipe: ${r.error || 'Fehler'}`);
+      pipe('/pipe/result?ok=' + (r.ok ? 1 : 0) + (overlay ? '&where=overlay' : '&where=mytv'));
+    }
+    // new remote features hook in here
+  }
+
   // ---------- favorites ----------
   function applyFavs(list) {
     list = (Array.isArray(list) ? list : []).map(Number).filter(n => n > 0);
