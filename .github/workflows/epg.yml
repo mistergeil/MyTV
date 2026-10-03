@@ -8,6 +8,7 @@ on:
     paths:
       - channels.js
       - tools/build_epg.py
+      - tools/build_highlights.py
       - .github/workflows/epg.yml
 
 permissions:
@@ -25,13 +26,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build epg.json
+      - name: Build epg.json + highlights.json
         run: python tools/build_epg.py
       - name: Commit if changed
         run: |
           git config user.name "mytv-bot"
           git config user.email "mytv-bot@users.noreply.github.com"
           git add epg.json
+          if [ -f highlights.json ]; then git add highlights.json; fi
           if git diff --cached --quiet; then echo "no changes"; exit 0; fi
           git commit -m "Update program guide"
           git pull --rebase

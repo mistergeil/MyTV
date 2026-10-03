@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.9.2
+// @version      1.10.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -187,6 +187,8 @@
       go('back=1&from=' + CH + '&lib=1');
     } else if (k === 'g' || k === 'G' || k === 'Guide') {
       go('back=1&from=' + CH + '&guide=1');
+    } else if (k === 'h' || k === 'H') {
+      go('back=1&from=' + CH + '&hl=1');
     } else if (k === 'i' || k === 'I') {
       osd(CH, NAME);
     } else if (k === 'm' || k === 'M') {
@@ -383,6 +385,7 @@
       else if (d.type === 'back') go('back=1&from=' + CH);
       else if (d.type === 'ok') { if (IS_OFFICIAL && !clickPlay('OK')) L0('OK: nothing to click'); }
       else if (d.type === 'lib') go('back=1&from=' + CH + '&lib=1');
+      else if (d.type === 'hl') go('back=1&from=' + CH + '&hl=1');
       else if (d.type === 'sound') { wantSound = { muted: d.muted, volume: d.volume }; withPlayer(applySound); }
       else if (d.type === 'fullscreen') {
         if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {});

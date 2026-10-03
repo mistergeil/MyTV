@@ -118,6 +118,69 @@
     .g-grid { padding: 0 8px; } .g-ruler { margin-left: 110px; } .g-ch { width: 110px; } .g-ch .n { display: none; }
   }
 
+
+  /* ---------- Highlights (H) ---------- */
+  #hl { position: fixed; inset: 0; z-index: 27; background: #07090d; display: none; flex-direction: column; overflow: hidden; }
+  #hl.open { display: flex; }
+  #hl .h-top { display: flex; align-items: baseline; justify-content: space-between; padding: 26px 40px 0; }
+  #hl .h-top h2 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
+  #hl .h-clock { color: var(--muted); font-size: 15px; font-variant-numeric: tabular-nums; }
+  #hl .h-clock b { color: var(--text); font-size: 22px; margin-left: 8px; }
+  /* hero: what the selected tile is, when it is here (local time first, German time second) */
+  #hl .h-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 36%); gap: 32px; padding: 18px 40px 10px; min-height: 210px; }
+  #hl .h-when { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  #hl .h-time { font-size: 52px; font-weight: 800; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  #hl .h-day { font-size: 20px; font-weight: 700; }
+  #hl .h-de { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  #hl .h-live { color: #ff5252; font-weight: 800; font-size: 20px; }
+  #hl .h-title { font-size: 30px; font-weight: 800; margin: 12px 0 2px; line-height: 1.15; }
+  #hl .h-sub { font-size: 17px; opacity: .85; }
+  #hl .h-meta { margin-top: 6px; font-size: 14px; color: var(--muted); }
+  #hl .h-text { margin-top: 10px; color: #b9bec5; font-size: 15px; line-height: 1.45; max-width: 70ch; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  #hl .h-act { margin-top: 12px; font-size: 14px; font-weight: 700; color: var(--accent); }
+  #hl .h-pic { border-radius: 12px; overflow: hidden; align-self: start; aspect-ratio: 16 / 9; background: #151922; display: grid; place-items: center; }
+  #hl .h-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #hl .h-pic .big { padding: 0 20px; text-align: center; font-size: 56px; font-weight: 900; color: rgba(255,255,255,.9); letter-spacing: -.03em; }
+  #hl .h-rows { flex: 1; min-height: 0; position: relative; overflow: hidden; padding: 0 0 8px; }
+  #hl .h-inner { transition: transform .22s ease; }
+  #hl .h-row { padding: 10px 0 8px; }
+  #hl .h-row h3 { margin: 0 40px 10px; font-size: 18px; font-weight: 700; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  #hl .h-row h3 small { color: var(--muted); font-weight: 600; font-size: 13px; }
+  #hl .h-row:not(.cur) h3 { color: var(--muted); }
+  #hl .h-strip { display: flex; gap: 14px; padding: 4px 40px; transition: transform .22s ease; }
+  .h-tile { position: relative; flex: none; width: 250px; height: 148px; border-radius: 12px; overflow: hidden; text-align: left; color: #fff;
+            border: 3px solid transparent; background: #151922; }
+  .h-tile .bg { position: absolute; inset: 0; background-size: cover; background-position: center; }
+  .h-tile .bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.05) 25%, rgba(0,0,0,.85)); }
+  .h-tile .k { position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
+  .h-tile .t1 { position: absolute; left: 14px; top: 10px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+  .h-tile .t1 small { font-size: 13px; font-weight: 700; opacity: .9; margin-left: 6px; }
+  .h-tile .t2 { position: absolute; left: 14px; right: 12px; bottom: 30px; font-size: 16px; font-weight: 800; line-height: 1.2;
+                display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+  .h-tile .t3 { position: absolute; left: 14px; right: 12px; bottom: 10px; font-size: 12px; font-weight: 600; opacity: .8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .h-tile .live { position: absolute; right: 10px; top: 12px; font-size: 11px; font-weight: 800; background: #e53935; padding: 2px 7px; border-radius: 5px; }
+  .h-tile .rem { position: absolute; right: 10px; top: 10px; font-size: 16px; }
+  .h-tile .prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,.15); }
+  .h-tile .prog i { display: block; height: 100%; background: #e53935; }
+  .h-tile.sel { border-color: var(--accent); transform: scale(1.05); box-shadow: 0 10px 30px rgba(0,0,0,.6); z-index: 1; }
+  .h-tile { transition: transform .12s; }
+  #hl .h-empty { margin: 0 40px; color: var(--muted); font-size: 15px; }
+  #hl .h-hint { padding: 10px 40px 18px; color: var(--muted); font-size: 13px; }
+  #hlmenu { position: absolute; right: 40px; top: 90px; z-index: 3; min-width: 320px; background: #151922; border: 2px solid var(--accent); border-radius: 14px;
+            padding: 8px; display: none; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  #hlmenu.open { display: block; }
+  #hlmenu .t { font-size: 13px; font-weight: 800; color: var(--accent); padding: 6px 10px 8px; }
+  #hlmenu button { display: block; width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px; font-size: 16px; font-weight: 600; }
+  #hlmenu button.sel { background: var(--accent); color: #111; }
+  @media (max-width: 800px) {
+    #hl .h-top, #hl .h-hero, #hl .h-hint { padding-left: 16px; padding-right: 16px; }
+    #hl .h-hero { grid-template-columns: 1fr; min-height: 0; } #hl .h-pic { display: none; }
+    #hl .h-time { font-size: 38px; } #hl .h-title { font-size: 22px; }
+    #hl .h-row h3 { margin: 0 16px 8px; } #hl .h-strip { padding: 4px 16px; }
+    .h-tile { width: 200px; height: 120px; }
+  }
+  @media (prefers-reduced-motion: reduce) { #hl .h-inner, #hl .h-strip, .h-tile { transition: none; } }
+
   /* ---------- On-screen display ---------- */
   #osd {
     position: fixed; top: 24px; left: 24px; display: flex; align-items: center; gap: 16px;
@@ -234,6 +297,14 @@
   <div class="l-hint">← → ↑ ↓ wählen · OK öffnen · B / Esc schliessen · In der Mediathek: B oder ⌂-Knopf = zurück zu MyTV</div>
 </div>
 
+<div id="hl" role="dialog" aria-label="Highlights">
+  <div class="h-top"><h2>Highlights</h2><div class="h-clock" id="hlClock"></div></div>
+  <div class="h-hero" id="hlHero"></div>
+  <div class="h-rows" id="hlRows"><div class="h-inner" id="hlInner"></div></div>
+  <div id="hlmenu"></div>
+  <div class="h-hint">↑ ↓ Reihe · ← → wählen · OK schauen / erinnern · H / Esc schliessen · Zeiten in Ortszeit, deutsche Zeit klein daneben</div>
+</div>
+
 <div id="standby"><div><div class="t" id="sbClock"></div><div class="h">Standby · OK oder Sticker zum Einschalten</div></div></div>
 <div id="entry"></div>
 <button id="soundHint">🔊 Klicken für Ton</button>
@@ -264,6 +335,9 @@
   <button id="btnGuide" title="Programmführer (G)" aria-label="Programmführer">
     <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11M15 13h3M15 16h3"/></svg>
   </button>
+  <button id="btnHl" title="Highlights (H)" aria-label="Highlights">
+    <svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>
+  </button>
   <button id="btnLib" title="Mediathek (B)" aria-label="Mediathek">
     <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M10 9l4 2-4 2z M8 20h8"/></svg>
   </button>
@@ -287,6 +361,7 @@
       <dt>↓ / PgDn</dt><dd>Vorheriger Sender</dd>
       <dt>0–9</dt><dd>Sendernummer eingeben</dd>
       <dt>G</dt><dd>Programmführer</dd>
+      <dt>H</dt><dd>Highlights: Filme, Sport &amp; Shows der Woche</dd>
       <dt>B</dt><dd>Mediathek (ARD, ZDF, Joyn, RTL+ …)</dd>
       <dt>V</dt><dd>VPN umschalten (aus / DE / CH / AT)</dd>
       <dt>L</dt><dd>Senderliste</dd>
@@ -669,7 +744,7 @@
   }
   function openLibMenu() {
     if (overlay) { toHost({ type: 'lib' }); return; }
-    clearTimeout(extTimer); toggleList(false); closeGuide();
+    clearTimeout(extTimer); toggleList(false); closeGuide(); closeHl();
     $('lib').classList.add('open'); renderLib();
   }
   function closeLibMenu() { $('lib').classList.remove('open'); }
@@ -697,7 +772,7 @@
   const winMin = () => (innerWidth < 700 ? 120 : 180);
   const floor30 = d => { const x = new Date(d); x.setMinutes(x.getMinutes() < 30 ? 0 : 30, 0, 0); return x; };
   function openGuide() {
-    toggleList(false);
+    toggleList(false); closeHl();
     G.row = index; G.focus = new Date(); G.winStart = floor30(Date.now());
     $('guide').classList.add('open');
     renderGuide();
@@ -818,11 +893,156 @@
     tvOn: () => { if (!overlay && VPN.bridge) vpnCall('tvon'); },
     switchTo: r => {
       if (overlay) { toHost({ type: 'tune', number: r.ch }); return; }
-      closeGuide(); toggleList(false); closeLibMenu();
+      closeGuide(); toggleList(false); closeLibMenu(); closeHl();
       exitStandby(false); tuneNumber(r.ch);
     },
   });
   setInterval(() => { if ($('guide').classList.contains('open')) renderGuide(); }, 60 * 1000);
+
+  // ---------- Highlights (H): films, sport, shows of the week + new in the Mediatheken ----------
+  // highlights.json is built by the same GitHub Action as epg.json (tools/build_highlights.py)
+  const HL = { data: null, loaded: 0, rows: [], r: 0, c: [], menu: null };
+  const KIND_COL = { sport: '#2fbf71', film: '#ffcc33', event: '#b07cff', mt: '#4aa3ff' };
+  const chColor = n => { const h = (n * 47) % 360; return `linear-gradient(140deg, hsl(${h} 45% 28%), hsl(${(h + 40) % 360} 40% 12%))`; };
+  const dayWord = d => {
+    const a = new Date(); a.setHours(0, 0, 0, 0);
+    const b = new Date(d); b.setHours(0, 0, 0, 0);
+    const n = Math.round((b - a) / 864e5);
+    return n === 0 ? 'Heute' : n === 1 ? 'Morgen' : n === -1 ? 'Gestern' : b.toLocaleDateString('de-CH', { weekday: 'short', day: 'numeric', month: 'numeric' });
+  };
+  const deTime = d => d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Berlin' });
+  async function loadHl(force) {
+    if (!force && HL.data && Date.now() - HL.loaded < 10 * 6e4) return;
+    try {
+      const j = await (await fetch('highlights.json?t=' + Math.floor(Date.now() / 6e5))).json();
+      HL.data = j; HL.loaded = Date.now();
+    } catch (e) { HL.data = HL.data || { tv: [], mediathek: [] }; }
+  }
+  function buildHlRows() {
+    const now = Date.now(), d = HL.data || { tv: [], mediathek: [] };
+    const tv = (d.tv || []).map(x => Object.assign({}, x, { start: new Date(x.s * 1000), end: new Date(x.e * 1000) }))
+      .filter(x => +x.end > now && channels.some(c => c.number === x.ch));
+    const eod = new Date(); eod.setHours(23, 59, 59, 999);
+    const live = x => +x.start <= now && now < +x.end;
+    const today = tv.filter(x => +x.start <= +eod).sort((a, b) => (live(b) - live(a)) || (b.score - a.score) || (a.start - b.start)).slice(0, 20);
+    const byTime = k => tv.filter(x => x.kind === k).sort((a, b) => a.start - b.start);
+    const mt = (d.mediathek || []).map(x => Object.assign({ kind: 'mt' }, x));
+    HL.rows = [
+      { title: 'Jetzt & heute', note: 'das Beste bis Mitternacht', items: today },
+      { title: 'Sport', note: 'live & diese Woche', items: byTime('sport') },
+      { title: 'Filme im TV', note: 'Prime Time, nach Datum', items: byTime('film') },
+      { title: 'Shows & Events', items: byTime('event') },
+      { title: 'Neu in der Mediathek', note: 'Filme & lange Dokus, jederzeit abrufbar', items: mt },
+    ].filter(r => r.items.length);
+    HL.c = HL.rows.map((r, i) => Math.min(HL.c[i] || 0, r.items.length - 1));
+    HL.r = Math.min(HL.r, Math.max(0, HL.rows.length - 1));
+  }
+  const hlItem = () => { const r = HL.rows[HL.r]; return r ? r.items[HL.c[HL.r] || 0] : null; };
+  function hlTile(it, sel, ri, ci) {
+    const now = Date.now();
+    if (it.kind === 'mt') {
+      return `<button class="h-tile${sel ? ' sel' : ''}" data-r="${ri}" data-c="${ci}"><div class="bg" style="background:${chColor(it.channel.length * 7)}"></div>
+        <div class="k" style="background:${KIND_COL.mt}"></div><div class="t1">${esc(it.channel)}<small>${it.dur ? Math.round(it.dur / 60) + ' Min' : ''}</small></div>
+        <div class="t2">${esc(it.title)}</div><div class="t3">${esc(it.topic || '')} · seit ${dayWord(new Date(it.ts))}</div></button>`;
+    }
+    const isLive = +it.start <= now && now < +it.end;
+    const rem = window.MyTVReminders && MyTVReminders.get(it.ch, +it.start);
+    const bg = it.img ? `background-image:url('${esc(it.img)}')` : `background:${chColor(it.ch)}`;
+    const pct = isLive ? Math.min(100, (now - it.start) / (it.end - it.start) * 100) : 0;
+    return `<button class="h-tile${sel ? ' sel' : ''}" data-r="${ri}" data-c="${ci}"><div class="bg" style="${bg}"></div>
+      <div class="k" style="background:${KIND_COL[it.kind] || '#888'}"></div>
+      <div class="t1">${isLive ? 'Läuft' : hm(it.start)}<small>${isLive ? 'bis ' + hm(it.end) : dayWord(it.start)}</small></div>
+      ${isLive ? '<div class="live">LIVE</div>' : rem ? `<div class="rem">${rem.mode === 'auto' ? '⏩' : '🔔'}</div>` : ''}
+      <div class="t2">${esc(it.t)}</div><div class="t3">${it.ch} ${esc(it.chName)} · ${esc(it.label)}${it.st ? ' · ' + esc(it.st) : ''}</div>
+      ${isLive ? `<div class="prog"><i style="width:${pct.toFixed(1)}%"></i></div>` : ''}</button>`;
+  }
+  function renderHl() {
+    const now = Date.now();
+    $('hlClock').innerHTML = `${new Date().toLocaleDateString('de-CH', { weekday: 'long', day: 'numeric', month: 'long' })}<b>${clock()}</b>`;
+    if (!HL.rows.length) {
+      $('hlHero').innerHTML = `<div><div class="h-title">${HL.data ? 'Noch keine Highlights' : 'Lädt …'}</div>
+        <div class="h-text">${HL.data ? 'Die Liste wird alle 6 Stunden zusammen mit dem Programmführer erstellt. Schau später nochmal rein.' : ''}</div></div>`;
+      $('hlInner').innerHTML = ''; return;
+    }
+    // rows
+    $('hlInner').innerHTML = HL.rows.map((row, ri) => `<div class="h-row${ri === HL.r ? ' cur' : ''}"><h3>${esc(row.title)}${row.note ? `<small>${esc(row.note)}</small>` : ''}</h3>
+      <div class="h-strip">${row.items.map((it, ci) => hlTile(it, ri === HL.r && ci === (HL.c[ri] || 0), ri, ci)).join('')}</div></div>`).join('');
+    const rowsEl = $('hlRows'), rEls = [...$('hlInner').children];
+    rEls.forEach((el, ri) => {     // selected tile stays in view: once you move past the 2nd tile, the strip scrolls with you
+      const strip = el.querySelector('.h-strip'), t = strip.children[HL.c[ri] || 0];
+      const tx = t ? Math.max(0, t.offsetLeft - strip.children[0].offsetLeft - (t.offsetWidth + 14)) : 0;
+      strip.style.transform = tx ? `translateX(${-tx}px)` : '';
+    });
+    const cur = rEls[HL.r];      // vertical: current row near the top
+    $('hlInner').style.transform = cur && HL.r > 0 ? `translateY(${-cur.offsetTop}px)` : '';
+    $('hlInner').querySelectorAll('.h-tile').forEach(b => b.onclick = () => { HL.r = +b.dataset.r; HL.c[HL.r] = +b.dataset.c; renderHl(); hlActivate(); });
+    // hero
+    const it = hlItem(); if (!it) return;
+    if (it.kind === 'mt') {
+      $('hlHero').innerHTML = `<div><div class="h-when"><span class="h-time">${esc(it.channel)}</span><span class="h-day">Mediathek · seit ${dayWord(new Date(it.ts))}</span></div>
+        <div class="h-title">${esc(it.title)}</div><div class="h-sub">${esc(it.topic || '')}</div>
+        <div class="h-meta">${it.dur ? Math.round(it.dur / 60) + ' Min' : ''}${it.country && it.country !== 'DE' ? ' · VPN ' + it.country : ''}</div>
+        <div class="h-text">${esc(it.desc || '')}</div><div class="h-act">OK = abspielen</div></div>
+        <div class="h-pic" style="background:${chColor(it.channel.length * 7)}"><span class="big">${esc(it.channel)}</span></div>`;
+      return;
+    }
+    const isLive = +it.start <= now && now < +it.end;
+    const rem = window.MyTVReminders && MyTVReminders.get(it.ch, +it.start);
+    const sameZone = deTime(it.start) === hm(it.start);
+    $('hlHero').innerHTML = `<div><div class="h-when">${isLive ? `<span class="h-live">● LÄUFT JETZT</span><span class="h-day">bis ${hm(it.end)}</span>`
+        : `<span class="h-time">${hm(it.start)}</span><span class="h-day">${dayWord(it.start)}</span>`}
+        ${sameZone || isLive ? '' : `<span class="h-de">${deTime(it.start)} in Deutschland</span>`}</div>
+      <div class="h-title">${esc(it.t)}</div>${it.st ? `<div class="h-sub">${esc(it.st)}</div>` : ''}
+      <div class="h-meta">${it.ch} ${esc(it.chName)} · ${esc(it.label)} · ${Math.round((it.end - it.start) / 6e4)} Min${rem ? (rem.mode === 'auto' ? ' · ⏩ schaltet automatisch um' : ' · 🔔 Erinnerung gesetzt') : ''}</div>
+      <div class="h-text">${esc((it.d || '').replace(/\\n/g, ' '))}</div>
+      <div class="h-act">${isLive || +it.start - now < 60e3 ? 'OK = jetzt umschalten' : 'OK = erinnern oder automatisch umschalten'}</div></div>
+      <div class="h-pic" style="${it.img ? '' : 'background:' + chColor(it.ch)}">${it.img ? `<img src="${esc(it.img)}" alt="" onerror="this.remove()">` : `<span class="big">${esc(it.chName)}</span>`}</div>`;
+  }
+  async function openHl() {
+    if (overlay) { toHost({ type: 'hl' }); return; }
+    clearTimeout(extTimer); toggleList(false); closeGuide(); closeLibMenu();
+    $('hl').classList.add('open');
+    buildHlRows(); renderHl();
+    await loadHl(); buildHlRows(); renderHl();
+  }
+  function closeHl() { $('hl').classList.remove('open'); closeHlMenu(); }
+  function hlMove(dr, dc) {
+    if (!HL.rows.length) return;
+    if (dr) HL.r = Math.max(0, Math.min(HL.rows.length - 1, HL.r + dr));
+    if (dc) HL.c[HL.r] = Math.max(0, Math.min(HL.rows[HL.r].items.length - 1, (HL.c[HL.r] || 0) + dc));
+    renderHl();
+  }
+  function hlActivate() {
+    const it = hlItem(); if (!it) return;
+    if (it.kind === 'mt') {
+      store.set('mytv.playItem', JSON.stringify({ title: it.title, topic: it.topic, channel: it.channel, dur: it.dur, ts: it.ts, desc: it.desc, url: it.url, country: it.country }));
+      location.replace('mediathek.html?play=1');
+      return;
+    }
+    const goNow = () => { closeHl(); const i = channels.findIndex(c => c.number === it.ch); if (i >= 0) tune(i); };
+    if (+it.start - Date.now() < 60e3) return goNow();
+    const R = window.MyTVReminders; if (!R) return goNow();
+    const start = +it.start, cur = R.get(it.ch, start);
+    const rec = mode => () => { R.add({ ch: it.ch, chName: it.chName, title: it.t, start, end: +it.end, mode }); renderHl();
+      flash(mode === 'auto' ? `⏩ Schaltet ${dayWord(it.start)} ${hm(it.start)} auf ${it.chName}` : `🔔 Erinnerung ${dayWord(it.start)} ${hm(it.start)}: ${it.t}`); };
+    const opts = [
+      { label: '🔔  Erinnern (1 Min. vorher)', run: rec('remind') },
+      { label: '⏩  Automatisch umschalten', run: rec('auto') },
+    ];
+    if (cur) opts.push({ label: '✕  Erinnerung löschen', run: () => { R.remove(it.ch, start); renderHl(); flash('Erinnerung gelöscht'); } });
+    opts.push({ label: `▶  Jetzt zu ${it.chName}`, run: goNow });
+    HL.menu = { title: `${dayWord(it.start)} ${hm(it.start)} · ${it.t}`, opts, i: cur ? (cur.mode === 'auto' ? 1 : 0) : 0 };
+    renderHlMenu();
+  }
+  function renderHlMenu() {
+    const m = HL.menu; if (!m) return;
+    $('hlmenu').innerHTML = `<div class="t">${esc(m.title)}</div>` + m.opts.map((o, i) => `<button class="${i === m.i ? 'sel' : ''}" data-i="${i}">${o.label}</button>`).join('');
+    $('hlmenu').querySelectorAll('button').forEach(b => b.onclick = () => { const o = m.opts[+b.dataset.i]; closeHlMenu(); o.run(); });
+    $('hlmenu').classList.add('open');
+  }
+  function closeHlMenu() { HL.menu = null; $('hlmenu').classList.remove('open'); }
+  $('btnHl').onclick = openHl;
+  setInterval(() => { if ($('hl').classList.contains('open') && !HL.menu) { buildHlRows(); renderHl(); } }, 60 * 1000);
 
   // ---------- number entry ----------
   function digit(d) {
@@ -865,7 +1085,7 @@
   }
   function enterStandby() {
     if (overlay || standby) return;
-    standby = true; stopPlayback(); toggleList(false); closeGuide(); closeLibMenu();
+    standby = true; stopPlayback(); toggleList(false); closeGuide(); closeLibMenu(); closeHl();
     $('sbClock').textContent = clock(); $('standby').classList.add('on');
     document.title = 'MyTV – Standby';
   }
@@ -895,6 +1115,31 @@
     if (window.MyTVReminders && MyTVReminders.bannerKey(e.key)) { e.preventDefault(); return; }
     if (standby) { e.preventDefault(); exitStandby(); return; }
     const listOpen = $('list').classList.contains('open');
+    if ($('hl').classList.contains('open')) {
+      const k = e.key;
+      if (HL.menu) {
+        if (k === 'ArrowUp') HL.menu.i = Math.max(0, HL.menu.i - 1);
+        else if (k === 'ArrowDown') HL.menu.i = Math.min(HL.menu.opts.length - 1, HL.menu.i + 1);
+        else if (k === 'Enter') { const o = HL.menu.opts[HL.menu.i]; closeHlMenu(); o.run(); }
+        else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'ArrowLeft') closeHlMenu();
+        if (HL.menu) renderHlMenu();
+        e.preventDefault(); wake(); return;
+      }
+      if (k === 'ArrowUp') hlMove(-1, 0);
+      else if (k === 'ArrowDown') hlMove(1, 0);
+      else if (k === 'ArrowLeft') hlMove(0, -1);
+      else if (k === 'ArrowRight') hlMove(0, 1);
+      else if (k === 'PageUp') hlMove(0, -5);
+      else if (k === 'PageDown') hlMove(0, 5);
+      else if (k === 'Enter') hlActivate();
+      else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'h' || k === 'H') closeHl();
+      else if (k === 'g' || k === 'G' || k === 'Guide') { closeHl(); openGuide(); }
+      else if (k === 'b' || k === 'B') { closeHl(); openLibMenu(); }
+      else if (k === 'l' || k === 'L') { closeHl(); toggleList(true); }
+      else if (/^[0-9]$/.test(k)) { closeHl(); return digit(k); }
+      else return;
+      e.preventDefault(); wake(); return;
+    }
     if ($('lib').classList.contains('open')) {
       const k = e.key;
       if (k === 'ArrowLeft') libMove(-1, 0);
@@ -905,6 +1150,7 @@
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'b' || k === 'B') closeLibMenu();
       else if (k === 'g' || k === 'G' || k === 'Guide') { closeLibMenu(); openGuide(); }
       else if (k === 'l' || k === 'L') { closeLibMenu(); toggleList(true); }
+      else if (k === 'h' || k === 'H') { closeLibMenu(); openHl(); }
       else return;
       e.preventDefault(); wake(); return;
     }
@@ -930,6 +1176,7 @@
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'g' || k === 'G' || k === 'Guide') closeGuide();
       else if (k === 'b' || k === 'B') { closeGuide(); openLibMenu(); }
       else if (k === 'l' || k === 'L') { closeGuide(); toggleList(true); }
+      else if (k === 'h' || k === 'H') { closeGuide(); openHl(); }
       else if (/^[0-9]$/.test(k)) { closeGuide(); return digit(k); }
       else return;
       e.preventDefault(); wake(); return;
@@ -946,6 +1193,7 @@
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'ArrowLeft' || k === 'l' || k === 'L') toggleList(false);
       else if (k === 'g' || k === 'G' || k === 'Guide') { toggleList(false); openGuide(); }
       else if (k === 'b' || k === 'B') { toggleList(false); openLibMenu(); }
+      else if (k === 'h' || k === 'H') { toggleList(false); openHl(); }
       else if (/^[0-9]$/.test(k)) { toggleList(false); return digit(k); }
       else return;
       e.preventDefault(); wake(); return;
@@ -959,6 +1207,7 @@
       case 'l': case 'L': toggleList(); break;
       case 'g': case 'G': case 'Guide': openGuide(); break;
       case 'b': case 'B': openLibMenu(); break;
+      case 'h': case 'H': openHl(); break;
       case 'm': case 'M': toggleMute(); break;
       case 'v': case 'V': if (VPN.bridge) vpnManual(); break;
       case '+': case '=': setVolume(0.1); break;
@@ -1044,7 +1293,7 @@
     const li = byNum(parseInt(store.get('mytv.lastInternal'), 10));
     if (li >= 0) start = li;
   }
-  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
+  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('hl') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
   renderList();
   if (params.get('standby') === '1') { index = start; renderList(); enterStandby(); }
   else tune(start, { remember: false });
@@ -1052,6 +1301,7 @@
   if (params.get('list') === '1') toggleList(true);
   if (params.get('lib') === '1') openLibMenu();
   if (params.get('guide') === '1') openGuide();
+  if (params.get('hl') === '1') openHl();
   wake();
 })();
 </script>

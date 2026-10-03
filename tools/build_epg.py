@@ -5,6 +5,7 @@ Only keeps the channels listed in channels.js under `xmltv:` and a window of
 yesterday .. +2 days, so the file stays small. Run by .github/workflows/epg.yml.
 """
 import gzip, io, json, re, sys, time, urllib.request
+sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 
@@ -36,6 +37,7 @@ def main():
     now = time.time()
     lo, hi = now - 24 * 3600, now + 48 * 3600
     out = {i: [] for i in ids}
+    wide = {i: [] for i in ids}            # next 8 days, longer programmes only → highlights.json
     seen_channels = set()
     for cc, url in SOURCES.items():
         if not any(i.lower().endswith("." + cc) for i in ids):
@@ -43,10 +45,15 @@ def main():
         print("fetching", url)
         req = urllib.request.Request(url, headers={"User-Agent": "MyTV-EPG/1.0 (personal use)"})
         data = gzip.decompress(urllib.request.urlopen(req, timeout=180).read())
-        parse(data, ids, lo, hi, out, seen_channels)
+        parse(data, ids, lo, hi, out, seen_channels, wide, now)
     finish(ids, out, seen_channels, now)
+    try:
+        import build_highlights
+        build_highlights.build(wide)
+    except Exception as e:                  # highlights must never break the guide
+        print("WARNING: highlights failed:", repr(e))
 
-def parse(data, ids, lo, hi, out, seen_channels):
+def parse(data, ids, lo, hi, out, seen_channels, wide, now):
     for ev, el in ET.iterparse(io.BytesIO(data), events=("end",)):
         if el.tag == "channel":
             seen_channels.add(el.get("id"))
@@ -65,6 +72,16 @@ def parse(data, ids, lo, hi, out, seen_channels):
                 d = (el.findtext("desc") or "").strip()
                 if len(d) > 400: d = d[:397].rstrip() + "…"
                 out[cid].append({"s": s, "e": e, "t": t, "st": st, "d": d})
+            if e > now and s < now + 8 * 86400 and e - s >= 25 * 60:
+                t = (el.findtext("title") or "").strip()
+                st = (el.findtext("sub-title") or "").strip()
+                d = (el.findtext("desc") or "").strip()[:400]
+                ic = el.find("icon")
+                wide[cid].append({"s": s, "e": e, "t": t, "st": st, "d": d,
+                                  "cat": [c.text.strip() for c in el.findall("category") if c.text],
+                                  "date": (el.findtext("date") or "").strip(),
+                                  "img": ic.get("src", "") if ic is not None else "",
+                                  "live": el.find("live") is not None})
         el.clear()
 
 def finish(ids, out, seen_channels, now):
