@@ -1,15 +1,19 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.7.1
+// @version      1.8.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
-// @match        https://www.srf.ch/play/embed*
+// @match        https://www.srf.ch/play/*
 // @match        https://www.rts.ch/play/embed*
 // @match        https://www.rsi.ch/play/embed*
 // @match        https://on.orf.at/*
-// @match        https://www.joyn.de/play/live-tv*
+// @match        https://www.joyn.de/*
+// @match        https://www.ardmediathek.de/*
+// @match        https://www.zdf.de/*
+// @match        https://www.arte.tv/*
+// @match        https://www.3sat.de/*
 // @match        https://plus.rtl.de/*
 // @run-at       document-start
 // @grant        none
@@ -78,15 +82,16 @@
   // ---- Are we in a MyTV session? (works in nested same-origin frames too) ----
   let topHash = '';
   try { topHash = window.top.location.hash; } catch (e) { return; }
-  const RX = /mytv=(\d+)(?:&n=([^&]*))?/;
+  const RX = /mytv=(\d+|lib)(?:&n=([^&]*))?/;
   let m = RX.exec(topHash);
-  if ((IS_ORF || IS_JOYN || IS_RTL) && window.top === window) {   // SPA may drop the hash → remember it for this tab
+  if (window.top === window) {   // SPA / page navigation may drop the hash → remember it for this tab
     try {
       if (m) sessionStorage.setItem('mytv.session', topHash);
       else { const saved = sessionStorage.getItem('mytv.session'); if (saved) m = RX.exec(saved); }
     } catch (e) {}
   }
   if (!m) return;
+  if (m[1] === 'lib') { libraryMode(decodeURIComponent(m[2] || '')); return; }
   const CH = parseInt(m[1], 10);
   const NAME = decodeURIComponent(m[2] || '');
   const isTop = window.top === window;
@@ -164,6 +169,8 @@
       go('back=1&from=' + CH);
     } else if (k === 'l' || k === 'L' || k === 'ContextMenu') {
       go('back=1&from=' + CH + '&list=1');
+    } else if (k === 'b' || k === 'B') {
+      go('back=1&from=' + CH + '&lib=1');
     } else if (k === 'g' || k === 'G' || k === 'Guide') {
       go('back=1&from=' + CH + '&guide=1');
     } else if (k === 'i' || k === 'I') {
@@ -336,6 +343,7 @@
       if (d.type === 'ready') window.__mytvOvReady = true;
       else if (d.type === 'tune') go('ch=' + d.number + '&from=' + CH);
       else if (d.type === 'back') go('back=1&from=' + CH);
+      else if (d.type === 'lib') go('back=1&from=' + CH + '&lib=1');
       else if (d.type === 'sound') { wantSound = { muted: d.muted, volume: d.volume }; withPlayer(applySound); }
       else if (d.type === 'fullscreen') {
         if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {});
@@ -452,5 +460,32 @@
       }
     }, 500);
 
+  }
+
+  // ---- Mediathek mode: the provider's own library, normal mouse/keyboard use.
+  //      Small "⌂ MyTV" button + B key (outside text fields) return to MyTV's Mediathek menu. ----
+  function libraryMode(name) {
+    if (window.top !== window) return;
+    const back = () => window.top.location.replace(MYTV + '?kiosk=1&back=1&lib=1');
+    const mount = () => {
+      if (document.getElementById('mytv-home')) return;
+      const b = document.createElement('button');
+      b.id = 'mytv-home';
+      b.textContent = '⌂ MyTV';
+      b.title = 'Zurück zu MyTV (B)';
+      b.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:2147483647;padding:9px 16px;border-radius:999px;border:1px solid rgba(255,255,255,.25);' +
+        'background:rgba(10,12,16,.85);color:#ffcc33;font:700 15px/1 -apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer;opacity:.75';
+      b.onmouseenter = () => { b.style.opacity = '1'; }; b.onmouseleave = () => { b.style.opacity = '.75'; };
+      b.onclick = e => { e.preventDefault(); e.stopPropagation(); back(); };
+      document.body.appendChild(b);
+    };
+    if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount);
+    setInterval(mount, 2000);           // SPAs sometimes rebuild <body>
+    window.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      const t = e.target, typing = t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+      if (typing) return;
+      if (e.key === 'b' || e.key === 'B' || e.key === 'BrowserHome') { e.preventDefault(); e.stopImmediatePropagation(); back(); }
+    }, true);
   }
 })();
