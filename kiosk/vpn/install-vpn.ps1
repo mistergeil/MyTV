@@ -35,6 +35,14 @@ if (-not (Test-Path $KeyFile)) {
   (-join (1..16 | ForEach-Object { $chars | Get-Random })) | Set-Content -Path $KeyFile -Encoding ascii -NoNewline
 }
 $Key = (Get-Content $KeyFile -Raw).Trim()
+# Samsung TV MAC address for Wake-on-LAN ("TV an" sticker switches the TV on via the notebook)
+$MacFile = Join-Path $Dir 'tv-mac.txt'
+$cur = if (Test-Path $MacFile) { (Get-Content $MacFile -Raw).Trim() } else { '' }
+$m = Read-Host ("TV MAC address for switching the TV on (e.g. 64:1C:AE:12:34:56)" + $(if ($cur) { " [Enter = keep $cur]" } else { ' [Enter = skip]' }))
+if ($m.Trim()) {
+  if (($m -replace '[^0-9A-Fa-f]', '').Length -eq 12) { $m.Trim() | Set-Content -Path $MacFile -Encoding ascii -NoNewline }
+  else { Write-Host "That doesn't look like a MAC address - skipped." -ForegroundColor Yellow }
+}
 $ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
   $_.IPAddress -notmatch '^(127|169\.254)\.' -and $_.InterfaceAlias -notmatch 'WireGuard|vEthernet|Loopback|^(DE|CH|AT)$' } |
   Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress

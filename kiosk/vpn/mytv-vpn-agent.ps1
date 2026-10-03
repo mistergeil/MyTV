@@ -24,6 +24,7 @@ $Allowed = @('DE', 'CH', 'AT')
 $Log     = Join-Path $Dir 'agent.log'
 $RunDir  = Join-Path $Dir 'run'
 $KeyFile = Join-Path $Dir 'remote.key'
+$MacFile = Join-Path $Dir 'tv-mac.txt'
 $Key     = if (Test-Path $KeyFile) { (Get-Content $KeyFile -Raw).Trim() } else { '' }
 $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'l', 'b', 'm', 'i', '+', '-')
 $Boot    = [string][DateTime]::UtcNow.Ticks
@@ -76,6 +77,29 @@ function Set-Vpn($c) {
   Write-Log "switch -> $c (active: $now)"
   return $now
 }
+# Wake-on-LAN for the TV (same signal the SmartThings app sends) - MAC from tv-mac.txt
+function Send-Wol {
+  if (-not (Test-Path $MacFile)) { return 'no tv-mac.txt' }
+  $mac = ((Get-Content $MacFile -Raw) -replace '[^0-9A-Fa-f]', '')
+  if ($mac.Length -ne 12) { return 'tv-mac.txt: bad MAC' }
+  $mb  = [byte[]](0..5 | ForEach-Object { [Convert]::ToByte($mac.Substring($_ * 2, 2), 16) })
+  $pkt = [byte[]]((,0xFF * 6) + ($mb * 16))
+  $targets = @('255.255.255.255')
+  Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
+    $_.IPAddress -notmatch '^(127|169\.254)\.' -and $_.InterfaceAlias -notmatch 'WireGuard|vEthernet|Loopback|^(DE|CH|AT)$' } | ForEach-Object {
+    $ip = [Net.IPAddress]::Parse($_.IPAddress).GetAddressBytes(); $bits = [int]$_.PrefixLength
+    $bc = for ($i = 0; $i -lt 4; $i++) {
+      $b = [Math]::Max(0, [Math]::Min(8, $bits - 8 * $i)); $m = (0xFF -shl (8 - $b)) -band 0xFF
+      $ip[$i] -bor ((-bnot $m) -band 0xFF)
+    }
+    $targets += ($bc -join '.')
+  }
+  $u = New-Object System.Net.Sockets.UdpClient
+  $u.EnableBroadcast = $true
+  foreach ($t in ($targets | Select-Object -Unique)) { for ($r = 0; $r -lt 3; $r++) { try { [void]$u.Send($pkt, $pkt.Length, $t, 9) } catch {} } }
+  $u.Close()
+  return 'sent to ' + (($targets | Select-Object -Unique) -join ', ')
+}
 function Add-Cmd($do, $n, $k) {
   $script:Seq++
   [void]$Queue.Add(@{ seq = $script:Seq; do = $do; n = $n; k = $k; t = [DateTime]::UtcNow })
@@ -114,6 +138,7 @@ while ($l.IsListening) {
         if ($do -eq 'ch') { if ($n -notmatch '^\d{1,3}$') { throw 'ch needs n=<channel number>' } }
         elseif ($do -eq 'key') { if ($Keys -cnotcontains $k) { throw "key '$k' not allowed" } }
         elseif ($do -ne 'on') { throw "unknown command '$do'" }
+        if ($do -eq 'on') { $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)" }
         Add-Cmd $do $n $k
         if ($do -ne 'key') { Write-Log "remote: $do $n from $($req.RemoteEndPoint.Address)" }
         $out.ok = $true
