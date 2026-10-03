@@ -6,6 +6,7 @@
 #    GET /vpn?c=DE|CH|AT|OFF  -> switches the WireGuard tunnel
 #    GET /cmd/since?seq=N&boot=B -> remote commands newer than N
 #    GET /favs                -> favorite channel numbers (MyTV lists them first)
+#    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
 #  Home network - port 8766, every request needs the secret key from remote.key
 #  (user-approved iPhone remote; the Windows firewall rule is added by the user by hand):
@@ -34,9 +35,10 @@ $MacFile = Join-Path $Dir 'tv-mac.txt'
 $StFile  = Join-Path $Dir 'st-cli.txt'      # path of Samsung's SmartThings CLI (smartthings.exe)
 $SceneFile = Join-Path $Dir 'st-scene.txt'  # id of the SmartThings routine "MyTV" (TV on + HDMI)
 $Key     = if (Test-Path $KeyFile) { (Get-Content $KeyFile -Raw).Trim() } else { '' }
-$Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'h', 'l', 'b', 'm', 'i', '+', '-')
+$Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'h', 'l', 'b', 'm', 'i', '+', '-', 'GuideNow', 'GuideDay1', 'GuideDay2')
 $Boot    = [string][DateTime]::UtcNow.Ticks
 $FavFile = Join-Path $Dir 'favorites.txt'
+$GuideAt = [DateTime]::MinValue                   # last "guide is open" report from MyTV (expires after 12 s)
 $VerFile = Join-Path $Dir 'VERSION'
 $Version = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw).Trim() } else { '0' }
 $UpdUrl  = 'https://mistergeil.github.io/MyTV/kiosk/version.json'
@@ -215,6 +217,7 @@ while ($l.IsListening) {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'remote.html'))
       } elseif ($path -eq '/ping') {
         $out.ok = $true; $out.vpn = Get-Active; $out.version = $Version
+        $out.guide = (([DateTime]::UtcNow - $GuideAt).TotalSeconds -lt 12)
       } elseif ($path -eq '/favs') {
         $out.ok = $true; $out.favs = @(Get-Favs)
       } elseif ($path -eq '/favs/set') {
@@ -273,6 +276,9 @@ while ($l.IsListening) {
         $out.ok = ($out.country -eq $c)
       } elseif ($path -eq '/favs') {
         $out.ok = $true; $out.favs = @(Get-Favs)
+      } elseif ($path -eq '/ui') {
+        $GuideAt = if ([string]$req.QueryString['guide'] -eq '1') { [DateTime]::UtcNow } else { [DateTime]::MinValue }
+        $out.ok = $true
       } elseif ($path -eq '/tv/on') {
         # reminder in MyTV: switch the TV on via the SmartThings routine
         $st = Start-StScene

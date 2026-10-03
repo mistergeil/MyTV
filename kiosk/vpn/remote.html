@@ -40,6 +40,11 @@
   #list .lh { grid-column: 1 / -1; font-size: 13px; font-weight: 800; color: var(--accent); margin: 6px 0 -2px; }
   #list button.fav { background: #2a2410; }
   #list button.held { transform: scale(.94); background: #3a3214; }
+  /* guide bar: only while the guide is open on the TV */
+  #gbar { display: none; margin-bottom: 10px; padding: 10px; border-radius: 18px; background: #1d2433; border: 1px solid #34405a; }
+  #gbar.show { display: block; }
+  #gbar .t { font-size: 12px; font-weight: 800; color: #9fb4dd; margin: 0 4px 8px; }
+  #gbar button { background: #2a3550; }
   /* settings + update banner */
   header .r { display: flex; align-items: center; gap: 10px; }
   #gear { min-height: 40px; width: 44px; border-radius: 12px; font-size: 20px; padding: 0; }
@@ -64,6 +69,8 @@
 <body>
 <header><h1>My<b>TV</b></h1><div class="r"><div id="st">bereit</div><button id="gear" aria-label="Einstellungen">⚙︎</button></div></header>
 <button id="upd"></button>
+<div id="gbar"><div class="t">GUIDE</div><div class="row c3" style="margin:0">
+  <button data-k="GuideNow">Jetzt</button><button data-k="GuideDay1">Morgen</button><button data-k="GuideDay2">Übermorgen</button></div></div>
 
 <div class="row"><button class="on" data-do="on">⏻&nbsp; TV an / aufwecken</button></div>
 
@@ -251,6 +258,18 @@
   $('sCheck').addEventListener('click', () => check(true));
   $('sInstall').addEventListener('click', () => start('/update/install', `MyTV ${U && U.latest} installieren? Das TV-Bild läuft weiter, die Fernbedienung ist ca. 20 Sekunden weg.`));
   $('sRollback').addEventListener('click', () => start('/update/rollback', 'Vorherige Version wiederherstellen?'));
+  // ---------- guide bar: ask the notebook what is on screen ----------
+  let uiT = null;
+  async function pollUi() {
+    clearTimeout(uiT);
+    if (document.hidden || !key) return;
+    try { const j = await api('/ping'); $('gbar').classList.toggle('show', !!(j.ok && j.guide)); } catch (e) {}
+    uiT = setTimeout(pollUi, 1500);
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) pollUi(); });
+  // pressing Guide on the remote → show the bar right away (the TV confirms within a moment)
+  document.querySelector('[data-k="g"]').addEventListener('click', () => setTimeout(pollUi, 700));
+  pollUi();
   if (key) check(false);
 })();
 </script>

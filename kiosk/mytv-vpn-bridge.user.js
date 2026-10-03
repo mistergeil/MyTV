@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.3.0
+// @version      1.4.0
 // @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites + iPhone remote commands.
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
@@ -58,8 +58,18 @@
       else if (d.type === 'set' && /^(DE|CH|AT|OFF)$/.test(d.country)) r = await call('/vpn?c=' + d.country, 30000);
       else if (d.type === 'tvon') r = await call('/tv/on', 5000);
       else if (d.type === 'favs') r = await call('/favs', 3000);
+      else if (d.type === 'state') r = await call('/ui?guide=' + (d.country === 'guide' ? 1 : 0), 2000);
       else return;
       window.postMessage(Object.assign({ mytvVpn: 1, type: 'result', id: d.id }, r), location.origin);
+    });
+  }
+
+  // ---- MyTV overlay on a provider page (iframe, no bridge inside): relay what is on screen ----
+  if (!IS_MYTV) {
+    window.addEventListener('message', ev => {
+      const d = ev.data;
+      if (!d || d.mytvState !== 1 || ev.origin !== 'https://mistergeil.github.io') return;
+      call('/ui?guide=' + (d.guide ? 1 : 0), 2000);
     });
   }
 

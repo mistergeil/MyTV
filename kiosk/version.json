@@ -1,12 +1,14 @@
 {
-  "version": "1.1.1",
+  "version": "1.2.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "13e55bbf7219fd5eb9468fdacfa7f28ac491d4f75af908c4c2ef046c889df108",
-  "size": 24283,
+  "sha256": "56fdaaad68aff6889cabbf9012d73898b2a9e1d0021b20594f13e7864d274c9f",
+  "size": 24802,
   "notes": [
-    "Kein Taskleisten-Blitzer mehr: Hintergrund-Prozesse starten ohne Fenster",
-    "Nach einem Update bekommt MyTV den Bildschirm automatisch zurück"
+    "Guide: Jetzt / Morgen / Übermorgen auf der Fernbedienung – erscheint nur, wenn der Guide offen ist",
+    "Programmführer reicht jetzt bis Ende Übermorgen",
+    "Highlights: neue Reihe „Meine Erinnerungen“ (OK = ändern oder löschen)",
+    "Guide: 🔔 neben dem Sender, wenn eine Erinnerung gesetzt ist"
   ],
   "installer": false
 }

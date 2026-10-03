@@ -2,7 +2,7 @@
 """Build epg.json for MyTV from the public epgshare01 German XMLTV guide.
 
 Only keeps the channels listed in channels.js under `xmltv:` and a window of
-yesterday .. +2 days, so the file stays small. Run by .github/workflows/epg.yml.
+yesterday .. +3.5 days, so the file stays small. Run by .github/workflows/epg.yml.
 """
 import gzip, io, json, re, sys, time, urllib.request
 sys.path.insert(0, str(__import__("pathlib").Path(__file__).resolve().parent))
@@ -35,7 +35,7 @@ def main():
         print("no xmltv ids in channels.js"); return
     print("wanted:", ", ".join(sorted(ids)))
     now = time.time()
-    lo, hi = now - 24 * 3600, now + 48 * 3600
+    lo, hi = now - 24 * 3600, now + 84 * 3600     # through the end of the day after tomorrow (guide: Jetzt / Morgen / Übermorgen)
     out = {i: [] for i in ids}
     wide = {i: [] for i in ids}            # next 8 days, longer programmes only → highlights.json
     seen_channels = set()
