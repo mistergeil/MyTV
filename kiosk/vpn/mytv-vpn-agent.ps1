@@ -45,6 +45,9 @@ $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backsp
 $Boot    = [string][DateTime]::UtcNow.Ticks
 $FavFile = Join-Path $Dir 'favorites.txt'
 $RemFile = Join-Path $Dir 'reminders.json'
+$ScriptsFile = Join-Path $Dir 'scripts.json'
+$Scripts = [ordered]@{}                            # Tampermonkey versions reported by MyTV (bridge) and the overlay (helper)
+try { if (Test-Path $ScriptsFile) { (Get-Content $ScriptsFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $Scripts[$_.Name] = $_.Value } } } catch {}
 $PipeTest = $null                                  # last pipe test result (shown in the remote settings)
 $GuideAt = [DateTime]::MinValue                   # last "guide is open" report from MyTV (expires after 12 s)
 $VerFile = Join-Path $Dir 'VERSION'
@@ -355,7 +358,7 @@ while ($true) {
           $out.notes = @($i.notes); $out.date = [string]$i.date; $out.installer = [bool]$i.installer
           $out.checked = $UpdChecked.ToLocalTime().ToString('s')
         }
-        $out.state = Get-UpdateState; $out.backups = @(Get-BackupNames); $out.pipe = $PipeTest
+        $out.state = Get-UpdateState; $out.backups = @(Get-BackupNames); $out.pipe = $PipeTest; $out.scripts = $Scripts
       } elseif ($path -eq '/update/install') {
         $i = Get-UpdateInfo $true
         if (-not $i -or [string]$i.version -eq $Version) { throw 'Kein Update verfügbar' }
@@ -369,7 +372,10 @@ while ($true) {
         $k  = [string]$req.QueryString['k']
         if ($do -eq 'ch') { if ($n -notmatch '^\d{1,3}$') { throw 'ch needs n=<channel number>' } }
         elseif ($do -eq 'key') { if ($Keys -cnotcontains $k) { throw "key '$k' not allowed" } }
-        elseif ($do -eq 'test') { $PipeTest = $null }
+        elseif ($do -eq 'test') { $ScriptsFile = Join-Path $Dir 'scripts.json'
+$Scripts = [ordered]@{}                            # Tampermonkey versions reported by MyTV (bridge) and the overlay (helper)
+try { if (Test-Path $ScriptsFile) { (Get-Content $ScriptsFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $Scripts[$_.Name] = $_.Value } } } catch {}
+$PipeTest = $null }
         elseif ($do -ne 'on') { throw "unknown command '$do'" }
         if ($do -eq 'on') {
           $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)"
@@ -422,6 +428,13 @@ while ($true) {
           if ($r -and -not $r.PSObject.Properties[$step]) { $r | Add-Member -NotePropertyName $step -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); Save-Rems $l; $out.took = $true }
         }
         $out.ok = $true; $out.list = @(Get-Rems)
+      } elseif ($path -eq '/ver/set') {
+        foreach ($n in @('bridge', 'helper')) {
+          $v = [string]$req.QueryString[$n]
+          if ($v -match '^[0-9.]{1,12}$') { $Scripts[$n] = [ordered]@{ v = $v; t = (Get-Date).ToString('s') } }
+        }
+        try { ConvertTo-Json -InputObject $Scripts -Compress -Depth 4 | Set-Content -Path $ScriptsFile -Encoding ascii } catch {}
+        $out.ok = $true
       } elseif ($path -eq '/pipe/test') {
         $out.ok = $true; $out.pong = $true; $out.version = $Version
       } elseif ($path -eq '/pipe/result') {

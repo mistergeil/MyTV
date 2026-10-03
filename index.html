@@ -1466,6 +1466,9 @@
     // new remote features hook in here
   }
 
+  // Tampermonkey script versions → notebook (⚙︎ on the remote shows them)
+  setTimeout(() => { const v = document.documentElement.dataset.mytvBridgeVersion; if (!overlay && v) pipe('/ver/set?bridge=' + v); }, 1500);
+
   // ---------- favorites ----------
   function applyFavs(list) {
     list = (Array.isArray(list) ? list : []).map(Number).filter(n => n > 0);
@@ -1667,7 +1670,8 @@
     window.addEventListener('message', ev => {
       const d = ev.data;
       if (!d || d.mytv !== 1 || ev.source !== window.parent) return;
-      if (d.type === 'key') handleKey({ key: d.key, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
+      if (d.type === 'helperVersion' && /^[0-9.]{1,12}$/.test(d.version || '')) pipe('/ver/set?helper=' + d.version);
+            if (d.type === 'key') handleKey({ key: d.key, preventDefault() {}, metaKey: false, ctrlKey: false, altKey: false });
       if (d.type === 'osd') showOsd();
     });
     const i0 = Math.max(0, byNum(parseInt(params.get('ch'), 10)));

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.12.0
+// @version      1.13.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -391,7 +391,11 @@
       const d = ev.data;
       if (!d || d.mytv !== 1) return;
       if (d.type !== 'ready') lastInput = Date.now();
-      if (d.type === 'ready') window.__mytvOvReady = true;
+      if (d.type === 'ready') {
+        window.__mytvOvReady = true;
+        const v = (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.version) || '';
+        try { ev.source.postMessage({ mytv: 1, type: 'helperVersion', version: v }, OV_ORIGIN); } catch (e) {}   // shown in the remote settings
+      }
       else if (d.type === 'tune') go('ch=' + d.number + '&from=' + CH);
       else if (d.type === 'back') go('back=1&from=' + CH);
       else if (d.type === 'ok') { if (IS_OFFICIAL && !clickPlay('OK')) L0('OK: nothing to click'); }

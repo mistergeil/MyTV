@@ -1,12 +1,11 @@
 {
-  "version": "1.7.2",
+  "version": "1.8.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "9a82686789b22395a4ade42d8a5dabcb8ced135cd5df1bda1991b85abf467c19",
-  "size": 30972,
+  "sha256": "6229fc4d3199d8dae9dd950bee683085a25cb5e5ef88121f1db9d5a5597e1ba5",
+  "size": 31869,
   "notes": [
-    "Selbstheilung: Der Umschalter startet sich nach einem Absturz innerhalb von 2 Minuten selbst neu",
-    "Robuster bei Netzwerkwechseln (VPN-Umschaltung, WLAN)"
+    "Einstellungen zeigen die installierten Tampermonkey-Versionen (Bridge, Helper) und ob ein Update bereitsteht"
   ],
   "installer": false
 }

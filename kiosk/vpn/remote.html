@@ -189,6 +189,12 @@
     <div class="cell"><span class="nm">Zuletzt geprüft</span><span class="val" id="sChecked">–</span></div>
     <button class="cell primary" id="sCheck">Nach Updates suchen</button>
   </div>
+  <h2>Tampermonkey</h2>
+  <div class="group">
+    <div class="cell"><span class="nm">MyTV Bridge</span><span class="val" id="tBridge">–</span></div>
+    <div class="cell"><span class="nm">MyTV Helper</span><span class="val" id="tHelper">–</span></div>
+  </div>
+  <div class="note" id="tNote">Die Helper-Version wird gemeldet, sobald ein Sender wie Joyn, RTL+ oder ORF läuft.</div>
   <h2>Verbindung</h2>
   <div class="group">
     <button class="cell primary" id="sPipe">Verbindung testen</button>
@@ -376,6 +382,31 @@
     $('badge').classList.toggle('on', !!j.available);
     const s = j.state;
     if (s && s.state === 'running') { msg(s.msg); if (!polling) poll(); }
+    showScripts(j.scripts || {});
+  }
+  // installed Tampermonkey versions (reported by MyTV) vs. the ones published on GitHub
+  const PUB = {};
+  const vnum = v => (v || '0').split('.').map(Number).reduce((a, x) => a * 1000 + (x || 0), 0);
+  async function published(name) {
+    if (PUB[name]) return PUB[name];
+    try { const t = await (await fetch(`https://mistergeil.github.io/MyTV/kiosk/mytv-${name}.user.js?r=${Date.now()}`, { cache: 'no-store' })).text();
+          const m = /@version\s+([0-9.]+)/.exec(t); if (m) PUB[name] = m[1]; } catch (e) {}
+    return PUB[name];
+  }
+  async function showScripts(sc) {
+    let behind = [];
+    for (const [name, el, file] of [['bridge', 'tBridge', 'vpn-bridge'], ['helper', 'tHelper', 'helper']]) {
+      const have = sc[name] && sc[name].v, pub = await published(file);
+      const when = sc[name] && sc[name].t ? ' · ' + fmtWhen(sc[name].t) : '';
+      if (!have) { $(el).textContent = name === 'bridge' ? 'älter als 1.9' : 'noch nicht gemeldet'; if (name === 'bridge' && pub) behind.push('Bridge'); continue; }
+      const old = pub && vnum(have) < vnum(pub);
+      $(el).textContent = have + (old ? ' → ' + pub : ' ✓');
+      $(el).style.color = old ? 'var(--orange)' : '';
+      if (old) behind.push(name === 'bridge' ? 'Bridge' : 'Helper');
+    }
+    $('tNote').textContent = behind.length
+      ? behind.join(' und ') + ' veraltet: Tampermonkey holt es automatisch (alle 6 h), sofort über die Setup-Seite → „Install MyTV " + behind[0] + "“.'
+      : 'Die Helper-Version wird gemeldet, sobald ein Sender wie Joyn, RTL+ oder ORF läuft.';
   }
   async function check(force) {
     if (force) { msg('Suche …'); $('sCheck').disabled = true; }
