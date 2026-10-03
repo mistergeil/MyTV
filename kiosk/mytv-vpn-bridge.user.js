@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.7.0
+// @version      1.8.0
 // @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites, iPhone remote commands; switches to another VPN server when a site says "VPN erkannt".
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
@@ -44,6 +44,9 @@
     });
   }
 
+  // shared data on the notebook (favorites, reminders) - the only paths MyTV may read/write through the bridge
+  const DATA_PATH = /^\/(favs|rem)(\/(add|del|take))?(\?[^#]*)?$/;
+
   // ---- VPN (MyTV pages only) ----
   if (IS_MYTV) {
     // tell MyTV that the bridge exists (the <html> element may not exist yet at document-start)
@@ -58,6 +61,7 @@
       else if (d.type === 'set' && /^(DE|CH|AT|OFF)$/.test(d.country)) r = await call('/vpn?c=' + d.country, 30000);
       else if (d.type === 'tvon') r = await call('/tv/on', 5000);
       else if (d.type === 'favs') r = await call('/favs', 3000);
+      else if (d.type === 'agent' && DATA_PATH.test(d.path || '')) r = await call(d.path, 4000);
       else if (d.type === 'state') r = await call('/ui?guide=' + (d.country === 'guide' ? 1 : 0), 2000);
       else return;
       window.postMessage(Object.assign({ mytvVpn: 1, type: 'result', id: d.id }, r), location.origin);
@@ -78,6 +82,9 @@
       if (!d || ev.origin !== OV) return;
       if (d.mytvState === 1) call('/ui?guide=' + (d.guide ? 1 : 0), 2000);
       if (d.mytvFavsReq === 1) pushFavs(ev.source);
+      if (d.mytvAgent === 1 && DATA_PATH.test(d.path || '')) {       // MyTV overlay asks for shared data
+        call(d.path, 4000).then(r => { try { ev.source.postMessage(Object.assign({ mytvAgentRes: 1, id: d.id }, r), OV); } catch (e) {} });
+      }
     });
   }
 

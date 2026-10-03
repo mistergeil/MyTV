@@ -590,7 +590,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
 <script src="channels.js?v=19"></script>
-<script src="reminders.js?v=2"></script>
+<script src="reminders.js?v=3"></script>
 <script>
 (() => {
   // favorites (set on the iPhone remote, stored on the notebook) come first; numbers stay the same
@@ -1147,6 +1147,10 @@
   function closeRMenu() { RM.open = false; $('rmenu').classList.remove('open'); }
   if (window.MyTVReminders) MyTVReminders.start({
     isStandby: () => standby,
+    changed: () => {                       // list came from the notebook → refresh what's on screen
+      if ($('guide').classList.contains('open') && !RM.open) renderGuide();
+      if ($('hl').classList.contains('open') && !HL.menu) { buildHlRows(); renderHl(); }
+    },
     tvOn: () => { if (!overlay && VPN.bridge) vpnCall('tvon'); },
     switchTo: r => {
       if (overlay) { toHost({ type: 'tune', number: r.ch }); return; }

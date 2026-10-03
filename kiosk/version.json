@@ -1,13 +1,12 @@
 {
-  "version": "1.5.0",
+  "version": "1.6.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "7ff337d1c73490de79dc8859e0af9385b02d19c8d5ab24707b7b6494987fc8bd",
-  "size": 28373,
+  "sha256": "84d93446cd376d51acf485df11dd090b9c832e5c540aa4d3fdfcae6945039587",
+  "size": 29347,
   "notes": [
-    "Fernbedienung neu im Stil der Apple TV Remote-App: grosse Touch-Fläche, Symbol-Tasten, Tab-Leiste unten",
-    "Sender (Liste + Nummernblock) und Einstellungen als eigene Tabs",
-    "Guide-Tage als iOS-Segmentschalter über der Touch-Fläche"
+    "Erinnerungen und Favoriten gelten jetzt überall gleich – auf jedem Sender, in MyTV und in der Mediathek",
+    "Erinnerungen werden auf dem Notebook gespeichert (vorher pro Sender-Webseite getrennt)"
   ],
   "installer": false
 }

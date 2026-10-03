@@ -7,6 +7,8 @@
 #    GET /vpn/next?c=DE       -> same country, next server (DE.conf, DE-2.conf, DE-3.conf ...) - "VPN erkannt" on Joyn / RTL+
 #    GET /cmd/since?seq=N&boot=B -> remote commands newer than N
 #    GET /favs                -> favorite channel numbers (MyTV lists them first)
+#    GET /rem                 -> reminders (one list for MyTV, the overlay on every channel and the Mediathek)
+#    GET /rem/add?ch=&chName=&title=&start=&end=&mode=remind|auto   /rem/del?ch=&start=   /rem/take?ch=&start=&step=
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
 #  Home network - port 8766, every request needs the secret key from remote.key
@@ -41,6 +43,7 @@ $Key     = if (Test-Path $KeyFile) { (Get-Content $KeyFile -Raw).Trim() } else {
 $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'h', 'l', 'b', 'm', 'i', '+', '-', 'GuideNow', 'GuideDay1', 'GuideDay2')
 $Boot    = [string][DateTime]::UtcNow.Ticks
 $FavFile = Join-Path $Dir 'favorites.txt'
+$RemFile = Join-Path $Dir 'reminders.json'
 $GuideAt = [DateTime]::MinValue                   # last "guide is open" report from MyTV (expires after 12 s)
 $VerFile = Join-Path $Dir 'VERSION'
 $Version = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw).Trim() } else { '0' }
@@ -195,6 +198,27 @@ function Set-Fav([int]$n, [bool]$on) {
   ($f | Sort-Object -Unique) -join ',' | Set-Content -Path $FavFile -Encoding ascii -NoNewline
   return @(Get-Favs)
 }
+# ---- reminders: one list on the notebook (browser storage is split per website, so every channel page had its own) ----
+function Get-Rems {
+  if (-not (Test-Path $RemFile)) { return @() }
+  try { $l = @(Get-Content $RemFile -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { return @() }
+  $cut = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - 15 * 60000
+  return @($l | Where-Object { $_ -and [int64]$_.end -gt $cut })
+}
+function Save-Rems($l) {
+  $json = ConvertTo-Json -InputObject @($l) -Depth 4 -Compress
+  if (-not $l -or @($l).Count -eq 0) { $json = '[]' }
+  [IO.File]::WriteAllText($RemFile, $json, (New-Object Text.UTF8Encoding $false))
+}
+# query value decoded as UTF-8 (HttpListener's own QueryString may use the ANSI code page → broken umlauts)
+function Get-QS($req, $name) {
+  foreach ($part in ($req.Url.Query.TrimStart('?') -split '&')) {
+    $kv = $part -split '=', 2
+    if ($kv[0] -eq $name) { return [Uri]::UnescapeDataString(($kv[1] -replace '\+', ' ')) }
+  }
+  return ''
+}
+function Find-Rem($l, $ch, $start) { return @($l | Where-Object { [int]$_.ch -eq $ch -and [int64]$_.start -eq $start }) }
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {
   if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
@@ -334,6 +358,30 @@ while ($l.IsListening) {
         $out.ok = ($out.country -eq $c)
       } elseif ($path -eq '/favs') {
         $out.ok = $true; $out.favs = @(Get-Favs)
+      } elseif ($path -eq '/rem') {
+        $out.ok = $true; $out.list = @(Get-Rems)
+      } elseif ($path -eq '/rem/add' -or $path -eq '/rem/del' -or $path -eq '/rem/take') {
+        $q = $req.QueryString
+        $ch = 0; $start = [int64]0
+        if (-not [int]::TryParse([string]$q['ch'], [ref]$ch) -or -not [int64]::TryParse([string]$q['start'], [ref]$start)) { throw 'ch / start missing' }
+        $l = @(Get-Rems)
+        if ($path -eq '/rem/add') {
+          $end = [int64]0; [void][int64]::TryParse([string]$q['end'], [ref]$end)
+          $mode = if ([string]$q['mode'] -eq 'auto') { 'auto' } else { 'remind' }
+          $l = @($l | Where-Object { -not ([int]$_.ch -eq $ch -and [int64]$_.start -eq $start) })
+          $l += [pscustomobject][ordered]@{ ch = $ch; chName = (Get-QS $req 'chName'); title = (Get-QS $req 'title'); start = $start; end = $end; mode = $mode }
+          Save-Rems $l
+        } elseif ($path -eq '/rem/del') {
+          $l = @($l | Where-Object { -not ([int]$_.ch -eq $ch -and [int64]$_.start -eq $start) })
+          Save-Rems $l
+        } else {
+          # each step (tvOn / done) happens exactly once, whichever page asks first
+          $step = [string]$q['step']; if ($step -notmatch '^(tvOn|done)$') { throw 'bad step' }
+          $r = Find-Rem $l $ch $start | Select-Object -First 1
+          $out.took = $false
+          if ($r -and -not $r.PSObject.Properties[$step]) { $r | Add-Member -NotePropertyName $step -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); Save-Rems $l; $out.took = $true }
+        }
+        $out.ok = $true; $out.list = @(Get-Rems)
       } elseif ($path -eq '/ui') {
         $GuideAt = if ([string]$req.QueryString['guide'] -eq '1') { [DateTime]::UtcNow } else { [DateTime]::MinValue }
         $out.ok = $true
