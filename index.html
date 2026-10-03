@@ -460,6 +460,22 @@
   #standby .t { font-size: clamp(56px, 7vw, 200px); font-weight: 200; color: #2a2a2e; letter-spacing: -.04em; }
   #standby .h { font-size: var(--t-call); color: #2a2a2e; }
 
+
+  /* carousel landmarks (guide + channel list): where the favorites start again / all channels start */
+  .g-row, #list li { position: relative; }
+  .g-row.fav-start::before, .g-row.all-start::before, #list li.fav-start::before, #list li.all-start::before {
+    position: absolute; left: 0; right: 0; top: 0; height: 0; border-top: 1px solid rgba(255,255,255,.16); z-index: 4;
+    content: ''; }
+  .g-row.fav-start::after, .g-row.all-start::after, #list li.fav-start::after, #list li.all-start::after {
+    position: absolute; left: 0; top: 0; transform: translateY(-50%); z-index: 5; padding: .1vw .7vw; border-radius: 999px;
+    font-size: var(--t-cap); font-weight: 700; color: var(--muted); background: #111114; }
+  .g-row.fav-start::after, #list li.fav-start::after { content: '★ Favoriten'; color: #fff; }
+  .g-row.all-start::after, #list li.all-start::after { content: 'Alle Sender'; }
+  .g-row.selrow .g-ch .nm { color: #fff; }
+  #list ul { overflow: hidden !important; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  #list li.sel button { background: #fff !important; color: #000 !important; transform: scale(1.04); box-shadow: 0 .8vw 2vw rgba(0,0,0,.45); }
+  #list li.sel button .n, #list li.sel button .tag { color: rgba(0,0,0,.55) !important; border-color: rgba(0,0,0,.2) !important; }
+  #list li button:focus-visible { background: transparent; color: inherit; transform: none; box-shadow: none; }
   @media (max-width: 800px) {
     #osd { width: calc(100vw - 32px); padding: 14px 16px; }
     #list { min-width: 0; width: calc(100vw - 32px); right: 16px; }
@@ -933,18 +949,28 @@
   }
 
   // ---------- list ----------
+  // channel list: like the guide - selection centred, the list loops, landmarks where the favorites start
+  const LS = { sel: 0 };
   function renderList() {
-    const nf = channels.filter(isFav).length;
-    const head = i => !nf ? '' : i === 0 ? '<li class="lh">★ Favoriten</li>' : i === nf ? '<li class="lh">Alle Sender</li>' : '';
-    $('listItems').innerHTML = channels.map((c, i) => head(i) + `
-      <li class="${i === index ? 'active' : ''}">
-        <button data-i="${i}">
+    const ul = $('listItems'), N = channels.length, nf = channels.filter(isFav).length;
+    const rowH = (ul.querySelector('li') || {}).offsetHeight || Math.max(48, innerWidth * .032);
+    let visible = Math.max(3, Math.floor((ul.clientHeight || innerHeight * .75) / rowH) || 11);
+    if (visible % 2 === 0) visible--;
+    const half = (visible - 1) / 2;
+    LS.sel = ((LS.sel % N) + N) % N;
+    const order = N <= visible ? channels.map((c, i) => i) : Array.from({ length: visible }, (_, k) => ((LS.sel - half + k) % N + N) % N);
+    ul.innerHTML = order.map(i => { const c = channels[i];
+      const mark = !nf ? '' : i === 0 ? ' fav-start' : i === nf ? ' all-start' : '';
+      return `
+      <li class="${i === index ? 'active' : ''}${i === LS.sel ? ' sel' : ''}${mark}">
+        <button data-i="${i}" tabindex="-1">
           <span class="n">${c.number}</span>
           <span class="logo">${c.logo ? `<img src="${c.logo}" alt="">` : (c.short || c.name).slice(0, 5)}</span>
           <span>${isFav(c) ? '★ ' : ''}${c.name}</span>${c.geo ? `<span class="tag">${c.geo === true ? 'DE' : c.geo}</span>` : ''}${c.mode === 'external' ? '<span class="tag">↗</span>' : ''}
         </button>
-      </li>`).join('');
+      </li>`; }).join('');
   }
+  $('listItems').addEventListener('wheel', e => { e.preventDefault(); LS.sel += e.deltaY > 0 ? 1 : -1; renderList(); }, { passive: false });
   $('listItems').addEventListener('click', e => {
     const b = e.target.closest('button[data-i]');
     if (b) { tune(+b.dataset.i); toggleList(false); }
@@ -955,8 +981,9 @@
   const OV_PANELS_OUT = overlay && /(^|\.)(srf|rts|rsi)\.ch$/.test(hostPage);
   function toggleList(force) {
     if (OV_PANELS_OUT && force !== false && !$('list').classList.contains('open')) { toHost({ type: 'go', q: 'list=1' }); return; }
+    const was = $('list').classList.contains('open');
     const open = $('list').classList.toggle('open', force);
-    if (open) $('list').querySelector('li.active button')?.focus();
+    if (open && !was) { LS.sel = index; requestAnimationFrame(renderList); }
   }
 
   // ---------- Mediathek launcher ----------
@@ -1015,8 +1042,7 @@
     if (OV_PANELS_OUT) { toHost({ type: 'go', q: 'guide=1' }); return; }
     toggleList(false); closeHl(); loadFavs();
     // open at the top (favorites first); the cursor sits on the current channel if it's on the first page, else on the first channel
-    const vis = Math.max(3, Math.floor(($('gRows').clientHeight || innerHeight * .6) / 52) || 8);
-    G.first = 0; G.row = (!FAVS.length || index < vis) ? index : 0;
+    G.row = index;                         // cursor on what's playing, centred
     const t = new Date(); t.setDate(t.getDate() + day);
     G.focus = t; G.winStart = floor30(+t);
     $('guide').classList.add('open');
@@ -1069,18 +1095,19 @@
     const primes = [-1, 0, 1, 2, 3].map(primeAt).filter(t => t >= ws && t <= we);
     for (const t of primes) r += `<b class="g-prime-l" style="left:${((t - ws) / W * 100).toFixed(3)}%">20:15 DE · Primetime</b>`;
     $('gRuler').innerHTML = r;
-    // rows (keep selected row roughly centred)
-    const rowsEl = $('gRows');
-    const visible = Math.max(3, Math.floor(rowsEl.clientHeight / 52) || 8);
-    // scroll only when the cursor leaves the visible rows (like a normal list)
-    if (G.row < G.first) G.first = G.row;
-    if (G.row >= G.first + visible) G.first = G.row - visible + 1;
-    G.first = Math.max(0, Math.min(G.first, channels.length - visible));
-    const first = G.first;
+    // rows: the selected channel stays in the middle; the list loops (after the last channel come the favorites again)
+    const rowsEl = $('gRows'), N = channels.length;
+    const rowH = (rowsEl.querySelector('.g-row') || {}).offsetHeight || Math.max(52, innerWidth * .036);
+    let visible = Math.max(3, Math.floor(rowsEl.clientHeight / rowH) || 9);
+    if (visible % 2 === 0) visible--;
+    const half = (visible - 1) / 2;
+    const order = N <= visible ? channels.map((c, i) => i)
+      : Array.from({ length: visible }, (_, k) => ((G.row - half + k) % N + N) % N);
+    const nfav = channels.filter(isFav).length;
     let html = '';
     G.sel = null;
     const remCh = new Set(((window.MyTVReminders && MyTVReminders.list()) || []).filter(r => r.end > now).map(r => r.ch));
-    for (let i = first; i < Math.min(channels.length, first + visible); i++) {
+    for (const i of order) {
       const ch = channels[i], ps = progsOf(ch);
       let blocks = '';
       if (ps.length) {
@@ -1101,8 +1128,8 @@
       }
       if (now >= ws && now <= we) blocks += `<div class="g-nowline" style="left:${((now - ws) / W * 100).toFixed(3)}%"></div>`;
       for (const t of primes) blocks += `<div class="g-prime" style="left:${((t - ws) / W * 100).toFixed(3)}%"></div>`;
-      const lastFav = isFav(ch) && !(channels[i + 1] && isFav(channels[i + 1]));
-      html += `<div class="g-row${i === index ? ' cur' : ''}${lastFav ? ' fav-end' : ''}">
+      const mark = !nfav ? '' : i === 0 ? ' fav-start' : i === nfav ? ' all-start' : '';    // landmarks where the loop starts again
+      html += `<div class="g-row${i === index ? ' cur' : ''}${i === G.row ? ' selrow' : ''}${mark}">
         <div class="g-ch" data-i="${i}"><span class="n">${ch.number}</span>${isFav(ch) ? '<span class="fv">★</span>' : ''}<span class="nm">${esc(ch.name)}</span>${remCh.has(ch.number) ? '<span class="rb">🔔</span>' : ''}</div>
         <div class="g-track">${blocks}</div></div>`;
     }
@@ -1122,7 +1149,7 @@
   }
   function guideMove(dRow, dProg) {
     if (dRow) {
-      G.row = Math.max(0, Math.min(channels.length - 1, G.row + dRow));
+      G.row = ((G.row + dRow) % channels.length + channels.length) % channels.length;   // carousel
       if (G.focus < G.winStart || G.focus >= +G.winStart + winMin() * 6e4) G.focus = new Date(Math.max(+G.winStart, Date.now()));
     }
     if (dProg) {
@@ -1443,10 +1470,10 @@
   function applyFavs(list) {
     list = (Array.isArray(list) ? list : []).map(Number).filter(n => n > 0);
     if (JSON.stringify(list) === JSON.stringify(FAVS)) return;
-    const cur = channels[index], prev = channels[prevIndex], grow = channels[G.row];
+    const cur = channels[index], prev = channels[prevIndex], grow = channels[G.row], lsel = channels[((LS.sel % channels.length) + channels.length) % channels.length];
     FAVS = list; store.set('mytv.favs', JSON.stringify(list));
     channels.sort(byOrder);
-    index = Math.max(0, channels.indexOf(cur)); prevIndex = Math.max(0, channels.indexOf(prev)); G.row = Math.max(0, channels.indexOf(grow));
+    index = Math.max(0, channels.indexOf(cur)); prevIndex = Math.max(0, channels.indexOf(prev)); G.row = Math.max(0, channels.indexOf(grow)); LS.sel = Math.max(0, channels.indexOf(lsel));
     renderList();
     if ($('guide').classList.contains('open')) renderGuide();
   }
@@ -1551,14 +1578,12 @@
       e.preventDefault(); wake(); return;
     }
     if (listOpen) {        // channel list: ↑/↓ move, OK tunes, Back/Esc/L close (works with keyboard and iPhone remote)
-      const k = e.key, btns = [...$('listItems').querySelectorAll('button[data-i]')];
-      let i = btns.indexOf(document.activeElement); if (i < 0) i = Math.max(0, btns.findIndex(b => +b.dataset.i === index));
-      const focusAt = j => { j = Math.max(0, Math.min(btns.length - 1, j)); btns[j].focus(); btns[j].scrollIntoView({ block: 'nearest' }); };
-      if (k === 'ArrowDown') focusAt(i + 1);
-      else if (k === 'ArrowUp') focusAt(i - 1);
-      else if (k === 'PageDown') focusAt(i + 8);
-      else if (k === 'PageUp') focusAt(i - 8);
-      else if (k === 'Enter' || k === 'ArrowRight') { tune(+btns[i].dataset.i); toggleList(false); }
+      const k = e.key, mv = d => { LS.sel += d; renderList(); };
+      if (k === 'ArrowDown') mv(1);
+      else if (k === 'ArrowUp') mv(-1);
+      else if (k === 'PageDown') mv(8);
+      else if (k === 'PageUp') mv(-8);
+      else if (k === 'Enter' || k === 'ArrowRight') { const i = ((LS.sel % channels.length) + channels.length) % channels.length; toggleList(false); tune(i); }
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'ArrowLeft' || k === 'l' || k === 'L') toggleList(false);
       else if (k === 'g' || k === 'G' || k === 'Guide') { toggleList(false); openGuide(); }
       else if (k === 'b' || k === 'B') { toggleList(false); openLibMenu(); }
