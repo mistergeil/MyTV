@@ -1,13 +1,11 @@
 {
-  "version": "1.3.0",
+  "version": "1.3.1",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "27881c87d6f01a4bafc4996d1c052cb5d8ddd40abee4718bee5cefb6598a582f",
-  "size": 25792,
+  "sha256": "a6943dc903de3b47788148949cfe5480a613b6da9d70e753e535306ab9078abe",
+  "size": 25868,
   "notes": [
-    "🔄 Mehrere VPN-Server pro Land: DE-2.conf, DE-3.conf … neben DE.conf ablegen",
-    "Sagt Joyn oder RTL+ „VPN erkannt“, wechselt MyTV automatisch zum nächsten Server und lädt neu",
-    "Fernbedienung: Server-Anzeige und Taste „Anderer Server“"
+    "Server-Dateien dürfen auch DE02.conf, DE03.conf … heissen"
   ],
   "installer": false
 }

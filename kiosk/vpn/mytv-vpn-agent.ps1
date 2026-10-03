@@ -61,10 +61,12 @@ function Get-Active {
 # Copy of the Proton config with split default routes (0.0.0.0/1 + 128.0.0.0/1) instead of 0.0.0.0/0:
 # all internet traffic still goes through the VPN, but WireGuard's "block untunneled traffic"
 # lock stays off, so the iPhone on the home Wi-Fi can still reach the notebook.
-# all configs of a country: DE.conf first, then DE-2.conf, DE-3.conf ... (any name DE-<something>.conf)
+# all configs of a country: DE.conf first, then DE-2.conf / DE02.conf ... in name order
 function Get-Configs($c) {
   $main = Get-Item -LiteralPath (Join-Path $Dir "$c.conf") -ErrorAction SilentlyContinue
-  $more = @(Get-ChildItem -Path $Dir -Filter "$c-*.conf" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+  # DE-2.conf, DE02.conf, DE_berlin.conf ... (country code, then anything that doesn't start with a letter)
+  $more = @(Get-ChildItem -Path $Dir -Filter "$c*.conf" -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -match "^$c[^A-Za-z.].*\.conf$" } | Sort-Object Name)
   return @(@($main) + $more | Where-Object { $_ })
 }
 function Get-ServerIdx($c) {
