@@ -228,7 +228,7 @@
     transition: opacity .3s, transform .3s; z-index: 10;
   }
   body.idle #remote { opacity: 0; transform: translate(-50%, 12px); pointer-events: none; }
-  body.idle { cursor: none; }
+  body.idle, body.idle * { cursor: none !important; }   /* also over buttons/tiles (they set cursor: pointer) */
   #remote button { min-width: 48px; height: 44px; padding: 0 14px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; font-weight: 600; }
   #remote button:hover, #remote button:focus-visible { background: rgba(255,255,255,.1); outline: none; }
   #remote .sep { width: 1px; background: var(--line); margin: 6px 2px; }
