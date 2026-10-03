@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.9.0
+// @version      1.9.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -149,7 +149,7 @@
     const k = e.key;
     lastInput = Date.now();
     let handled = true;
-    if (IS_OFFICIAL && k === 'Enter' && window.top === window) {
+    if (IS_OFFICIAL && k === 'Enter' && window.top === window && !overlayWin()) {   // with overlay: MyTV decides (list/guide open → select, else → play)
       clickPlay('OK');
       e.preventDefault(); e.stopImmediatePropagation();
       return;

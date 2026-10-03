@@ -858,6 +858,8 @@
       else if (k === 'ArrowDown') libMove(0, 1);
       else if (k === 'Enter') openLib(LIBS[L.sel]);
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'b' || k === 'B') closeLibMenu();
+      else if (k === 'g' || k === 'G' || k === 'Guide') { closeLibMenu(); openGuide(); }
+      else if (k === 'l' || k === 'L') { closeLibMenu(); toggleList(true); }
       else return;
       e.preventDefault(); wake(); return;
     }
@@ -871,7 +873,25 @@
       else if (k === 'PageDown') guideMove(5, 0);
       else if (k === 'Enter') { closeGuide(); tune(G.row); }
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'g' || k === 'G' || k === 'Guide') closeGuide();
+      else if (k === 'b' || k === 'B') { closeGuide(); openLibMenu(); }
+      else if (k === 'l' || k === 'L') { closeGuide(); toggleList(true); }
       else if (/^[0-9]$/.test(k)) { closeGuide(); return digit(k); }
+      else return;
+      e.preventDefault(); wake(); return;
+    }
+    if (listOpen) {        // channel list: ↑/↓ move, OK tunes, Back/Esc/L close (works with keyboard and iPhone remote)
+      const k = e.key, btns = [...$('listItems').querySelectorAll('button[data-i]')];
+      let i = btns.indexOf(document.activeElement); if (i < 0) i = Math.max(0, btns.findIndex(b => +b.dataset.i === index));
+      const focusAt = j => { j = Math.max(0, Math.min(btns.length - 1, j)); btns[j].focus(); btns[j].scrollIntoView({ block: 'nearest' }); };
+      if (k === 'ArrowDown') focusAt(i + 1);
+      else if (k === 'ArrowUp') focusAt(i - 1);
+      else if (k === 'PageDown') focusAt(i + 8);
+      else if (k === 'PageUp') focusAt(i - 8);
+      else if (k === 'Enter' || k === 'ArrowRight') { tune(+btns[i].dataset.i); toggleList(false); }
+      else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'ArrowLeft' || k === 'l' || k === 'L') toggleList(false);
+      else if (k === 'g' || k === 'G' || k === 'Guide') { toggleList(false); openGuide(); }
+      else if (k === 'b' || k === 'B') { toggleList(false); openLibMenu(); }
+      else if (/^[0-9]$/.test(k)) { toggleList(false); return digit(k); }
       else return;
       e.preventDefault(); wake(); return;
     }

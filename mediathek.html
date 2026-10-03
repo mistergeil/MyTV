@@ -396,6 +396,7 @@
     if (S.stack.length > 1) { S.stack.pop(); if (S.stack.length === 1 && PROVIDERS[S.tab].search) document.body.classList.add('searching'); renderRows(); loadVisible(); return; }
     toMyTV();
   }
+  function toMyTVWith(q) { location.replace(MYTV + (kiosk ? '?kiosk=1&back=1&' : '?back=1&') + q); }
   function toMyTV() { location.replace(MYTV + (kiosk ? '?kiosk=1&back=1&lib=1' : '?lib=1')); }
 
   // search
@@ -502,6 +503,8 @@
       else if (k === 'i' || k === 'I') showUi();
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') stopPlayer();
       else if (k === 'b' || k === 'B') { stopPlayer(); toMyTV(); }
+      else if (k === 'g' || k === 'G' || k === 'Guide') { stopPlayer(); toMyTVWith('guide=1'); }
+      else if (k === 'l' || k === 'L') { stopPlayer(); toMyTVWith('list=1'); }
       else return;
       e.preventDefault(); return;
     }
@@ -512,6 +515,8 @@
       else if (k === 'Enter' || k === 'ArrowDown') { if (S.tabSel !== S.tab || k === 'Enter') openTab(S.tabSel); else { S.zone = 'rows'; renderRows(); } }
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') back();
       else if (k === 'b' || k === 'B') toMyTV();
+      else if (k === 'g' || k === 'G' || k === 'Guide') toMyTVWith('guide=1');
+      else if (k === 'l' || k === 'L') toMyTVWith('list=1');
       else return;
       e.preventDefault(); renderTabs(); return;
     }
@@ -522,6 +527,8 @@
     else if (k === 'Enter') activate();
     else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') back();
     else if (k === 'b' || k === 'B') toMyTV();
+    else if (k === 'g' || k === 'G' || k === 'Guide') toMyTVWith('guide=1');
+    else if (k === 'l' || k === 'L') toMyTVWith('list=1');
     else if (k === '/' || k === 's' || k === 'S') openTab(PROVIDERS.findIndex(p => p.search));
     else return;
     e.preventDefault();
