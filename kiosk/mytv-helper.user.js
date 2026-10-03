@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.6
+// @version      1.6.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -9,6 +9,7 @@
 // @match        https://www.rts.ch/play/embed*
 // @match        https://www.rsi.ch/play/embed*
 // @match        https://on.orf.at/*
+// @match        https://www.joyn.de/play/live-tv*
 // @run-at       document-start
 // @grant        none
 // @updateURL    https://mistergeil.github.io/MyTV/kiosk/mytv-helper.user.js
@@ -27,7 +28,8 @@
 
   const IS_SRG = /(^|\.)(srf|rts|rsi)\.ch$/.test(location.hostname);
   const IS_ORF = location.hostname === 'on.orf.at';
-  const IS_OFFICIAL = IS_SRG || IS_ORF;            // official broadcaster player pages (plain <video>)
+  const IS_JOYN = location.hostname === 'www.joyn.de';
+  const IS_OFFICIAL = IS_SRG || IS_ORF || IS_JOYN;            // official broadcaster player pages (plain <video>)
 
   // ---- Official SRG player (SRF/RTS/RSI) framed inside MyTV (legacy path) ----
   if (IS_SRG && window.top !== window) {
@@ -76,7 +78,7 @@
   try { topHash = window.top.location.hash; } catch (e) { return; }
   const RX = /mytv=(\d+)(?:&n=([^&]*))?/;
   let m = RX.exec(topHash);
-  if (IS_ORF && window.top === window) {          // ORF ON drops the hash → remember it for this tab
+  if ((IS_ORF || IS_JOYN) && window.top === window) {   // SPA may drop the hash → remember it for this tab
     try {
       if (m) sessionStorage.setItem('mytv.session', topHash);
       else { const saved = sessionStorage.getItem('mytv.session'); if (saved) m = RX.exec(saved); }
@@ -265,9 +267,16 @@
     };
     if (IS_ORF) setInterval(hideRegionHints, 1000);
     const blocker = () => {
-      if (!IS_ORF || !document.body) return '';
+      if (!(IS_ORF || IS_JOYN) || !document.body) return '';
       hideRegionHints();
-      if (document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
+      if (IS_ORF && document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
+      if (IS_JOYN) {
+        const cmp = document.querySelector('cmp-banner');
+        if (cmp && visible(cmp)) {
+          const dlg = cmp.shadowRoot && cmp.shadowRoot.querySelector('cmp-dialog, [role="dialog"]');
+          if (!dlg || visible(dlg)) return 'Cookie-Auswahl';
+        }
+      }
       const el = [...document.querySelectorAll('[role="dialog"], [role="alertdialog"], [aria-modal="true"], dialog[open]')]
         .find(e => !e.closest('#mytv-overlay') && visible(e) && (e.innerText || '').trim().length > 0 && !isRegionHint(e));
       return el ? (el.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 50) : '';
@@ -296,7 +305,7 @@
       f.allow = 'fullscreen';
       document.body.appendChild(f);
       window.__mytvOv = f;
-      if (IS_ORF) setInterval(() => {
+      if (IS_ORF || IS_JOYN) setInterval(() => {
         const b = blocker(), open = !!b;
         if (b !== lastBlock) { lastBlock = b; L0(open ? 'popup: ' + b : 'popup closed'); }
         document.documentElement.classList.toggle('mytv-dialog', open);
