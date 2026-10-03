@@ -1,0 +1,13 @@
+{
+  "version": "1.0.0",
+  "date": "03.10.2026",
+  "zip": "MyTV-Windows.zip",
+  "sha256": "54f5fce3b136bf2a81cad003c9cbf3fd8890cf250d07d0d37ed7f11ba800d5da",
+  "size": 22658,
+  "notes": [
+    "Einstellungen ⚙︎ in der Fernbedienung: Updates suchen und mit einem Tipp installieren",
+    "Automatische Sicherung und Rückkehr zur alten Version, falls die neue nicht startet",
+    "★ Highlights-Taste"
+  ],
+  "installer": false
+}

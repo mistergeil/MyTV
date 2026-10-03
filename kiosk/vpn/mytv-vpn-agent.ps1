@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  MyTV switcher (user-approved; starts at logon with admin rights)
 #
 #  Local only - http://127.0.0.1:8765 (used by the MyTV Bridge script in Chrome):
@@ -11,6 +11,9 @@
 #    GET /remote?key=KEY      -> remote control page for the phone
 #    GET /cmd?key=KEY&do=on | do=ch&n=22 | do=key&k=ArrowUp
 #    GET /ping?key=KEY
+#    GET /update?key=KEY[&force=1] -> installed / latest version (GitHub Pages version.json), state of the last update
+#    GET /update/install?key=KEY   -> user tapped "Installieren": starts the task "MyTV Updater" (mytv-update.ps1)
+#    GET /update/rollback?key=KEY  -> user tapped "Wiederherstellen": puts the last backup back
 #
 #  Needs: WireGuard for Windows + DE.conf / CH.conf / AT.conf in this folder
 #  Remove any time with VPN-Uninstall.bat
@@ -30,6 +33,13 @@ $SceneFile = Join-Path $Dir 'st-scene.txt'  # id of the SmartThings routine "MyT
 $Key     = if (Test-Path $KeyFile) { (Get-Content $KeyFile -Raw).Trim() } else { '' }
 $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'h', 'l', 'b', 'm', 'i', '+', '-')
 $Boot    = [string][DateTime]::UtcNow.Ticks
+$VerFile = Join-Path $Dir 'VERSION'
+$Version = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw).Trim() } else { '0' }
+$UpdUrl  = 'https://mistergeil.github.io/MyTV/kiosk/version.json'
+$UpdTask = 'MyTV Updater'
+$UpdState = Join-Path $RunDir 'update-state.json'
+$UpdInfo = $null; $UpdChecked = [DateTime]::MinValue
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Seq     = 0
 $Queue   = New-Object System.Collections.ArrayList
 
@@ -117,6 +127,28 @@ function Add-Cmd($do, $n, $k) {
   [void]$Queue.Add(@{ seq = $script:Seq; do = $do; n = $n; k = $k; t = [DateTime]::UtcNow })
   while ($Queue.Count -gt 50) { $Queue.RemoveAt(0) }
 }
+# ---- updates (only ever installed after a tap on the iPhone remote) ----
+function Get-UpdateInfo($force) {
+  if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
+    try {
+      $script:UpdInfo = Invoke-RestMethod -Uri ($UpdUrl + '?t=' + [DateTime]::UtcNow.Ticks) -TimeoutSec 10
+      $script:UpdChecked = [DateTime]::UtcNow
+    } catch { if ($force) { throw "GitHub nicht erreichbar: $($_.Exception.Message)" } }
+  }
+  return $script:UpdInfo
+}
+function Get-UpdateState { if (Test-Path $UpdState) { try { return (Get-Content $UpdState -Raw | ConvertFrom-Json) } catch {} } return $null }
+function Get-BackupNames { $b = Join-Path (Split-Path -Parent $Dir) 'backup'; if (Test-Path $b) { @(Get-ChildItem $b -Directory | Sort-Object Name -Descending | ForEach-Object { $_.Name }) } else { @() } }
+function Start-Updater($action) {
+  if (-not (Get-ScheduledTask -TaskName $UpdTask -ErrorAction SilentlyContinue)) { throw 'Updater nicht installiert - einmal VPN-Install.bat ausführen' }
+  $st = Get-UpdateState
+  if ($st -and $st.state -eq 'running' -and ((Get-Date) - [DateTime]$st.t).TotalMinutes -lt 10) { throw 'Update läuft bereits' }
+  if (-not (Test-Path $RunDir)) { New-Item -ItemType Directory -Path $RunDir | Out-Null }
+  ConvertTo-Json @{ action = $action } -Compress | Set-Content -Path (Join-Path $RunDir 'update-request.json') -Encoding utf8
+  ConvertTo-Json ([ordered]@{ state = 'running'; msg = 'Startet ...'; t = (Get-Date).ToString('s'); from = $Version }) -Compress | Set-Content -Path $UpdState -Encoding utf8
+  Start-ScheduledTask -TaskName $UpdTask
+  Write-Log "update: $action requested (installed $Version)"
+}
 function Send-Bytes($res, [byte[]]$bytes, $type) {
   $res.ContentType = $type
   $res.OutputStream.Write($bytes, 0, $bytes.Length)
@@ -128,7 +160,7 @@ $l = New-Object System.Net.HttpListener
 $l.Prefixes.Add("http://127.0.0.1:$Port/")
 if ($Key) { $l.Prefixes.Add("http://+:$LanPort/") }
 $l.Start()
-Write-Log ("agent started on 127.0.0.1:$Port" + $(if ($Key) { " + iPhone remote on port $LanPort" } else { ' (no remote.key -> iPhone remote off)' }))
+Write-Log ("agent $Version started on 127.0.0.1:$Port" + $(if ($Key) { " + iPhone remote on port $LanPort" } else { ' (no remote.key -> iPhone remote off)' }))
 while ($l.IsListening) {
   $ctx = $l.GetContext(); $req = $ctx.Request; $res = $ctx.Response
   $out = [ordered]@{}
@@ -142,7 +174,23 @@ while ($l.IsListening) {
       if ($path -eq '/remote') {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'remote.html'))
       } elseif ($path -eq '/ping') {
-        $out.ok = $true; $out.vpn = Get-Active
+        $out.ok = $true; $out.vpn = Get-Active; $out.version = $Version
+      } elseif ($path -eq '/update') {
+        $i = Get-UpdateInfo ([string]$req.QueryString['force'] -eq '1')
+        $out.ok = $true; $out.installed = $Version
+        if ($i) {
+          $out.latest = [string]$i.version; $out.available = ([string]$i.version -ne $Version)
+          $out.notes = @($i.notes); $out.date = [string]$i.date; $out.installer = [bool]$i.installer
+          $out.checked = $UpdChecked.ToLocalTime().ToString('s')
+        }
+        $out.state = Get-UpdateState; $out.backups = @(Get-BackupNames)
+      } elseif ($path -eq '/update/install') {
+        $i = Get-UpdateInfo $true
+        if (-not $i -or [string]$i.version -eq $Version) { throw 'Kein Update verfügbar' }
+        Start-Updater 'install'; $out.ok = $true; $out.to = [string]$i.version
+      } elseif ($path -eq '/update/rollback') {
+        if (-not (Get-BackupNames)) { throw 'Keine Sicherung vorhanden' }
+        Start-Updater 'rollback'; $out.ok = $true
       } elseif ($path -eq '/cmd') {
         $do = ([string]$req.QueryString['do']).ToLower()
         $n  = [string]$req.QueryString['n']
@@ -168,7 +216,7 @@ while ($l.IsListening) {
       # ---------- local: MyTV in Chrome ----------
       $path = $req.Url.AbsolutePath
       if ($path -eq '/status') {
-        $out.ok = $true; $out.country = Get-Active; $out.remote = [bool]$Key
+        $out.ok = $true; $out.country = Get-Active; $out.remote = [bool]$Key; $out.version = $Version
       } elseif ($path -eq '/vpn') {
         $c = ([string]$req.QueryString['c']).ToUpper()
         if ($Allowed -notcontains $c -and $c -ne 'OFF') { throw "unknown country '$c'" }

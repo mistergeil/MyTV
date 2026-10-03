@@ -125,6 +125,13 @@ $base = "http://$($ip):8766"
 Register-ScheduledTask -TaskName $Task -Description 'MyTV: switches the Proton WireGuard tunnel (DE/CH/AT) for MyTV + iPhone remote on port 8766 (secret key). Remove with VPN-Uninstall.bat.' -Action $action -Trigger $trigger -Principal $principal -Settings $settings | Out-Null
 Start-ScheduledTask -TaskName $Task
 Write-Host "Installed scheduled task '$Task' and started it."
+# updater: only runs when the user taps "Installieren" / "Wiederherstellen" in the iPhone remote settings
+$UpdTask = 'MyTV Updater'
+$uAction   = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$(Join-Path $Dir 'mytv-update.ps1')`""
+$uSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 15) -MultipleInstances IgnoreNew
+Unregister-ScheduledTask -TaskName $UpdTask -Confirm:$false -ErrorAction SilentlyContinue
+Register-ScheduledTask -TaskName $UpdTask -Description 'MyTV: installs an update / restores a backup when requested from the iPhone remote settings (checks the SHA-256 from version.json, keeps a backup, rolls back automatically). Remove with VPN-Uninstall.bat.' -Action $uAction -Principal $principal -Settings $uSettings | Out-Null
+Write-Host "Installed '$UpdTask' (updates from the iPhone remote: Einstellungen)." -ForegroundColor Green
 Start-Sleep -Seconds 3
 try {
   $s = Invoke-RestMethod -Uri 'http://127.0.0.1:8765/status' -TimeoutSec 5

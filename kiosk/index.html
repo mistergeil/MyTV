@@ -150,6 +150,17 @@
       <p>Bonus: the same shortcut works with Siri – name a normal shortcut e.g. "Fernseher".</p>
     </li>
   </ol>
+  <h1 style="margin-top:44px" id="updates">Updates from the couch</h1>
+  <ol class="steps">
+    <li>
+      <h2>Notebook files (switcher, remote page)</h2>
+      <p>Once the switcher is version 1.0.0 or newer, you never unzip by hand again: the iPhone remote shows <b>★ Update … verfügbar</b>, or tap <b>⚙︎ → Nach Updates suchen</b>. <b>Installieren</b> downloads the new <code>MyTV-Windows.zip</code>, checks its SHA-256 against <code>version.json</code>, backs up the current files to <code>C:\MyTV\backup</code>, installs, and restores the old version automatically if the new one doesn't start. <b>Vorherige Version wiederherstellen</b> undoes the last update. Your <code>.conf</code> files, keys and settings are never touched. Nothing is installed without your tap.</p>
+    </li>
+    <li>
+      <h2>Tampermonkey scripts (Helper, Bridge)</h2>
+      <p>They update themselves. Once: Tampermonkey → <b>Settings</b> → Config mode <b>Advanced</b> → <b>Userscript Update</b> → Check Interval <b>Every 6 hours</b> → Save.</p>
+    </li>
+  </ol>
   <p class="sub" style="margin-top:14px">Standby: if nobody presses a key for 4 hours (TV switched off with the TV remote), MyTV stops streaming and shows a black standby screen. The sticker, the remote page or any key wakes it up.</p>
 
   <section class="keys">
