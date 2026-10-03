@@ -1,11 +1,11 @@
 {
-  "version": "1.6.1",
+  "version": "1.6.2",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "8074f40c553b555b28b8f3b894c46050fb597c0e02425a6238747fa4b54553e7",
-  "size": 29367,
+  "sha256": "28055455264afcc1d79dd1ea6734540466d12bf4cc61a7684664af51462dd642",
+  "size": 29365,
   "notes": [
-    "Guide: Taste „20:15“ springt zur deutschen Primetime"
+    "Guide-Leiste: Taste heisst jetzt „Primetime“ (20:15 deutsche Zeit)"
   ],
   "installer": false
 }
