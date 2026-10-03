@@ -174,6 +174,10 @@ while ($l.IsListening) {
         if ($Allowed -notcontains $c -and $c -ne 'OFF') { throw "unknown country '$c'" }
         $out.country = Set-Vpn $c
         $out.ok = ($out.country -eq $c)
+      } elseif ($path -eq '/tv/on') {
+        # reminder in MyTV: switch the TV on via the SmartThings routine
+        $st = Start-StScene
+        if ($st) { $out.ok = $true; $out.tv = $st; Write-Log "smartthings (reminder): $st" } else { $out.ok = $false; $out.error = 'SmartThings not set up' }
       } elseif ($path -eq '/cmd/since') {
         $after = 0; [void][int]::TryParse([string]$req.QueryString['seq'], [ref]$after)
         if ([string]$req.QueryString['boot'] -ne $Boot) { $after = 0 }

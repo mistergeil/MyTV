@@ -98,6 +98,7 @@
 <div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
+<script src="reminders.js?v=1"></script>
 <script>
 (() => {
   'use strict';
@@ -491,6 +492,7 @@
   document.addEventListener('keydown', e => {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     const k = e.key;
+    if (window.MyTVReminders && MyTVReminders.bannerKey(k)) { e.preventDefault(); return; }
     if ($('player').classList.contains('on')) {
       if (k === 'Enter' || k === ' ' || k === 'MediaPlayPause') { if (vid.paused) { vid.play().catch(() => {}); flashState('▶'); } else { vid.pause(); flashState('⏸'); } showUi(); }
       else if (k === 'ArrowLeft' || k === 'MediaRewind') seek(-15);
@@ -542,6 +544,13 @@
   let lastInput = Date.now();
   ['keydown', 'mousemove', 'mousedown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { lastInput = Date.now(); }, { capture: true, passive: true }));
   setInterval(() => { if (Date.now() - lastInput > 4 * 3600e3) { stopPlayer(); location.replace(MYTV + '?kiosk=1&back=1&standby=1'); } }, 60e3);
+
+  // reminders set in the MyTV guide also fire here
+  if (window.MyTVReminders) MyTVReminders.start({
+    isStandby: () => false,
+    tvOn: () => { if (VPN.bridge) vpnCall('tvon'); },
+    switchTo: r => { stopPlayer(); location.replace(MYTV + (kiosk ? '?kiosk=1&' : '?') + 'ch=' + r.ch); },
+  });
 
   // ---------- start ----------
   const want = params.get('p') || store.get('mytv.mediathek.tab') || 'ard';

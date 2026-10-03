@@ -104,6 +104,13 @@
   .g-prog.live { background: rgba(255,255,255,.13); }
   .g-prog.none { color: var(--muted); font-style: italic; background: rgba(255,255,255,.03); }
   .g-prog.sel { background: var(--accent); color: #111; font-weight: 700; }
+  .g-prog.rem::before { content: '🔔 '; } .g-prog.rem-auto::before { content: '⏩ '; }
+  #rmenu { position: absolute; right: 28px; top: 24px; z-index: 3; min-width: 300px; background: #151922; border: 2px solid var(--accent); border-radius: 14px;
+           padding: 8px; display: none; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  #rmenu.open { display: block; }
+  #rmenu .t { font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .06em; padding: 6px 10px 8px; text-transform: uppercase; }
+  #rmenu button { display: block; width: 100%; text-align: left; padding: 11px 12px; border-radius: 10px; font-size: 16px; font-weight: 600; }
+  #rmenu button.sel { background: var(--accent); color: #111; }
   .g-nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff4d4d; z-index: 2; pointer-events: none; }
   .g-hint { padding: 10px 28px 18px; color: var(--muted); font-size: 13px; }
   @media (max-width: 700px) {
@@ -216,7 +223,8 @@
     <div class="g-ruler" id="gRuler"></div>
     <div class="g-rows" id="gRows"></div>
   </div>
-  <div class="g-hint">↑ ↓ Sender · ← → Sendung · OK umschalten · G / Esc schliessen · Zeiten in Ortszeit</div>
+  <div id="rmenu"></div>
+  <div class="g-hint">↑ ↓ Sender · ← → Sendung · OK umschalten / bei späteren Sendungen: erinnern · G / Esc schliessen · Zeiten in Ortszeit</div>
 </div>
 
 <div id="lib" role="dialog" aria-label="Mediathek">
@@ -296,6 +304,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
 <script src="channels.js?v=19"></script>
+<script src="reminders.js?v=1"></script>
 <script>
 (() => {
   const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
@@ -693,7 +702,7 @@
     $('guide').classList.add('open');
     renderGuide();
   }
-  function closeGuide() { $('guide').classList.remove('open'); }
+  function closeGuide() { $('guide').classList.remove('open'); $('rmenu').classList.remove('open'); RM.open = false; }
   function progAt(ch, t) { return progsOf(ch).find(p => p.start <= t && t < p.end) || null; }
   function ensureVisible(p) {
     const wEnd = +G.winStart + winMin() * 6e4;
@@ -723,7 +732,8 @@
           const isSel = i === G.row && p.start <= G.focus && G.focus < p.end;
           if (isSel) G.sel = { ch, p };
           const live = p.start <= now && now < p.end;
-          blocks += `<div class="g-prog${live ? ' live' : ''}${isSel ? ' sel' : ''}" data-i="${i}" data-t="${+p.start}"
+          const rem = window.MyTVReminders && MyTVReminders.get(ch.number, +p.start);
+          blocks += `<div class="g-prog${live ? ' live' : ''}${isSel ? ' sel' : ''}${rem ? (rem.mode === 'auto' ? ' rem-auto' : ' rem') : ''}" data-i="${i}" data-t="${+p.start}"
             style="left:calc(${l.toFixed(3)}% + 2px);width:calc(${(rgt - l).toFixed(3)}% - 4px)">${esc(p.title)}</div>`;
         }
       } else {
@@ -778,6 +788,40 @@
     closeGuide(); tune(i);                                                           // second click / channel name tunes
   });
   $('btnGuide').onclick = openGuide;
+
+  // ---------- reminders (OK on a later show in the guide) ----------
+  const RM = { open: false, i: 0, opts: [] };
+  function openRMenu() {
+    const { ch, p } = G.sel, start = +p.start, R = window.MyTVReminders;
+    if (!R) return;
+    const cur = R.get(ch.number, start);
+    const rec = mode => () => { R.add({ ch: ch.number, chName: ch.name, title: p.title, start, end: +p.end, mode }); renderGuide();
+      flash(mode === 'auto' ? `⏩ Schaltet um ${hm(p.start)} auf ${ch.name}` : `🔔 Erinnerung ${hm(p.start)}: ${p.title}`); };
+    RM.opts = [
+      { label: '🔔  Erinnern (1 Min. vorher)', run: rec('remind') },
+      { label: '⏩  Automatisch umschalten', run: rec('auto') },
+    ];
+    if (cur) RM.opts.push({ label: '✕  Erinnerung löschen', run: () => { R.remove(ch.number, start); renderGuide(); flash('Erinnerung gelöscht'); } });
+    RM.opts.push({ label: '▶  Jetzt zum Sender', run: () => { closeGuide(); tune(G.row); } });
+    RM.i = cur ? (cur.mode === 'auto' ? 1 : 0) : 0;
+    RM.title = `${hm(p.start)} · ${p.title}`;
+    RM.open = true; renderRMenu();
+  }
+  function renderRMenu() {
+    $('rmenu').innerHTML = `<div class="t">${esc(RM.title)}</div>` + RM.opts.map((o, i) => `<button class="${i === RM.i ? 'sel' : ''}" data-i="${i}">${o.label}</button>`).join('');
+    $('rmenu').querySelectorAll('button').forEach(b => b.onclick = () => { const o = RM.opts[+b.dataset.i]; closeRMenu(); o.run(); });
+    $('rmenu').classList.add('open');
+  }
+  function closeRMenu() { RM.open = false; $('rmenu').classList.remove('open'); }
+  if (window.MyTVReminders) MyTVReminders.start({
+    isStandby: () => standby,
+    tvOn: () => { if (!overlay && VPN.bridge) vpnCall('tvon'); },
+    switchTo: r => {
+      if (overlay) { toHost({ type: 'tune', number: r.ch }); return; }
+      closeGuide(); toggleList(false); closeLibMenu();
+      exitStandby(false); tuneNumber(r.ch);
+    },
+  });
   setInterval(() => { if ($('guide').classList.contains('open')) renderGuide(); }, 60 * 1000);
 
   // ---------- number entry ----------
@@ -848,6 +892,7 @@
   function handleKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     lastInput = Date.now();
+    if (window.MyTVReminders && MyTVReminders.bannerKey(e.key)) { e.preventDefault(); return; }
     if (standby) { e.preventDefault(); exitStandby(); return; }
     const listOpen = $('list').classList.contains('open');
     if ($('lib').classList.contains('open')) {
@@ -863,6 +908,16 @@
       else return;
       e.preventDefault(); wake(); return;
     }
+    if (RM.open) {
+      const k = e.key;
+      if (k === 'ArrowUp') RM.i = Math.max(0, RM.i - 1);
+      else if (k === 'ArrowDown') RM.i = Math.min(RM.opts.length - 1, RM.i + 1);
+      else if (k === 'Enter') { const o = RM.opts[RM.i]; closeRMenu(); o.run(); }
+      else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'ArrowLeft') closeRMenu();
+      else { e.preventDefault(); return; }
+      if (RM.open) renderRMenu();
+      e.preventDefault(); wake(); return;
+    }
     if ($('guide').classList.contains('open')) {
       const k = e.key;
       if (k === 'ArrowUp') guideMove(-1, 0);
@@ -871,7 +926,7 @@
       else if (k === 'ArrowRight') guideMove(0, 1);
       else if (k === 'PageUp') guideMove(-5, 0);
       else if (k === 'PageDown') guideMove(5, 0);
-      else if (k === 'Enter') { closeGuide(); tune(G.row); }
+      else if (k === 'Enter') { if (G.sel && G.sel.p && G.sel.p.start > Date.now() + 60e3) openRMenu(); else { closeGuide(); tune(G.row); } }
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'g' || k === 'G' || k === 'Guide') closeGuide();
       else if (k === 'b' || k === 'B') { closeGuide(); openLibMenu(); }
       else if (k === 'l' || k === 'L') { closeGuide(); toggleList(true); }
