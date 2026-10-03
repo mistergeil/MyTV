@@ -194,6 +194,7 @@
   const ardImg = (im, w = 400) => { const a = im && (im.aspect16x9 || im.aspect16x7 || Object.values(im)[0]); return a && a.src ? a.src.replace('{width}', w) : ''; };
   function ardTeaser(t) {
     const tgt = t.links && t.links.target; if (!tgt || !tgt.href) return null;
+    if (BAD.test(t.mediumTitle || t.shortTitle || '')) return null;
     const isItem = /\/item\//.test(tgt.href);
     const show = t.show && t.show.title, pub = t.publicationService && t.publicationService.name;
     return { kind: isItem ? 'ard' : 'page', href: tgt.href.replace(/embedded=false/, 'embedded=true'), title: t.mediumTitle || t.shortTitle || t.longTitle || '',
@@ -295,6 +296,7 @@
 
   async function pushPage(title, loader) {
     S.stack.push({ path: title, rows: [], r: 0, c: [], loading: true });
+    document.body.classList.remove('searching');
     const v = view(); renderRows(); hero(null);
     try { const p = await loader(); v.rows = p.rows.map(r => ({ title: r.title, load: r.load, items: null })); v.path = title || p.title; }
     catch (e) { v.error = 'Konnte nicht laden: ' + e.message; }
@@ -391,7 +393,7 @@
   function back() {
     if ($('player').classList.contains('on')) return stopPlayer();
     if (S.zone === 'tabs') { S.zone = 'rows'; renderTabs(); renderRows(); return; }
-    if (S.stack.length > 1) { S.stack.pop(); renderRows(); loadVisible(); return; }
+    if (S.stack.length > 1) { S.stack.pop(); if (S.stack.length === 1 && PROVIDERS[S.tab].search) document.body.classList.add('searching'); renderRows(); loadVisible(); return; }
     toMyTV();
   }
   function toMyTV() { location.replace(MYTV + (kiosk ? '?kiosk=1&back=1&lib=1' : '?lib=1')); }
