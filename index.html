@@ -793,12 +793,14 @@
   $('btnLib').onclick = openLibMenu;
 
   // ---------- Program guide ----------
-  const G = { row: 0, focus: new Date(), winStart: new Date(), sel: null };
+  const G = { row: 0, first: 0, focus: new Date(), winStart: new Date(), sel: null };
   const winMin = () => (innerWidth < 700 ? 120 : 180);
   const floor30 = d => { const x = new Date(d); x.setMinutes(x.getMinutes() < 30 ? 0 : 30, 0, 0); return x; };
   function openGuide(day = 0) {
     toggleList(false); closeHl();
-    G.row = index;
+    // open at the top (favorites first); the cursor sits on the current channel if it's on the first page, else on the first channel
+    const vis = Math.max(3, Math.floor(($('gRows').clientHeight || innerHeight * .6) / 52) || 8);
+    G.first = 0; G.row = (!FAVS.length || index < vis) ? index : 0;
     const t = new Date(); t.setDate(t.getDate() + day);
     G.focus = t; G.winStart = floor30(+t);
     $('guide').classList.add('open');
@@ -837,7 +839,11 @@
     // rows (keep selected row roughly centred)
     const rowsEl = $('gRows');
     const visible = Math.max(3, Math.floor(rowsEl.clientHeight / 52) || 8);
-    let first = Math.max(0, Math.min(G.row - Math.floor(visible / 2), channels.length - visible));
+    // scroll only when the cursor leaves the visible rows (like a normal list)
+    if (G.row < G.first) G.first = G.row;
+    if (G.row >= G.first + visible) G.first = G.row - visible + 1;
+    G.first = Math.max(0, Math.min(G.first, channels.length - visible));
+    const first = G.first;
     let html = '';
     G.sel = null;
     const remCh = new Set(((window.MyTVReminders && MyTVReminders.list()) || []).filter(r => r.end > now).map(r => r.ch));
