@@ -78,7 +78,7 @@
   const SITE_COUNTRY = [[/(^|\.)joyn\.de$|(^|\.)plus\.rtl\.de$|(^|\.)ardmediathek\.de$|(^|\.)zdf\.de$|(^|\.)3sat\.de$|(^|\.)arte\.tv$/, 'DE'],
                         [/(^|\.)(srf|rts|rsi)\.ch$/, 'CH'], [/(^|\.)orf\.at$/, 'AT']];
   const SITE_C = (SITE_COUNTRY.find(([re]) => re.test(location.hostname)) || [])[1];
-  const BLOCKED = /(vpn|proxy|anonymi[sz])[\s\S]{0,140}?(erkannt|festgestellt|entdeckt|detected|deaktivier|ausschalten|nicht (verfügbar|erlaubt|möglich))|(erkannt|festgestellt|entdeckt|detected)[\s\S]{0,140}?(vpn|proxy)|nur in (deutschland|der schweiz|österreich) verfügbar|only available in (germany|switzerland|austria)/i;
+  const BLOCKED = /(vpn|proxy|anonymi[sz])[\s\S]{0,140}?(erkannt|festgestellt|entdeckt|detected|deaktivier|ausschalten|nicht (verfügbar|erlaubt|möglich))|(erkannt|festgestellt|entdeckt|detected|deaktiviere|schalte)[\s\S]{0,140}?(vpn|proxy)|nur in (deutschland|der schweiz|österreich) verfügbar|only available in (germany|switzerland|austria)/i;
   function toast(t) {
     let el = document.getElementById('mytv-vpn-toast');
     if (!el) {
