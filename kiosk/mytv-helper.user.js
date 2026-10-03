@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.7.0
+// @version      1.7.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -277,7 +277,7 @@
     const blocker = () => {
       if (!(IS_ORF || IS_JOYN || IS_RTL) || !document.body) return '';
       hideRegionHints();
-      if (IS_ORF && document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
+      if ((IS_ORF || IS_RTL) && document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
       if (IS_RTL) {   // RTL+ cookie wall ("Einwilligen und weiter")
         const b = [...document.querySelectorAll('button, a, [role="button"]')].find(e => /Einwilligen und weiter/i.test(e.textContent || '') && visible(e));
         if (b) return 'Cookie-Auswahl';
