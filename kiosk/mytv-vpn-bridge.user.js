@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.2.0
-// @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country + iPhone remote commands.
+// @version      1.3.0
+// @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites + iPhone remote commands.
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -57,6 +57,7 @@
       if (d.type === 'status') r = await call('/status', 3000);
       else if (d.type === 'set' && /^(DE|CH|AT|OFF)$/.test(d.country)) r = await call('/vpn?c=' + d.country, 30000);
       else if (d.type === 'tvon') r = await call('/tv/on', 5000);
+      else if (d.type === 'favs') r = await call('/favs', 3000);
       else return;
       window.postMessage(Object.assign({ mytvVpn: 1, type: 'result', id: d.id }, r), location.origin);
     });
@@ -72,6 +73,10 @@
     if (c.do === 'ch') {
       if (IS_INDEX) window.postMessage({ mytvRemote: 1, do: 'ch', n: +c.n }, location.origin);
       else location.replace(MYTV + '?kiosk=1&ch=' + (+c.n));
+      return;
+    }
+    if (c.do === 'favs') {                 // favorites changed on the iPhone → MyTV re-sorts its lists
+      if (IS_MYTV) window.postMessage({ mytvRemote: 1, do: 'favs' }, location.origin);
       return;
     }
     if (c.do === 'on') {

@@ -5,12 +5,15 @@
 #    GET /status              -> {"ok":true,"country":"DE"|"CH"|"AT"|"OFF"}
 #    GET /vpn?c=DE|CH|AT|OFF  -> switches the WireGuard tunnel
 #    GET /cmd/since?seq=N&boot=B -> remote commands newer than N
+#    GET /favs                -> favorite channel numbers (MyTV lists them first)
 #
 #  Home network - port 8766, every request needs the secret key from remote.key
 #  (user-approved iPhone remote; the Windows firewall rule is added by the user by hand):
 #    GET /remote?key=KEY      -> remote control page for the phone
 #    GET /cmd?key=KEY&do=on | do=ch&n=22 | do=key&k=ArrowUp
 #    GET /ping?key=KEY
+#    GET /favs?key=KEY             -> favorite channel numbers (favorites.txt)
+#    GET /favs/set?key=KEY&n=22&on=1|0 -> add / remove a favorite (long-press on the remote)
 #    GET /update?key=KEY[&force=1] -> installed / latest version (GitHub Pages version.json), state of the last update
 #    GET /update/install?key=KEY   -> user tapped "Installieren": starts the task "MyTV Updater" (mytv-update.ps1)
 #    GET /update/rollback?key=KEY  -> user tapped "Wiederherstellen": puts the last backup back
@@ -33,6 +36,7 @@ $SceneFile = Join-Path $Dir 'st-scene.txt'  # id of the SmartThings routine "MyT
 $Key     = if (Test-Path $KeyFile) { (Get-Content $KeyFile -Raw).Trim() } else { '' }
 $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'h', 'l', 'b', 'm', 'i', '+', '-')
 $Boot    = [string][DateTime]::UtcNow.Ticks
+$FavFile = Join-Path $Dir 'favorites.txt'
 $VerFile = Join-Path $Dir 'VERSION'
 $Version = if (Test-Path $VerFile) { (Get-Content $VerFile -Raw).Trim() } else { '0' }
 $UpdUrl  = 'https://mistergeil.github.io/MyTV/kiosk/version.json'
@@ -127,6 +131,17 @@ function Add-Cmd($do, $n, $k) {
   [void]$Queue.Add(@{ seq = $script:Seq; do = $do; n = $n; k = $k; t = [DateTime]::UtcNow })
   while ($Queue.Count -gt 50) { $Queue.RemoveAt(0) }
 }
+# ---- favorites: channel numbers, comma-separated, in favorites.txt ----
+function Get-Favs {
+  if (-not (Test-Path $FavFile)) { return @() }
+  return @(((Get-Content $FavFile -Raw) -split '[^0-9]+') | Where-Object { $_ } | ForEach-Object { [int]$_ } | Sort-Object -Unique)
+}
+function Set-Fav([int]$n, [bool]$on) {
+  $f = @(Get-Favs | Where-Object { $_ -ne $n })
+  if ($on) { $f += $n }
+  ($f | Sort-Object -Unique) -join ',' | Set-Content -Path $FavFile -Encoding ascii -NoNewline
+  return @(Get-Favs)
+}
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {
   if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
@@ -175,6 +190,15 @@ while ($l.IsListening) {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'remote.html'))
       } elseif ($path -eq '/ping') {
         $out.ok = $true; $out.vpn = Get-Active; $out.version = $Version
+      } elseif ($path -eq '/favs') {
+        $out.ok = $true; $out.favs = @(Get-Favs)
+      } elseif ($path -eq '/favs/set') {
+        $n = [string]$req.QueryString['n']
+        if ($n -notmatch '^\d{1,3}$') { throw 'favs/set needs n=<channel number>' }
+        $out.favs = @(Set-Fav ([int]$n) ([string]$req.QueryString['on'] -ne '0'))
+        Add-Cmd 'favs' '' ''
+        Write-Log "favorite $n -> $([string]$req.QueryString['on'] -ne '0')"
+        $out.ok = $true
       } elseif ($path -eq '/update') {
         $i = Get-UpdateInfo ([string]$req.QueryString['force'] -eq '1')
         $out.ok = $true; $out.installed = $Version
@@ -222,6 +246,8 @@ while ($l.IsListening) {
         if ($Allowed -notcontains $c -and $c -ne 'OFF') { throw "unknown country '$c'" }
         $out.country = Set-Vpn $c
         $out.ok = ($out.country -eq $c)
+      } elseif ($path -eq '/favs') {
+        $out.ok = $true; $out.favs = @(Get-Favs)
       } elseif ($path -eq '/tv/on') {
         # reminder in MyTV: switch the TV on via the SmartThings routine
         $st = Start-StScene

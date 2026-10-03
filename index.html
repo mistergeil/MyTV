@@ -216,6 +216,9 @@
   #list li button { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 10px; text-align: left; }
   #list li button:hover, #list li button:focus-visible { background: rgba(255,255,255,.07); outline: none; }
   #list li.active button { background: rgba(255, 204, 51, .14); }
+  #list li.lh { padding: 14px 12px 6px; font-size: 12px; font-weight: 800; color: var(--accent); letter-spacing: .04em; }
+  .g-row.fav-end { border-bottom: 2px solid rgba(255, 204, 51, .45); }
+  .g-ch .fv { color: var(--accent); margin-right: -4px; }
   #list .n { width: 3ch; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
   #list li.active .n { color: var(--accent); }
   #list .logo { width: 44px; height: 28px; display: grid; place-items: center; border-radius: 6px; background: rgba(255,255,255,.08); font-size: 10px; font-weight: 700; overflow: hidden; }
@@ -382,7 +385,11 @@
 <script src="reminders.js?v=1"></script>
 <script>
 (() => {
-  const channels = [...(window.CHANNELS || [])].sort((a, b) => a.number - b.number);
+  // favorites (set on the iPhone remote, stored on the notebook) come first; numbers stay the same
+  let FAVS = []; try { FAVS = JSON.parse(localStorage.getItem('mytv.favs') || '[]'); } catch (e) {}
+  const isFav = c => FAVS.includes(c.number);
+  const byOrder = (a, b) => (isFav(b) - isFav(a)) || (a.number - b.number);
+  const channels = [...(window.CHANNELS || [])].sort(byOrder);
   const $ = id => document.getElementById(id);
   const screen = $('screen'), staticCv = $('static');
   let index = 0, prevIndex = 0, frame = null, hls = null, osdTimer, entryBuf = '', entryTimer, idleTimer;
@@ -701,12 +708,14 @@
 
   // ---------- list ----------
   function renderList() {
-    $('listItems').innerHTML = channels.map((c, i) => `
+    const nf = channels.filter(isFav).length;
+    const head = i => !nf ? '' : i === 0 ? '<li class="lh">★ Favoriten</li>' : i === nf ? '<li class="lh">Alle Sender</li>' : '';
+    $('listItems').innerHTML = channels.map((c, i) => head(i) + `
       <li class="${i === index ? 'active' : ''}">
         <button data-i="${i}">
           <span class="n">${c.number}</span>
           <span class="logo">${c.logo ? `<img src="${c.logo}" alt="">` : (c.short || c.name).slice(0, 5)}</span>
-          <span>${c.name}</span>${c.geo ? `<span class="tag">${c.geo === true ? 'DE' : c.geo}</span>` : ''}${c.mode === 'external' ? '<span class="tag">↗</span>' : ''}
+          <span>${isFav(c) ? '★ ' : ''}${c.name}</span>${c.geo ? `<span class="tag">${c.geo === true ? 'DE' : c.geo}</span>` : ''}${c.mode === 'external' ? '<span class="tag">↗</span>' : ''}
         </button>
       </li>`).join('');
   }
@@ -817,8 +826,9 @@
         if (i === G.row) G.sel = { ch, p: null };
       }
       if (now >= ws && now <= we) blocks += `<div class="g-nowline" style="left:${((now - ws) / W * 100).toFixed(3)}%"></div>`;
-      html += `<div class="g-row${i === index ? ' cur' : ''}">
-        <div class="g-ch" data-i="${i}"><span class="n">${ch.number}</span><span class="nm">${esc(ch.name)}</span></div>
+      const lastFav = isFav(ch) && !(channels[i + 1] && isFav(channels[i + 1]));
+      html += `<div class="g-row${i === index ? ' cur' : ''}${lastFav ? ' fav-end' : ''}">
+        <div class="g-ch" data-i="${i}"><span class="n">${ch.number}</span>${isFav(ch) ? '<span class="fv">★</span>' : ''}<span class="nm">${esc(ch.name)}</span></div>
         <div class="g-track">${blocks}</div></div>`;
     }
     rowsEl.innerHTML = html;
@@ -1100,10 +1110,29 @@
     if (standby) $('sbClock').textContent = clock();
     else if (!overlay && Date.now() - lastInput > IDLE_MS) enterStandby();
   }, 30e3);
+  // ---------- favorites ----------
+  function applyFavs(list) {
+    list = (Array.isArray(list) ? list : []).map(Number).filter(n => n > 0);
+    if (JSON.stringify(list) === JSON.stringify(FAVS)) return;
+    const cur = channels[index], prev = channels[prevIndex], grow = channels[G.row];
+    FAVS = list; store.set('mytv.favs', JSON.stringify(list));
+    channels.sort(byOrder);
+    index = Math.max(0, channels.indexOf(cur)); prevIndex = Math.max(0, channels.indexOf(prev)); G.row = Math.max(0, channels.indexOf(grow));
+    renderList();
+    if ($('guide').classList.contains('open')) renderGuide();
+  }
+  async function loadFavs() {
+    if (!VPN.bridge) return;
+    const r = await vpnCall('favs');
+    if (r && r.ok) applyFavs(r.favs);
+  }
+  setTimeout(loadFavs, 600);
+
   // commands from the iPhone remote (delivered by the MyTV Bridge userscript)
   window.addEventListener('message', ev => {
     const d = ev.data;
     if (!d || d.mytvRemote !== 1 || ev.origin !== location.origin || overlay) return;
+    if (d.do === 'favs') { loadFavs(); return; }
     if (d.do === 'on') { exitStandby(); wake(); }
     else if (d.do === 'ch') { exitStandby(false); tuneNumber(+d.n); }
   });

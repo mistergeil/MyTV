@@ -1,13 +1,13 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "54f5fce3b136bf2a81cad003c9cbf3fd8890cf250d07d0d37ed7f11ba800d5da",
-  "size": 22658,
+  "sha256": "938b2b35327aa3cb4bf49b8aa7874f243886358b8f01ed5fafc6c6787b0d3066",
+  "size": 23641,
   "notes": [
-    "Einstellungen ⚙︎ in der Fernbedienung: Updates suchen und mit einem Tipp installieren",
-    "Automatische Sicherung und Rückkehr zur alten Version, falls die neue nicht startet",
-    "★ Highlights-Taste"
+    "★ Favoriten: in der Senderliste lang drücken",
+    "Favoriten stehen zuerst – auf dem iPhone, im Guide und in der Liste am TV",
+    "CH ▲▼ zappt zuerst durch die Favoriten, dann durch alle anderen"
   ],
   "installer": false
 }

@@ -22,7 +22,7 @@ $Log      = Join-Path $Dir 'update.log'
 $Agent    = 'MyTV VPN Switcher'
 $Base     = 'https://mistergeil.github.io/MyTV/kiosk/'
 # never overwritten / restored, even if a zip should ever contain them
-$Protect  = '\.conf$|remote\.key$|tv-[a-z]+\.txt$|st-[a-z]+\.txt$|Remote-Links\.txt$|\.log$|\\run\\|\\photos\\|\\backup\\'
+$Protect  = '\.conf$|remote\.key$|favorites\.txt$|tv-[a-z]+\.txt$|st-[a-z]+\.txt$|Remote-Links\.txt$|\.log$|\\run\\|\\photos\\|\\backup\\'
 
 function Write-Log($m) { "$(Get-Date -Format s)  $m" | Out-File -FilePath $Log -Append -Encoding utf8 }
 function Set-State($state, $msg, $extra) {
