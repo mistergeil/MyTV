@@ -421,6 +421,19 @@
     else e.stopPropagation();          // normal typing (incl. B, M …) stays in the field
   });
 
+
+  // live / VOD streams with several audio tracks (ZDF: normal, Audiodeskription, klare Sprache …) → always the normal German one
+  const AD_RE = /describes-video|audiodeskription|audio description|h[öo]rfassung|klare sprache|\(ad\)|\bad\b|original|ov\b|englisch|english/i;
+  function pickAudio(h) {
+    const tr = h.audioTracks || []; if (tr.length < 2) return;
+    const score = t => {
+      const a = t.attrs || {}, txt = [t.name, a.NAME, a.CHARACTERISTICS, t.characteristics].filter(Boolean).join(' ');
+      return (AD_RE.test(txt) ? -10 : 0) + (/^(de|deu|ger)/i.test(t.lang || a.LANGUAGE || '') ? 3 : 0) + (a.DEFAULT === 'YES' || t.default ? 1 : 0);
+    };
+    let best = 0; tr.forEach((t, i) => { if (score(t) > score(tr[best])) best = i; });
+    if (h.audioTrack !== best) h.audioTrack = best;
+  }
+
   // ---------- player ----------
   const vid = $('vid');
   let fromHl = false;
@@ -457,6 +470,7 @@
       hls = new Hls({ startPosition: start > 30 ? start : -1 });
       hls.loadSource(it.url); hls.attachMedia(vid);
       hls.on(Hls.Events.MANIFEST_PARSED, () => vid.play().catch(() => {}));
+      hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => pickAudio(hls));
       hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) onErr(d.response && d.response.code); });
       if (start > 30) toast('▶ Fortsetzen bei ' + fmtClock(start));
     } else {

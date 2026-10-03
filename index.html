@@ -532,6 +532,7 @@
         hls = new Hls({ lowLatencyMode: false, backBufferLength: 30 });
         hls.loadSource(ch.url); hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, start);
+        hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => pickAudio(hls));
         hls.on(Hls.Events.ERROR, (e, d) => {
           if (!d.fatal) return;
           if (d.type === Hls.ErrorTypes.NETWORK_ERROR && d.details !== 'manifestLoadError') hls.startLoad();
@@ -637,6 +638,19 @@
   $('soundHint').onclick = () => { muted = false; applySound(); };
 
   const tuneNumber = n => { const i = channels.findIndex(c => c.number === n); if (i >= 0) tune(i); };
+
+
+  // live / VOD streams with several audio tracks (ZDF: normal, Audiodeskription, klare Sprache …) → always the normal German one
+  const AD_RE = /describes-video|audiodeskription|audio description|h[öo]rfassung|klare sprache|\(ad\)|\bad\b|original|ov\b|englisch|english/i;
+  function pickAudio(h) {
+    const tr = h.audioTracks || []; if (tr.length < 2) return;
+    const score = t => {
+      const a = t.attrs || {}, txt = [t.name, a.NAME, a.CHARACTERISTICS, t.characteristics].filter(Boolean).join(' ');
+      return (AD_RE.test(txt) ? -10 : 0) + (/^(de|deu|ger)/i.test(t.lang || a.LANGUAGE || '') ? 3 : 0) + (a.DEFAULT === 'YES' || t.default ? 1 : 0);
+    };
+    let best = 0; tr.forEach((t, i) => { if (score(t) > score(tr[best])) best = i; });
+    if (h.audioTrack !== best) h.audioTrack = best;
+  }
 
   // ---------- Program data (ARD program API, CORS-enabled) ----------
   const EPG = {};                                   // epg id → [{id,start,end,title,sub,text}]
