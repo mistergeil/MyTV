@@ -6,224 +6,300 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MyTV">
-<meta name="theme-color" content="#0b0d11">
+<meta name="theme-color" content="#000000">
 <title>MyTV Remote</title>
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230b0d11'/><rect x='30' y='48' width='120' height='78' rx='12' fill='none' stroke='%23ffcc33' stroke-width='10'/><path d='M66 146h48' stroke='%23ffcc33' stroke-width='10' stroke-linecap='round'/></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23000'/><rect x='30' y='48' width='120' height='78' rx='14' fill='none' stroke='%23fff' stroke-width='10'/><path d='M66 146h48' stroke='%23fff' stroke-width='10' stroke-linecap='round'/></svg>">
 <style>
-  :root { --bg:#0b0d11; --card:#171b24; --card2:#222835; --text:#eef0f3; --muted:#8d939c; --accent:#ffcc33; }
+  /* iOS look: system font (SF on iPhone), black background, grouped sections, circular controls */
+  :root { --bg:#000; --g1:#1c1c1e; --g2:#2c2c2e; --g3:#3a3a3c; --text:#fff; --muted:rgba(235,235,245,.6); --faint:rgba(235,235,245,.3);
+          --blue:#0a84ff; --red:#ff453a; --orange:#ff9f0a; --green:#30d158; --sep:rgba(84,84,88,.6); }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.3 -apple-system, "Segoe UI", Roboto, sans-serif; }
-  body { -webkit-touch-callout: none; padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 20px); max-width: 460px; margin: 0 auto;
-         -webkit-user-select: none; user-select: none; }
-  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-  h1 { font-size: 22px; margin: 0; } h1 b { color: var(--accent); }
-  #st { font-size: 13px; color: var(--muted); }
-  #st.err { color: #ff7a7a; }
-  button { font: inherit; color: var(--text); background: var(--card); border: 0; border-radius: 16px; min-height: 54px; font-weight: 700;
-           touch-action: manipulation; transition: transform .06s, background .06s; }
-  button:active, button.hit { transform: scale(.94); background: var(--card2); }
-  .row { display: grid; gap: 10px; margin-bottom: 10px; }
-  .c2 { grid-template-columns: 1fr 1fr; } .c3 { grid-template-columns: repeat(3, 1fr); } .c4 { grid-template-columns: repeat(4, 1fr); }
-  .on { background: var(--accent); color: #111; font-size: 18px; }
-  .on:active { background: #e6b82e; }
-  .pad { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 66px); gap: 8px; margin: 14px auto; max-width: 300px; }
-  .pad button { font-size: 24px; }
-  .pad .ok { border-radius: 50%; background: var(--accent); color: #111; font-size: 18px; }
-  .ch { display: grid; grid-template-rows: 1fr 1fr; gap: 6px; }
-  .lbl { font-size: 12px; color: var(--muted); text-align: center; font-weight: 600; margin-top: -2px; }
-  h2 { font-size: 15px; color: var(--muted); margin: 22px 0 10px; font-weight: 700; }
-  #num { text-align: center; font-size: 30px; font-weight: 800; color: var(--accent); min-height: 38px; letter-spacing: .1em; }
-  #list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #list button { min-height: 48px; text-align: left; padding: 8px 12px; font-weight: 600; font-size: 14px; display: flex; gap: 8px; align-items: center; }
-  #list button span { color: var(--accent); font-weight: 800; min-width: 2.2ch; text-align: right; }
-  #list button i { font-style: normal; font-size: 11px; color: var(--muted); margin-left: auto; }
-  #list .lh { grid-column: 1 / -1; font-size: 13px; font-weight: 800; color: var(--accent); margin: 6px 0 -2px; }
-  #list button.fav { background: #2a2410; }
-  #list button.held { transform: scale(.94); background: #3a3214; }
-  /* guide bar: only while the guide is open on the TV */
-  #gbar { display: none; margin-bottom: 10px; padding: 10px; border-radius: 18px; background: #1d2433; border: 1px solid #34405a; }
-  #gbar.show { display: block; }
-  #vnext:disabled { opacity: .4; }
-  #gbar .t { font-size: 12px; font-weight: 800; color: #9fb4dd; margin: 0 4px 8px; }
-  #gbar button { background: #2a3550; }
-  /* settings + update banner */
-  header .r { display: flex; align-items: center; gap: 10px; }
-  #gear { min-height: 40px; width: 44px; border-radius: 12px; font-size: 20px; padding: 0; }
-  #upd { display: none; width: 100%; margin-bottom: 12px; background: #2a2410; color: var(--accent); border: 1px solid #6b5716; text-align: left; padding: 10px 14px; font-size: 15px; }
-  #upd.show { display: block; }
-  #set { position: fixed; inset: 0; background: var(--bg); z-index: 5; overflow-y: auto; display: none;
-         padding: calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 24px); }
-  #set.open { display: block; } #set > div { max-width: 460px; margin: 0 auto; }
-  #set .card { background: var(--card); border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; }
-  #set .k { color: var(--muted); font-size: 13px; font-weight: 600; }
-  #set .v { font-size: 22px; font-weight: 800; margin-top: 2px; }
-  #set .v small { font-size: 13px; color: var(--muted); font-weight: 600; margin-left: 6px; }
-  #set ul { margin: 8px 0 0; padding-left: 20px; color: #c9cdd3; font-size: 15px; }
-  #set li { margin: 4px 0; }
-  #set button { width: 100%; margin-top: 10px; background: var(--card2); }
-  #set .on { background: var(--accent); }
-  #set .ghost { background: transparent; border: 1px solid #333a47; color: var(--muted); font-weight: 600; }
-  #set .msg { margin-top: 10px; font-size: 14px; color: var(--muted); min-height: 18px; }
-  #set .msg.ok { color: #6fdc8c; } #set .msg.err { color: #ff7a7a; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; letter-spacing: -.01em; }
+  body { padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 28px); max-width: 460px; margin: 0 auto;
+         -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  button { font: inherit; color: var(--text); background: none; border: 0; padding: 0; touch-action: manipulation; cursor: pointer; }
+  header { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 14px; }
+  h1 { font-size: 34px; font-weight: 700; margin: 0; letter-spacing: .01em; }
+  .hr { display: flex; gap: 10px; align-items: center; }
+  .ib { width: 40px; height: 40px; border-radius: 50%; background: var(--g1); display: grid; place-items: center; font-size: 19px; transition: transform .2s, background .2s; }
+  .ib:active { transform: scale(.9); background: var(--g2); }
+  .ib.pw { color: var(--red); }
+  #st { font-size: 13px; color: var(--muted); text-align: center; min-height: 18px; margin: -6px 0 10px; transition: color .2s; }
+  #st.err { color: var(--red); }
+
+  #upd { display: none; width: 100%; margin-bottom: 12px; background: var(--g1); color: var(--text); border-radius: 14px; padding: 12px 14px; text-align: left; font-size: 15px; }
+  #upd b { color: var(--blue); } #upd.show { display: block; }
+
+  /* guide bar (only while the guide is open on the TV) */
+  #gbar { display: none; gap: 8px; margin-bottom: 12px; }
+  #gbar.show { display: flex; animation: pop .35s cubic-bezier(.2,.9,.25,1.1); }
+  #gbar button { flex: 1; height: 44px; border-radius: 22px; background: var(--blue); font-size: 15px; font-weight: 600; }
+  #gbar button:active { transform: scale(.95); filter: brightness(1.2); }
+  @keyframes pop { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+
+  /* touch surface, like the Siri Remote / TV Remote in Control Center */
+  #pad { position: relative; width: 100%; aspect-ratio: 1 / .92; border-radius: 34px; overflow: hidden; touch-action: none;
+         background: radial-gradient(circle at 50% 42%, #2a2a2d 0%, #1c1c1e 70%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.05); }
+  #pad .dots i { position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--g3); transform: translate(-50%,-50%); }
+  #pad .hint { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; font-size: 12px; color: var(--faint); }
+  #pad .ring { position: absolute; width: 90px; height: 90px; margin: -45px 0 0 -45px; border-radius: 50%; background: rgba(255,255,255,.12);
+               transform: scale(.4); opacity: 0; pointer-events: none; }
+  #pad .ring.go { animation: ring .45s ease-out; }
+  @keyframes ring { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.6); opacity: 0; } }
+  #pad .arrow { position: absolute; left: 50%; top: 50%; font-size: 44px; color: rgba(255,255,255,.85); transform: translate(-50%,-50%) scale(.6); opacity: 0; pointer-events: none; }
+  #pad .arrow.go { animation: arr .4s ease-out; }
+  @keyframes arr { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.6); } 30% { opacity: 1; transform: translate(-50%,-50%) scale(1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.1); } }
+
+  /* circular buttons under the pad */
+  .circles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px 10px; margin: 20px 4px 4px; }
+  .cb { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .cb span { width: 64px; height: 64px; border-radius: 50%; background: var(--g1); display: grid; place-items: center; font-size: 24px; transition: transform .18s, background .18s; }
+  .cb small { font-size: 12px; color: var(--muted); }
+  .cb:active span { transform: scale(.9); background: var(--g2); }
+  .pills { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 18px 0 6px; }
+  .pill { display: flex; height: 56px; border-radius: 28px; background: var(--g1); overflow: hidden; }
+  .pill button { flex: 1; font-size: 22px; transition: background .15s; }
+  .pill button:active { background: var(--g2); }
+  .pill .lbl { align-self: center; font-size: 12px; color: var(--muted); padding: 0 2px; }
+
+  /* grouped sections */
+  h2 { font-size: 13px; font-weight: 400; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; margin: 30px 16px 8px; }
+  .group { background: var(--g1); border-radius: 14px; overflow: hidden; }
+  .cell { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 16px; width: 100%; text-align: left; position: relative; font-size: 17px; }
+  .cell + .cell::before { content: ''; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--sep); }
+  .cell:active, .cell.held { background: var(--g2); }
+  .cell .n { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right; font-size: 15px; }
+  .cell .nm { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cell .tg { font-size: 13px; color: var(--faint); }
+  .cell .fav { color: var(--orange); font-size: 15px; }
+  .cell .val { color: var(--muted); font-size: 15px; }
+  .cell .act { color: var(--blue); }
+  .cell:disabled { opacity: .4; }
+  .note { font-size: 13px; color: var(--muted); margin: 8px 16px 0; line-height: 1.35; }
+
+  /* keypad like the Phone app */
+  #num { text-align: center; font-size: 34px; font-weight: 300; min-height: 44px; letter-spacing: .08em; margin-top: 4px; }
+  #digits { display: grid; grid-template-columns: repeat(3, 76px); justify-content: center; gap: 14px 26px; margin-top: 6px; }
+  #digits button { width: 76px; height: 76px; border-radius: 50%; background: var(--g2); font-size: 32px; font-weight: 400; transition: background .15s; }
+  #digits button:active { background: #636366; }
+  #digits button[data-go] { background: var(--green); font-size: 17px; font-weight: 600; }
+  #digits button[data-clear] { background: none; font-size: 24px; color: var(--muted); }
+
+  /* settings sheet */
+  #set { position: fixed; inset: 0; background: #000; z-index: 5; overflow-y: auto; display: none;
+         padding: calc(env(safe-area-inset-top) + 8px) 16px calc(env(safe-area-inset-bottom) + 24px); }
+  #set.open { display: block; animation: sheet .4s cubic-bezier(.2,.9,.25,1); }
+  @keyframes sheet { from { transform: translateY(40px); opacity: 0; } }
+  #set > div { max-width: 460px; margin: 0 auto; }
+  #set .done { color: var(--blue); font-size: 17px; font-weight: 600; }
+  #set .big { font-size: 22px; font-weight: 700; }
+  #set ul { margin: 0; padding: 4px 16px 12px 34px; color: var(--muted); font-size: 15px; }
+  #set .msg { margin: 10px 16px 0; font-size: 14px; color: var(--muted); min-height: 18px; }
+  #set .msg.ok { color: var(--green); } #set .msg.err { color: var(--red); }
+  #set .cell.primary { justify-content: center; color: var(--blue); font-weight: 600; }
+  #set .cell.danger { justify-content: center; color: var(--red); }
 </style>
 </head>
 <body>
-<header><h1>My<b>TV</b></h1><div class="r"><div id="st">bereit</div><button id="gear" aria-label="Einstellungen">⚙︎</button></div></header>
+<header><h1>MyTV</h1><div class="hr"><button class="ib pw" data-do="on" aria-label="TV an">⏻</button><button class="ib" id="gear" aria-label="Einstellungen">⚙︎</button></div></header>
+<div id="st"></div>
 <button id="upd"></button>
-<div id="gbar"><div class="t">GUIDE</div><div class="row c3" style="margin:0">
-  <button data-k="GuideNow">Jetzt</button><button data-k="GuideDay1">Morgen</button><button data-k="GuideDay2">Übermorgen</button></div></div>
+<div id="gbar"><button data-k="GuideNow">Jetzt</button><button data-k="GuideDay1">Morgen</button><button data-k="GuideDay2">Übermorgen</button></div>
 
-<div class="row"><button class="on" data-do="on">⏻&nbsp; TV an / aufwecken</button></div>
-
-<div class="row c3">
-  <button data-k="g">Guide</button><button data-k="h">★ Highlights</button><button data-k="b">Mediathek</button>
-</div>
-<div class="row c2">
-  <button data-k="l">Liste</button><button data-k="i">Info</button>
+<div id="pad" aria-label="Touch-Fläche: wischen = navigieren, tippen = OK">
+  <div class="dots"><i style="left:50%;top:16%"></i><i style="left:84%;top:50%"></i><i style="left:50%;top:84%"></i><i style="left:16%;top:50%"></i></div>
+  <div class="ring" id="ring"></div><div class="arrow" id="arrow"></div>
+  <div class="hint">wischen = bewegen · tippen = OK</div>
 </div>
 
-<div class="pad">
-  <div></div><button data-k="ArrowUp">▲</button><div></div>
-  <button data-k="ArrowLeft">◀</button><button class="ok" data-k="Enter">OK</button><button data-k="ArrowRight">▶</button>
-  <div></div><button data-k="ArrowDown">▼</button><div></div>
+<div class="circles">
+  <button class="cb" data-k="Backspace"><span>‹</span><small>Zurück</small></button>
+  <button class="cb" data-k="g"><span>▦</span><small>Guide</small></button>
+  <button class="cb" data-k="h"><span>★</span><small>Highlights</small></button>
+  <button class="cb" data-k="b"><span>▶︎</span><small>Mediathek</small></button>
+  <button class="cb" data-k="l"><span>☰</span><small>Sender</small></button>
+  <button class="cb" data-k="i"><span>ⓘ</span><small>Info</small></button>
 </div>
-<div class="lbl">▲▼ = Sender hoch/runter · im Guide / in der Mediathek = navigieren</div>
-
-<div class="row c4" style="margin-top:14px">
-  <button data-k="Backspace">↩︎ Zurück</button><button data-k="-">🔉 −</button><button data-k="m">🔇</button><button data-k="+">🔊 +</button>
+<div class="pills">
+  <div class="pill"><button data-k="ArrowDown" aria-label="Sender runter">−</button><span class="lbl">CH</span><button data-k="ArrowUp" aria-label="Sender hoch">+</button></div>
+  <div class="pill"><button data-k="-" aria-label="Leiser">−</button><button data-k="m" aria-label="Ton aus" style="font-size:17px">🔇</button><button data-k="+" aria-label="Lauter">+</button></div>
 </div>
 
-<div class="row c2" id="vrow" style="margin-top:4px">
-  <div id="vinfo" style="align-self:center;font-size:13px;color:var(--muted);font-weight:600;padding-left:4px"></div>
-  <button id="vnext">🔄 Anderer Server</button>
+<h2>VPN</h2>
+<div class="group">
+  <div class="cell"><span class="nm">Verbindung</span><span class="val" id="vinfo">–</span></div>
+  <button class="cell" id="vnext"><span class="nm act">Anderer Server</span><span class="val">↻</span></button>
 </div>
 
 <h2>Sendernummer</h2>
 <div id="num"></div>
-<div class="row c3" id="digits">
+<div id="digits">
   <button>1</button><button>2</button><button>3</button><button>4</button><button>5</button><button>6</button>
-  <button>7</button><button>8</button><button>9</button><button data-clear>⌫</button><button>0</button><button class="on" data-go>OK</button>
+  <button>7</button><button>8</button><button>9</button><button data-clear>⌫</button><button>0</button><button data-go>OK</button>
 </div>
 
-<h2>Sender <span style="font-weight:600;font-size:12px">· lang drücken = ★ Favorit</span></h2>
+<h2>Sender</h2>
 <div id="list"></div>
+<div class="note">Lang drücken = als Favorit markieren oder entfernen. Favoriten stehen überall zuerst.</div>
 
 <div id="set"><div>
-  <header><h1>Einstellungen</h1><button id="setClose" style="width:auto;min-height:40px;padding:0 16px;margin:0">Fertig</button></header>
-  <div class="card">
-    <div class="k">MyTV auf dem Notebook</div>
-    <div class="v" id="sInst">…</div>
-    <div class="k" id="sChecked" style="margin-top:6px"></div>
-    <button id="sCheck">Nach Updates suchen</button>
+  <header><h1 style="font-size:28px">Einstellungen</h1><button class="done" id="setClose">Fertig</button></header>
+  <h2>MyTV auf dem Notebook</h2>
+  <div class="group">
+    <div class="cell"><span class="nm">Version</span><span class="val" id="sInst">…</span></div>
+    <div class="cell"><span class="nm">Zuletzt geprüft</span><span class="val" id="sChecked">–</span></div>
+    <button class="cell primary" id="sCheck">Nach Updates suchen</button>
   </div>
-  <div class="card" id="sNew" hidden>
-    <div class="k">Neue Version</div>
-    <div class="v" id="sLatest"></div>
-    <ul id="sNotes"></ul>
-    <button class="on" id="sInstall">Installieren</button>
-    <div class="k" style="margin-top:8px">Die aktuelle Version wird vorher gesichert. Startet die neue nicht, kommt die alte automatisch zurück. Einstellungen und VPN-Profile bleiben.</div>
+  <div id="sNew" hidden>
+    <h2>Neue Version</h2>
+    <div class="group">
+      <div class="cell"><span class="nm big" id="sLatest"></span></div>
+      <ul id="sNotes"></ul>
+      <button class="cell primary" id="sInstall">Installieren</button>
+    </div>
+    <div class="note">Die aktuelle Version wird vorher gesichert. Startet die neue nicht, kommt die alte automatisch zurück. Einstellungen und VPN-Profile bleiben.</div>
   </div>
   <div class="msg" id="sMsg"></div>
-  <div class="card" id="sBack" hidden>
-    <div class="k">Sicherung</div>
-    <div id="sBackName" style="margin-top:4px;font-weight:700"></div>
-    <button class="ghost" id="sRollback">Vorherige Version wiederherstellen</button>
+  <div id="sBack" hidden>
+    <h2>Sicherung</h2>
+    <div class="group">
+      <div class="cell"><span class="nm" id="sBackName"></span></div>
+      <button class="cell danger" id="sRollback">Vorherige Version wiederherstellen</button>
+    </div>
   </div>
 </div></div>
+
+<label id="hapt" style="position:absolute;left:-9999px"><input type="checkbox" switch></label>
 
 <script>
 (() => {
   const key = new URLSearchParams(location.search).get('key') || '';
-  const st = document.getElementById('st');
+  const $ = id => document.getElementById(id);
+  const st = $('st');
   const say = (t, err) => { st.textContent = t; st.className = err ? 'err' : ''; };
+  // light haptic tick: Android vibrate, iOS 18+ via the native switch control
+  const haptic = () => { try { if (navigator.vibrate) navigator.vibrate(12); else $('hapt').click(); } catch (e) {} };
   async function send(q) {
     try {
       const r = await fetch('/cmd?key=' + encodeURIComponent(key) + '&' + q, { cache: 'no-store' });
       const j = await r.json();
-      say(j.ok ? 'gesendet ✓' : (j.error || 'Fehler'), !j.ok);
+      say(j.ok ? '' : (j.error || 'Fehler'), !j.ok);
     } catch (e) { say('Notebook nicht erreichbar', true); }
   }
-  // buttons
-  document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => send('do=key&k=' + encodeURIComponent(b.dataset.k))));
-  document.querySelectorAll('[data-do]').forEach(b => b.addEventListener('click', () => send('do=' + b.dataset.do)));
-  // number pad
+  const sendKey = k => send('do=key&k=' + encodeURIComponent(k));
+  document.querySelectorAll('[data-k]').forEach(b => b.addEventListener('click', () => { haptic(); sendKey(b.dataset.k); }));
+  document.querySelectorAll('[data-do]').forEach(b => b.addEventListener('click', () => { haptic(); send('do=' + b.dataset.do); say('TV wird eingeschaltet …'); }));
+
+  // ---------- touch surface: swipe = arrows (one step per ~60 px), tap = OK ----------
+  const pad = $('pad'), ring = $('ring'), arrow = $('arrow');
+  let p0 = null, last = null, moved = 0;
+  const STEP = 60;
+  const showArrow = s => { arrow.textContent = s; arrow.classList.remove('go'); void arrow.offsetWidth; arrow.classList.add('go'); };
+  pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); p0 = last = { x: e.clientX, y: e.clientY }; moved = 0; });
+  pad.addEventListener('pointermove', e => {
+    if (!p0) return;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < STEP) return;
+    const horiz = Math.abs(dx) > Math.abs(dy);
+    const k = horiz ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : (dy > 0 ? 'ArrowDown' : 'ArrowUp');
+    showArrow({ ArrowRight: '›', ArrowLeft: '‹', ArrowDown: '⌄', ArrowUp: '⌃' }[k]);
+    haptic(); sendKey(k); moved++;
+    last = { x: e.clientX, y: e.clientY };
+  });
+  const end = e => {
+    if (!p0) return;
+    const tap = !moved && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) < 14;
+    if (tap) {
+      const r = pad.getBoundingClientRect();
+      ring.style.left = (e.clientX - r.left) + 'px'; ring.style.top = (e.clientY - r.top) + 'px';
+      ring.classList.remove('go'); void ring.offsetWidth; ring.classList.add('go');
+      haptic(); sendKey('Enter');
+    }
+    p0 = null;
+  };
+  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', () => { p0 = null; });
+
+  // ---------- keypad ----------
   let num = '', numT = null;
-  const numEl = document.getElementById('num');
+  const numEl = $('num');
   const goNum = () => { clearTimeout(numT); if (num) send('do=ch&n=' + parseInt(num, 10)); num = ''; setTimeout(() => numEl.textContent = '', 600); };
   document.querySelectorAll('#digits button').forEach(b => b.addEventListener('click', () => {
+    haptic();
     if (b.hasAttribute('data-go')) return goNum();
     if (b.hasAttribute('data-clear')) { num = num.slice(0, -1); numEl.textContent = num; return; }
     num = (num + b.textContent).slice(-3); numEl.textContent = num;
     clearTimeout(numT); numT = setTimeout(goNum, 1500);
   }));
-  // channel list from MyTV, favorites first (long-press a channel = add / remove favorite)
+
+  // ---------- channels (favorites first, long-press = favorite) ----------
   let FAVS = [];
-  const listEl = document.getElementById('list');
+  const listEl = $('list');
   function drawList() {
     const chs = (window.CHANNELS || []).slice().sort((a, b) => (FAVS.includes(b.number) - FAVS.includes(a.number)) || a.number - b.number);
     const nf = chs.filter(c => FAVS.includes(c.number)).length;
     listEl.innerHTML = '';
+    let group = null;
     chs.forEach((c, i) => {
-      if (nf && (i === 0 || i === nf)) { const h = document.createElement('div'); h.className = 'lh'; h.textContent = i === 0 ? '★ Favoriten' : 'Alle Sender'; listEl.appendChild(h); }
-      const b = document.createElement('button');
+      if (i === 0 || i === nf) {
+        if (nf && i === nf) { const h = document.createElement('h2'); h.textContent = 'Alle Sender'; h.style.margin = '22px 16px 8px'; listEl.appendChild(h); }
+        group = document.createElement('div'); group.className = 'group'; listEl.appendChild(group);
+        if (nf && i === 0) { const h = document.createElement('h2'); h.textContent = '★ Favoriten'; h.style.margin = '0 16px 8px'; listEl.insertBefore(h, group); }
+      }
       const fav = FAVS.includes(c.number);
       const tag = c.geo === 'CH' ? 'CH' : c.geo === 'AT' ? 'AT' : c.geo ? 'DE' : '';
-      b.className = fav ? 'fav' : '';
-      b.innerHTML = '<span>' + c.number + '</span>' + (fav ? '★ ' : '') + c.name.replace(/[<>&]/g, '') + (tag ? '<i>' + tag + '</i>' : '');
+      const b = document.createElement('button'); b.className = 'cell';
+      b.innerHTML = '<span class="n">' + c.number + '</span><span class="nm">' + c.name.replace(/[<>&]/g, '') + '</span>' +
+        (tag ? '<span class="tg">' + tag + '</span>' : '') + (fav ? '<span class="fav">★</span>' : '');
       let t = null, long = false;
-      const down = () => { long = false; b.classList.add('held'); t = setTimeout(() => { long = true; b.classList.remove('held'); toggleFav(c, !fav); }, 550); };
+      const down = () => { long = false; b.classList.add('held'); t = setTimeout(() => { long = true; b.classList.remove('held'); haptic(); toggleFav(c, !fav); }, 550); };
       const up = () => { clearTimeout(t); b.classList.remove('held'); };
-      b.addEventListener('touchstart', down, { passive: true });
-      b.addEventListener('touchend', up); b.addEventListener('touchmove', up, { passive: true }); b.addEventListener('touchcancel', up);
-      b.addEventListener('mousedown', down); b.addEventListener('mouseup', up); b.addEventListener('mouseleave', up);
+      b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up); b.addEventListener('pointerleave', up); b.addEventListener('pointercancel', up);
       b.addEventListener('contextmenu', e => e.preventDefault());
-      b.addEventListener('click', () => { if (long) { long = false; return; } send('do=ch&n=' + c.number); });
-      listEl.appendChild(b);
+      b.addEventListener('click', () => { if (long) { long = false; return; } haptic(); send('do=ch&n=' + c.number); });
+      group.appendChild(b);
     });
   }
   async function toggleFav(c, on) {
-    if (navigator.vibrate) navigator.vibrate(30);
     try {
       const r = await fetch('/favs/set?key=' + encodeURIComponent(key) + '&n=' + c.number + '&on=' + (on ? 1 : 0), { cache: 'no-store' });
       const j = await r.json();
-      if (j.ok) { FAVS = j.favs || []; drawList(); say(on ? '★ ' + c.name + ' ist Favorit' : c.name + ' kein Favorit mehr'); }
+      if (j.ok) { FAVS = j.favs || []; drawList(); say(on ? '★ ' + c.name + ' ist Favorit' : c.name + ' ist kein Favorit mehr'); }
       else say(j.error || 'Fehler', true);
     } catch (e) { say('Notebook nicht erreichbar', true); }
   }
-  const s = document.createElement('script');
-  s.src = 'https://mistergeil.github.io/MyTV/channels.js?r=' + Date.now();
-  s.onload = drawList;
-  s.onerror = () => { listEl.textContent = 'Senderliste nicht geladen (Internet?)'; };
-  document.head.appendChild(s);
+  const sc = document.createElement('script');
+  sc.src = 'https://mistergeil.github.io/MyTV/channels.js?r=' + Date.now();
+  sc.onload = drawList;
+  sc.onerror = () => { listEl.innerHTML = '<div class="group"><div class="cell"><span class="nm" style="color:var(--muted)">Senderliste nicht geladen (Internet?)</span></div></div>'; };
+  document.head.appendChild(sc);
   if (key) fetch('/favs?key=' + encodeURIComponent(key), { cache: 'no-store' }).then(r => r.json()).then(j => { if (j.ok) { FAVS = j.favs || []; if (window.CHANNELS) drawList(); } }).catch(() => {});
   if (!key) say('Link ohne key=…', true);
-  // sticker link ...&on=1 → switch the TV on right away (once; the parameter is removed so a reload doesn't repeat it)
+  // sticker link ...&on=1 → switch the TV on right away (once)
   const qp = new URLSearchParams(location.search);
   if (key && qp.get('on') === '1') {
     qp.delete('on'); history.replaceState(null, '', location.pathname + '?' + qp.toString());
     send('do=on'); say('TV wird eingeschaltet …');
   }
+
   // ---------- settings: updates ----------
-  const $ = id => document.getElementById(id);
   const api = async (p, q = '') => { const r = await fetch(p + '?key=' + encodeURIComponent(key) + q, { cache: 'no-store' }); return r.json(); };
-  const fmtWhen = s => { if (!s) return ''; const d = new Date(s); return isNaN(d) ? s : d.toLocaleString('de-CH', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }); };
-  const bkName = n => { const m = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}_(.*)$/.exec(n || ''); return m ? `Version ${m[6]} · gesichert ${m[3]}.${m[2]}. ${m[4]}:${m[5]}` : n; };
+  const fmtWhen = s => { if (!s) return '–'; const d = new Date(s); return isNaN(d) ? s : d.toLocaleString('de-CH', { weekday: 'short', day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }); };
+  const bkName = n => { const m = /^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})\d{2}_(.*)$/.exec(n || ''); return m ? `Version ${m[6]} · ${m[3]}.${m[2]}. ${m[4]}:${m[5]}` : n; };
   const msg = (t, cls) => { $('sMsg').textContent = t || ''; $('sMsg').className = 'msg' + (cls ? ' ' + cls : ''); };
   let U = null, polling = false;
   function showUpdate(j) {
     U = j;
-    $('sInst').innerHTML = (j.installed && j.installed !== '0' ? j.installed : 'unbekannt') + (j.available ? '' : ' <small>aktuell ✓</small>');
-    $('sChecked').textContent = j.checked ? 'Zuletzt geprüft: ' + fmtWhen(j.checked) : '';
+    $('sInst').textContent = (j.installed && j.installed !== '0' ? j.installed : 'unbekannt') + (j.available ? '' : ' ✓');
+    $('sChecked').textContent = fmtWhen(j.checked);
     $('sNew').hidden = !j.available;
     if (j.available) {
-      $('sLatest').textContent = j.latest + (j.date ? ' · ' + j.date : '');
+      $('sLatest').textContent = 'MyTV ' + j.latest + (j.date ? ' · ' + j.date : '');
       $('sNotes').innerHTML = (j.notes || []).map(n => '<li>' + String(n).replace(/[<>&]/g, '') + '</li>').join('');
     }
     const b = (j.backups || [])[0];
     $('sBack').hidden = !b; if (b) $('sBackName').textContent = bkName(b);
-    const upd = $('upd');
-    upd.textContent = j.available ? `★ Update ${j.latest} verfügbar – ansehen` : '';
-    upd.classList.toggle('show', !!j.available);
+    $('upd').innerHTML = j.available ? `<b>Update verfügbar</b> · MyTV ${j.latest} – ansehen ›` : '';
+    $('upd').classList.toggle('show', !!j.available);
     const s = j.state;
     if (s && s.state === 'running') { msg(s.msg); if (!polling) poll(); }
   }
@@ -233,7 +309,6 @@
     catch (e) { if (force) msg('Notebook nicht erreichbar', 'err'); }
     $('sCheck').disabled = false;
   }
-  // after "Installieren": the switcher restarts, so the page is briefly unreachable - keep asking
   async function poll() {
     polling = true;
     const t0 = Date.now();
@@ -244,7 +319,7 @@
       if (!s) continue;
       if (s.state === 'running') { msg(s.msg); continue; }
       polling = false;
-      if (s.state === 'ok') { msg(s.msg + ' ✓', 'ok'); setTimeout(() => location.reload(), 1500); }   // reload → new remote page
+      if (s.state === 'ok') { msg(s.msg + ' ✓', 'ok'); setTimeout(() => location.reload(), 1500); }
       else { msg(s.msg, 'err'); showUpdate(j); }
       return;
     }
@@ -264,24 +339,26 @@
   $('sCheck').addEventListener('click', () => check(true));
   $('sInstall').addEventListener('click', () => start('/update/install', `MyTV ${U && U.latest} installieren? Das TV-Bild läuft weiter, die Fernbedienung ist ca. 20 Sekunden weg.`));
   $('sRollback').addEventListener('click', () => start('/update/rollback', 'Vorherige Version wiederherstellen?'));
-  // ---------- guide bar: ask the notebook what is on screen ----------
+
+  // ---------- what's on the TV: guide bar + VPN server ----------
+  const VPN_NAME = { DE: 'Deutschland', CH: 'Schweiz', AT: 'Österreich' };
   let uiT = null;
   async function pollUi() {
     clearTimeout(uiT);
     if (document.hidden || !key) return;
     try {
-      const j = await api('/ping'); $('gbar').classList.toggle('show', !!(j.ok && j.guide));
-      $('vinfo').textContent = !j.ok ? '' : j.vpn === 'OFF' ? 'VPN aus' : 'VPN ' + j.vpn + (j.server ? ' · Server ' + j.server.n + '/' + j.server.of : '');
+      const j = await api('/ping');
+      $('gbar').classList.toggle('show', !!(j.ok && j.guide));
+      $('vinfo').textContent = !j.ok ? '–' : j.vpn === 'OFF' ? 'aus' : (VPN_NAME[j.vpn] || j.vpn) + (j.server ? ' · ' + j.server.n + '/' + j.server.of : '');
       $('vnext').disabled = !j.ok || j.vpn === 'OFF';
     } catch (e) {}
     uiT = setTimeout(pollUi, 1500);
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollUi(); });
-  // pressing Guide on the remote → show the bar right away (the TV confirms within a moment)
-  document.querySelector('[data-k="g"]').addEventListener('click', () => setTimeout(pollUi, 700));
+  document.querySelector('.cb[data-k="g"]').addEventListener('click', () => setTimeout(pollUi, 700));
   $('vnext').addEventListener('click', async () => {
-    say('wechsle Server …');
-    try { const j = await api('/vpn/next'); say(j.ok ? 'Server: ' + (j.server ? j.server.name + ' (' + j.server.n + '/' + j.server.of + ')' : 'neu') + ' – Sender lädt neu' : (j.error || 'Fehler'), !j.ok); pollUi(); }
+    haptic(); say('wechsle Server …');
+    try { const j = await api('/vpn/next'); say(j.ok ? 'Server ' + (j.server ? j.server.name + ' (' + j.server.n + '/' + j.server.of + ')' : 'gewechselt') + ' – Sender lädt neu' : (j.error || 'Fehler'), !j.ok); pollUi(); }
     catch (e) { say('Notebook nicht erreichbar', true); }
   });
   pollUi();

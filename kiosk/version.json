@@ -1,12 +1,13 @@
 {
-  "version": "1.3.2",
+  "version": "1.4.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "dde4e2b1e3bdc9d5b4e97433ef08f1ff7683cf239c4495ebfd8b3cc38da856b4",
-  "size": 26004,
+  "sha256": "1fa9fa54f2e19731732c1b2c0131411291c496f593ed2a20ba36fc11581fb575",
+  "size": 27482,
   "notes": [
-    "Der zuletzt funktionierende VPN-Server wird gemerkt (auch wenn neue Server-Dateien dazukommen)",
-    "„Anderer Server“ auf der Fernbedienung: der Sender lädt danach automatisch neu"
+    "Neue Fernbedienung im Stil der Apple TV Remote: Touch-Fläche (wischen = bewegen, tippen = OK)",
+    "Runde Tasten, Sender-Liste und Einstellungen im iOS-Look",
+    "Leichtes haptisches Feedback (iOS 18)"
   ],
   "installer": false
 }
