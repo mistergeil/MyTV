@@ -948,7 +948,12 @@
     const b = e.target.closest('button[data-i]');
     if (b) { tune(+b.dataset.i); toggleList(false); }
   });
+  // On the SRG player pages (SRF / RTS / RSI) panels inside the MyTV layer don't show up → open them in MyTV itself,
+  // like Highlights and the Mediathek do (helper ≥ 1.11 'go' pipe)
+  const hostPage = (() => { try { return new URL((location.ancestorOrigins && location.ancestorOrigins[0]) || document.referrer).hostname; } catch (e) { return ''; } })();
+  const OV_PANELS_OUT = overlay && /(^|\.)(srf|rts|rsi)\.ch$/.test(hostPage);
   function toggleList(force) {
+    if (OV_PANELS_OUT && force !== false && !$('list').classList.contains('open')) { toHost({ type: 'go', q: 'list=1' }); return; }
     const open = $('list').classList.toggle('open', force);
     if (open) $('list').querySelector('li.active button')?.focus();
   }
@@ -1006,6 +1011,7 @@
   const winMin = () => (innerWidth < 700 ? 120 : 180);
   const floor30 = d => { const x = new Date(d); x.setMinutes(x.getMinutes() < 30 ? 0 : 30, 0, 0); return x; };
   function openGuide(day = 0) {
+    if (OV_PANELS_OUT) { toHost({ type: 'go', q: 'guide=1' }); return; }
     toggleList(false); closeHl(); loadFavs();
     // open at the top (favorites first); the cursor sits on the current channel if it's on the first page, else on the first channel
     const vis = Math.max(3, Math.floor(($('gRows').clientHeight || innerHeight * .6) / 52) || 8);
