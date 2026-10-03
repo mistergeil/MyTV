@@ -43,6 +43,7 @@
   /* guide bar: only while the guide is open on the TV */
   #gbar { display: none; margin-bottom: 10px; padding: 10px; border-radius: 18px; background: #1d2433; border: 1px solid #34405a; }
   #gbar.show { display: block; }
+  #vnext:disabled { opacity: .4; }
   #gbar .t { font-size: 12px; font-weight: 800; color: #9fb4dd; margin: 0 4px 8px; }
   #gbar button { background: #2a3550; }
   /* settings + update banner */
@@ -90,6 +91,11 @@
 
 <div class="row c4" style="margin-top:14px">
   <button data-k="Backspace">↩︎ Zurück</button><button data-k="-">🔉 −</button><button data-k="m">🔇</button><button data-k="+">🔊 +</button>
+</div>
+
+<div class="row c2" id="vrow" style="margin-top:4px">
+  <div id="vinfo" style="align-self:center;font-size:13px;color:var(--muted);font-weight:600;padding-left:4px"></div>
+  <button id="vnext">🔄 Anderer Server</button>
 </div>
 
 <h2>Sendernummer</h2>
@@ -263,12 +269,21 @@
   async function pollUi() {
     clearTimeout(uiT);
     if (document.hidden || !key) return;
-    try { const j = await api('/ping'); $('gbar').classList.toggle('show', !!(j.ok && j.guide)); } catch (e) {}
+    try {
+      const j = await api('/ping'); $('gbar').classList.toggle('show', !!(j.ok && j.guide));
+      $('vinfo').textContent = !j.ok ? '' : j.vpn === 'OFF' ? 'VPN aus' : 'VPN ' + j.vpn + (j.server ? ' · Server ' + j.server.n + '/' + j.server.of : '');
+      $('vnext').disabled = !j.ok || j.vpn === 'OFF';
+    } catch (e) {}
     uiT = setTimeout(pollUi, 1500);
   }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) pollUi(); });
   // pressing Guide on the remote → show the bar right away (the TV confirms within a moment)
   document.querySelector('[data-k="g"]').addEventListener('click', () => setTimeout(pollUi, 700));
+  $('vnext').addEventListener('click', async () => {
+    say('wechsle Server …');
+    try { const j = await api('/vpn/next'); say(j.ok ? 'Server: ' + (j.server ? j.server.name + ' (' + j.server.n + '/' + j.server.of + ')' : 'neu') + ' – Sender neu laden' : (j.error || 'Fehler'), !j.ok); pollUi(); }
+    catch (e) { say('Notebook nicht erreichbar', true); }
+  });
   pollUi();
   if (key) check(false);
 })();

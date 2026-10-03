@@ -4,6 +4,7 @@
 #  Local only - http://127.0.0.1:8765 (used by the MyTV Bridge script in Chrome):
 #    GET /status              -> {"ok":true,"country":"DE"|"CH"|"AT"|"OFF"}
 #    GET /vpn?c=DE|CH|AT|OFF  -> switches the WireGuard tunnel
+#    GET /vpn/next?c=DE       -> same country, next server (DE.conf, DE-2.conf, DE-3.conf ...) - "VPN erkannt" on Joyn / RTL+
 #    GET /cmd/since?seq=N&boot=B -> remote commands newer than N
 #    GET /favs                -> favorite channel numbers (MyTV lists them first)
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
@@ -13,6 +14,7 @@
 #    GET /remote?key=KEY      -> remote control page for the phone
 #    GET /cmd?key=KEY&do=on | do=ch&n=22 | do=key&k=ArrowUp
 #    GET /ping?key=KEY
+#    GET /vpn/next?key=KEY[&c=DE] -> "Anderer Server" button on the remote
 #    GET /favs?key=KEY             -> favorite channel numbers (favorites.txt)
 #    GET /favs/set?key=KEY&n=22&on=1|0 -> add / remove a favorite (long-press on the remote)
 #    GET /update?key=KEY[&force=1] -> installed / latest version (GitHub Pages version.json), state of the last update
@@ -20,6 +22,7 @@
 #    GET /update/rollback?key=KEY  -> user tapped "Wiederherstellen": puts the last backup back
 #
 #  Needs: WireGuard for Windows + DE.conf / CH.conf / AT.conf in this folder
+#  More servers per country (optional): DE-2.conf, DE-3.conf ... - used in turn when a server is blocked
 #  Remove any time with VPN-Uninstall.bat
 # ============================================================
 $ErrorActionPreference = 'Stop'
@@ -58,9 +61,36 @@ function Get-Active {
 # Copy of the Proton config with split default routes (0.0.0.0/1 + 128.0.0.0/1) instead of 0.0.0.0/0:
 # all internet traffic still goes through the VPN, but WireGuard's "block untunneled traffic"
 # lock stays off, so the iPhone on the home Wi-Fi can still reach the notebook.
+# all configs of a country: DE.conf first, then DE-2.conf, DE-3.conf ... (any name DE-<something>.conf)
+function Get-Configs($c) {
+  $main = Get-Item -LiteralPath (Join-Path $Dir "$c.conf") -ErrorAction SilentlyContinue
+  $more = @(Get-ChildItem -Path $Dir -Filter "$c-*.conf" -File -ErrorAction SilentlyContinue | Sort-Object Name)
+  return @(@($main) + $more | Where-Object { $_ })
+}
+function Get-ServerIdx($c) {
+  $f = Join-Path $RunDir "server-$c.txt"; $i = 0
+  if (Test-Path $f) { [void][int]::TryParse((Get-Content $f -Raw).Trim(), [ref]$i) }
+  $n = (Get-Configs $c).Count
+  if ($n -gt 0) { $i = $i % $n } else { $i = 0 }
+  return $i
+}
+function Set-ServerIdx($c, $i) {
+  if (-not (Test-Path $RunDir)) { New-Item -ItemType Directory -Path $RunDir | Out-Null }
+  Set-Content -Path (Join-Path $RunDir "server-$c.txt") -Value $i -Encoding ascii -NoNewline
+}
+function Get-ServerInfo($c) {
+  $cfg = Get-Configs $c; $i = Get-ServerIdx $c
+  if (-not $cfg.Count) { return $null }
+  return [ordered]@{ name = $cfg[$i].BaseName; n = $i + 1; of = $cfg.Count }
+}
+# Copy of the Proton config with split default routes (0.0.0.0/1 + 128.0.0.0/1) instead of 0.0.0.0/0:
+# all internet traffic still goes through the VPN, but WireGuard's "block untunneled traffic"
+# lock stays off, so the iPhone on the home Wi-Fi can still reach the notebook.
+# The copy is always called run\<country>.conf, so the tunnel keeps its name whichever server is used.
 function Get-RunConf($c) {
-  $src = Join-Path $Dir "$c.conf"
-  if (-not (Test-Path $src)) { throw "$c.conf not found in $Dir" }
+  $cfg = Get-Configs $c
+  if (-not $cfg.Count) { throw "$c.conf not found in $Dir" }
+  $src = $cfg[(Get-ServerIdx $c)].FullName
   if (-not (Test-Path $RunDir)) { New-Item -ItemType Directory -Path $RunDir | Out-Null }
   $lines = Get-Content $src | ForEach-Object {
     if ($_ -match '^\s*AllowedIPs\s*=\s*(.*)$') {
@@ -73,6 +103,20 @@ function Get-RunConf($c) {
   $dst = Join-Path $RunDir "$c.conf"
   Set-Content -Path $dst -Value $lines -Encoding ascii
   return $dst
+}
+# next server of the same country (blocked by a streaming site) - rebuilds the tunnel even if the country is already active
+function Switch-Server($c) {
+  $cfg = Get-Configs $c
+  if (-not $cfg.Count) { throw "$c.conf not found in $Dir" }
+  $i = ((Get-ServerIdx $c) + 1) % $cfg.Count
+  Set-ServerIdx $c $i
+  if ((Get-Active) -eq $c) {
+    & $WG /uninstalltunnelservice $c | Out-Null
+    for ($k = 0; $k -lt 40 -and (Get-Tunnel $c); $k++) { Start-Sleep -Milliseconds 250 }
+  }
+  $now = Set-Vpn $c
+  Write-Log "server $c -> $($cfg[$i].BaseName) ($($i + 1)/$($cfg.Count)), active: $now"
+  return $now
 }
 function Set-Vpn($c) {
   if ($c -eq (Get-Active)) { return $c }
@@ -217,7 +261,12 @@ while ($l.IsListening) {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'remote.html'))
       } elseif ($path -eq '/ping') {
         $out.ok = $true; $out.vpn = Get-Active; $out.version = $Version
+        if ($out.vpn -ne 'OFF') { $out.server = Get-ServerInfo $out.vpn }
         $out.guide = (([DateTime]::UtcNow - $GuideAt).TotalSeconds -lt 12)
+      } elseif ($path -eq '/vpn/next') {
+        $c = ([string]$req.QueryString['c']).ToUpper(); if (-not $c) { $c = Get-Active }
+        if ($Allowed -notcontains $c) { throw 'VPN ist aus - erst einen Sender mit VPN wählen' }
+        $out.country = Switch-Server $c; $out.server = Get-ServerInfo $c; $out.ok = ($out.country -eq $c)
       } elseif ($path -eq '/favs') {
         $out.ok = $true; $out.favs = @(Get-Favs)
       } elseif ($path -eq '/favs/set') {
@@ -269,6 +318,7 @@ while ($l.IsListening) {
       $path = $req.Url.AbsolutePath
       if ($path -eq '/status') {
         $out.ok = $true; $out.country = Get-Active; $out.remote = [bool]$Key; $out.version = $Version
+        if ($out.country -ne 'OFF') { $out.server = Get-ServerInfo $out.country }
       } elseif ($path -eq '/vpn') {
         $c = ([string]$req.QueryString['c']).ToUpper()
         if ($Allowed -notcontains $c -and $c -ne 'OFF') { throw "unknown country '$c'" }
@@ -279,6 +329,10 @@ while ($l.IsListening) {
       } elseif ($path -eq '/ui') {
         $GuideAt = if ([string]$req.QueryString['guide'] -eq '1') { [DateTime]::UtcNow } else { [DateTime]::MinValue }
         $out.ok = $true
+      } elseif ($path -eq '/vpn/next') {
+        $c = ([string]$req.QueryString['c']).ToUpper()
+        if ($Allowed -notcontains $c) { throw "unknown country '$c'" }
+        $out.country = Switch-Server $c; $out.server = Get-ServerInfo $c; $out.ok = ($out.country -eq $c)
       } elseif ($path -eq '/tv/on') {
         # reminder in MyTV: switch the TV on via the SmartThings routine
         $st = Start-StScene

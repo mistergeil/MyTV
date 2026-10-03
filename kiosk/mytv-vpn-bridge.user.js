@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.4.0
-// @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites + iPhone remote commands.
+// @version      1.5.0
+// @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites, iPhone remote commands; switches to another VPN server when a site says "VPN erkannt".
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -71,6 +71,46 @@
       if (!d || d.mytvState !== 1 || ev.origin !== 'https://mistergeil.github.io') return;
       call('/ui?guide=' + (d.guide ? 1 : 0), 2000);
     });
+  }
+
+  // ---- "VPN erkannt" on Joyn / RTL+ / SRF / ORF → next server of the same country, reload ----
+  // Servers: DE.conf, DE-2.conf, DE-3.conf ... on the notebook. Each server is tried once per 10 minutes.
+  const SITE_COUNTRY = [[/(^|\.)joyn\.de$|(^|\.)plus\.rtl\.de$|(^|\.)ardmediathek\.de$|(^|\.)zdf\.de$|(^|\.)3sat\.de$|(^|\.)arte\.tv$/, 'DE'],
+                        [/(^|\.)(srf|rts|rsi)\.ch$/, 'CH'], [/(^|\.)orf\.at$/, 'AT']];
+  const SITE_C = (SITE_COUNTRY.find(([re]) => re.test(location.hostname)) || [])[1];
+  const BLOCKED = /(vpn|proxy|anonymi[sz])[\s\S]{0,140}?(erkannt|festgestellt|entdeckt|detected|deaktivier|ausschalten|nicht (verfügbar|erlaubt|möglich))|(erkannt|festgestellt|entdeckt|detected)[\s\S]{0,140}?(vpn|proxy)|nur in (deutschland|der schweiz|österreich) verfügbar|only available in (germany|switzerland|austria)/i;
+  function toast(t) {
+    let el = document.getElementById('mytv-vpn-toast');
+    if (!el) {
+      el = document.createElement('div'); el.id = 'mytv-vpn-toast';
+      el.style.cssText = 'position:fixed;left:50%;top:28px;transform:translateX(-50%);z-index:2147483647;max-width:min(760px,calc(100vw - 32px));' +
+        'padding:16px 22px;border-radius:16px;background:rgba(12,14,18,.94);border:2px solid #ffcc33;color:#f2f2f2;font:600 18px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif';
+      (document.body || document.documentElement).appendChild(el);
+    }
+    el.textContent = t;
+  }
+  if (SITE_C && !IS_MYTV) {
+    let handled = false;
+    const t0 = Date.now();
+    const scan = setInterval(async () => {
+      if (handled || Date.now() - t0 > 120000) { clearInterval(scan); return; }
+      const txt = document.body ? document.body.innerText.slice(0, 20000) : '';
+      if (!BLOCKED.test(txt)) return;
+      handled = true; clearInterval(scan);
+      const st = await call('/status', 3000);
+      if (!st.ok || st.country !== SITE_C) return;            // VPN off / other country: MyTV's normal switching handles that
+      const of = (st.server && st.server.of) || 1;
+      const key = 'vpnblock.' + SITE_C;
+      let rec = GM_getValue(key, null);
+      if (!rec || Date.now() - rec.t > 10 * 60e3) rec = { n: 0, t: Date.now() };
+      if (of < 2) { toast('VPN erkannt – es gibt nur einen ' + SITE_C + '-Server. Weitere Proton-Konfigurationen als ' + SITE_C + '-2.conf, ' + SITE_C + '-3.conf … ablegen.'); return; }
+      if (rec.n >= of - 1) { toast('VPN erkannt – alle ' + of + ' ' + SITE_C + '-Server sind gerade blockiert. Später nochmal versuchen oder neue Server-Konfigurationen holen.'); GM_setValue(key, null); return; }
+      rec.n++; GM_setValue(key, rec);
+      toast('VPN erkannt – wechsle den ' + SITE_C + '-Server (' + rec.n + '/' + (of - 1) + ') …');
+      const r = await call('/vpn/next?c=' + SITE_C, 35000);
+      if (r.ok) { toast('Neuer Server: ' + ((r.server && r.server.name) || '') + ' – lade neu …'); setTimeout(() => location.reload(), 1200); }
+      else toast('Serverwechsel fehlgeschlagen: ' + (r.error || 'unbekannt'));
+    }, 2000);
   }
 
   // ---- iPhone remote: pick up commands from the switcher and act on them ----
