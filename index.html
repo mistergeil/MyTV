@@ -69,7 +69,7 @@
   #lib h2 { margin: 0 0 6px; font-size: 28px; }
   #lib .l-sub { color: var(--muted); margin: 0 0 28px; font-size: 15px; }
   #libGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px; }
-  .l-tile { position: relative; height: 140px; border-radius: var(--radius); border: 2px solid transparent; padding: 18px 20px;
+  .l-tile { position: relative; height: 120px; border-radius: var(--radius); border: 2px solid transparent; padding: 18px 20px;
             display: flex; flex-direction: column; justify-content: flex-end; text-align: left; cursor: pointer; color: #fff; }
   .l-tile .nm { font-size: 22px; font-weight: 800; }
   .l-tile .ds { font-size: 13px; opacity: .85; margin-top: 2px; }
@@ -217,7 +217,7 @@
 
 <div id="lib" role="dialog" aria-label="Mediathek">
   <h2>Mediathek</h2>
-  <p class="l-sub">Sendungen und Filme auf Abruf · VPN wird automatisch umgestellt</p>
+  <p class="l-sub">Sendungen und Filme auf Abruf · „in MyTV“ = mit der Fernbedienung bedienbar · VPN wird automatisch umgestellt</p>
   <div id="libGrid"></div>
   <div class="l-hint">← → ↑ ↓ wählen · OK öffnen · B / Esc schliessen · In der Mediathek: B oder ⌂-Knopf = zurück zu MyTV</div>
 </div>
@@ -632,21 +632,25 @@
 
   // ---------- Mediathek launcher ----------
   const LIBS = [
-    { name: 'ARD Mediathek', desc: 'Das Erste, Dritte, Doku', geo: 'DE', bg: '#003480', url: 'https://www.ardmediathek.de/' },
-    { name: 'ZDF',           desc: 'ZDF, ZDFneo, ZDFinfo',  geo: 'DE', bg: '#fa7d19', url: 'https://www.zdf.de/' },
-    { name: 'arte',          desc: 'Filme, Dokus, Kultur',   geo: 'DE', bg: '#1b1b1b', url: 'https://www.arte.tv/de/' },
-    { name: '3sat',          desc: 'Kultur, Wissenschaft',   geo: 'DE', bg: '#a3003b', url: 'https://www.3sat.de/' },
-    { name: 'Joyn',          desc: 'ProSieben, SAT.1 & Co.', geo: 'DE', bg: '#2b2a6e', url: 'https://www.joyn.de/' },
-    { name: 'RTL+',          desc: 'RTL, VOX & Co.',         geo: 'DE', bg: '#e3001b', url: 'https://plus.rtl.de/' },
-    { name: 'SRF Play',      desc: 'SRF 1, SRF zwei, Info',  geo: 'CH', bg: '#af001e', url: 'https://www.srf.ch/play/tv' },
-    { name: 'ORF ON',        desc: 'ORF 1, ORF 2, ORF III',  geo: 'AT', bg: '#c4161c', url: 'https://on.orf.at/' },
+    { name: 'ARD Mediathek', desc: 'Serien, Filme, Tatort, Dokus', native: 'ard',  bg: '#003480' },
+    { name: 'ZDF',           desc: 'ZDF, ZDFneo, ZDFinfo, PHOENIX', native: 'zdf', bg: '#fa7d19' },
+    { name: 'arte',          desc: 'Filme, Dokus, Kultur',   native: 'arte',  bg: '#2a2a2a' },
+    { name: '3sat',          desc: 'Kultur, Kabarett, Wissen', native: '3sat', bg: '#a3003b' },
+    { name: 'SRF',           desc: 'Serien, Filme, Tagesschau', native: 'srf', bg: '#af001e' },
+    { name: 'ORF',           desc: 'Filme, Serien, ZIB',     native: 'orf',   bg: '#c4161c' },
+    { name: 'KiKA',          desc: 'Kinderprogramm',         native: 'kika',  bg: '#66b821' },
+    { name: '🔍 Suche',      desc: 'Alle Mediatheken durchsuchen', native: 'search', bg: '#30343c' },
+    { name: 'Joyn',          desc: 'ProSieben, SAT.1 & Co. (Website)', geo: 'DE', bg: '#2b2a6e', url: 'https://www.joyn.de/' },
+    { name: 'RTL+',          desc: 'RTL, VOX & Co. (Website)', geo: 'DE', bg: '#e3001b', url: 'https://plus.rtl.de/' },
+    { name: 'SRF Play',      desc: 'Website',                geo: 'CH', bg: '#7a0016', url: 'https://www.srf.ch/play/tv' },
+    { name: 'ORF ON',        desc: 'Website',                geo: 'AT', bg: '#8e1014', url: 'https://on.orf.at/' },
   ];
   const L = { sel: 0 };
   const libCols = () => (innerWidth <= 800 ? 2 : 4);
   function renderLib() {
     $('libGrid').innerHTML = LIBS.map((l, i) =>
       `<button class="l-tile${i === L.sel ? ' sel' : ''}" data-i="${i}" style="background:linear-gradient(160deg, ${l.bg}, ${l.bg}cc 60%, #111)">
-         <span class="vp">VPN ${l.geo}</span><span class="nm">${l.name}</span><span class="ds">${l.desc}</span></button>`).join('');
+         <span class="vp">${l.native ? 'in MyTV' : 'VPN ' + l.geo}</span><span class="nm">${l.name}</span><span class="ds">${l.desc}</span></button>`).join('');
     $('libGrid').querySelectorAll('.l-tile').forEach(b => { b.onclick = () => { L.sel = +b.dataset.i; openLib(LIBS[L.sel]); }; });
   }
   function openLibMenu() {
@@ -662,6 +666,7 @@
     L.sel = i; renderLib();
   }
   async function openLib(l) {
+    if (l.native) { location.replace('mediathek.html?p=' + l.native); return; }
     if (!kiosk) { window.open(l.url, 'mytv-lib'); return; }
     clearTimeout(extTimer);
     if (VPN.bridge && VPN.country !== l.geo) {

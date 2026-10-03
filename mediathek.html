@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyTV Mediathek</title>
+<style>
+  :root { --bg:#07090d; --panel:rgba(12,14,18,.92); --line:rgba(255,255,255,.10); --text:#f2f2f2; --muted:#9aa0a6; --accent:#ffcc33;
+          --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; background:var(--bg); color:var(--text); font-family:var(--font); overflow:hidden; }
+  body.kiosk, body.kiosk * { cursor: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+
+  /* header: tabs + clock */
+  #top { position: fixed; left: 0; right: 0; top: 0; height: 64px; display: flex; align-items: center; gap: 6px; padding: 0 32px; z-index: 5;
+         background: linear-gradient(#07090d 70%, rgba(7,9,13,0)); }
+  #top .brand { font-weight: 800; font-size: 20px; margin-right: 18px; color: var(--accent); }
+  .tab { padding: 8px 16px; border-radius: 999px; font-weight: 700; font-size: 15px; color: var(--muted); border: 2px solid transparent; white-space: nowrap; }
+  .tab.cur { color: var(--text); background: rgba(255,255,255,.08); }
+  .tab.sel { border-color: var(--accent); color: var(--text); }
+  #clock { margin-left: auto; font-size: 20px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  /* hero: details of the focused tile */
+  #hero { position: fixed; left: 0; right: 0; top: 64px; height: 190px; padding: 14px 40px 0; z-index: 4; background: var(--bg); display: flex; gap: 28px; }
+  #heroImg { width: 300px; height: 169px; border-radius: 12px; background: #151922 center/cover no-repeat; flex: none; }
+  #heroTxt { min-width: 0; }
+  #heroPath { color: var(--accent); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  #heroTitle { font-size: 28px; font-weight: 800; margin: 4px 0 4px; line-height: 1.15; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  #heroMeta { color: var(--text); opacity: .8; font-size: 15px; }
+  #heroDesc { color: var(--muted); font-size: 14px; margin-top: 6px; max-width: 900px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+  /* rows */
+  #rows { position: fixed; left: 0; right: 0; top: 254px; bottom: 0; overflow: hidden; }
+  #rowsIn { transition: transform .18s ease; }
+  .row { height: 214px; padding: 0 0 0 40px; }
+  .row h3 { margin: 6px 0 8px; font-size: 18px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row.cur h3 { color: var(--accent); }
+  .strip { position: relative; height: 170px; overflow: hidden; }
+  .stripIn { position: absolute; left: 0; top: 6px; display: flex; gap: 16px; transition: transform .16s ease; }
+  .tile { width: 256px; height: 144px; flex: none; border-radius: 12px; position: relative; overflow: hidden; background: #151922 center/cover no-repeat;
+          border: 3px solid transparent; transition: transform .12s; }
+  .tile.sel { border-color: var(--accent); transform: scale(1.06); z-index: 2; box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+  .tile .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 10px 8px; font-size: 14px; font-weight: 700; line-height: 1.2;
+               background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.85)); }
+  .tile .cap small { display: block; font-weight: 500; opacity: .75; font-size: 12px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .badge { position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: rgba(0,0,0,.6); }
+  .tile .bar { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--accent); }
+  .tile.text { display: flex; flex-direction: column; justify-content: center; padding: 14px 16px; }
+  .tile.text .tp { font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; opacity: .85; }
+  .tile.text .tt { font-size: 17px; font-weight: 800; line-height: 1.2; margin-top: 4px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .tile.more { display: grid; place-items: center; font-weight: 800; font-size: 16px; color: var(--muted); background: rgba(255,255,255,.05); }
+  .msg { color: var(--muted); font-size: 15px; padding: 50px 6px; }
+
+  /* search box */
+  #searchBox { display: none; position: fixed; top: 64px; left: 40px; right: 40px; z-index: 6; background: var(--bg); padding: 14px 0; }
+  body.searching #searchBox { display: block; }
+  #searchBox input { width: 100%; font: 700 26px var(--font); color: var(--text); background: #151922; border: 2px solid var(--line); border-radius: 12px; padding: 14px 18px; outline: none; }
+  #searchBox input:focus { border-color: var(--accent); }
+  #searchBox .hint { color: var(--muted); font-size: 14px; margin-top: 8px; }
+
+  /* player */
+  #player { position: fixed; inset: 0; z-index: 20; background: #000; display: none; }
+  #player.on { display: block; }
+  #player video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+  #pui { position: absolute; left: 0; right: 0; bottom: 0; padding: 60px 48px 34px; background: linear-gradient(rgba(0,0,0,0), rgba(0,0,0,.85));
+         transition: opacity .3s; }
+  #player.hideui #pui { opacity: 0; }
+  #pTitle { font-size: 26px; font-weight: 800; }
+  #pSub { color: var(--muted); margin: 4px 0 14px; }
+  #pBar { height: 6px; background: rgba(255,255,255,.18); border-radius: 3px; overflow: hidden; }
+  #pBar i { display: block; height: 100%; width: 0; background: var(--accent); }
+  #pTime { display: flex; justify-content: space-between; color: var(--muted); font-size: 14px; margin-top: 8px; font-variant-numeric: tabular-nums; }
+  #pHint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  #pState { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); font-size: 64px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #pState.show { opacity: .9; }
+
+  #toast { position: fixed; left: 50%; top: 24px; transform: translateX(-50%); z-index: 30; padding: 12px 22px; border-radius: 999px; background: var(--panel);
+           border: 1px solid var(--line); font-weight: 600; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  #help { position: fixed; right: 40px; bottom: 16px; color: var(--muted); font-size: 13px; z-index: 3; }
+  @media (max-width: 800px) {
+    #top { padding: 0 12px; overflow-x: auto; } #hero { padding: 10px 16px 0; height: 150px; } #heroImg { display: none; }
+    #rows { top: 214px; } .row { padding-left: 16px; } #searchBox { left: 16px; right: 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="top"><span class="brand">Mediathek</span><div id="tabs" style="display:flex;gap:6px"></div><div id="clock"></div></div>
+<div id="hero"><div id="heroImg"></div><div id="heroTxt"><div id="heroPath"></div><div id="heroTitle"></div><div id="heroMeta"></div><div id="heroDesc"></div></div></div>
+<div id="searchBox"><input id="q" type="text" placeholder="Suchen: Sendung, Film, Thema …" autocomplete="off" spellcheck="false">
+  <div class="hint">Tippen und OK/Enter · ↓ zu den Ergebnissen · Esc zurück</div></div>
+<div id="rows"><div id="rowsIn"></div></div>
+<div id="help">↑↓←→ wählen · OK öffnen · Zurück/Esc zurück · B MyTV</div>
+<div id="player"><video id="vid" playsinline></video><div id="pState"></div>
+  <div id="pui"><div id="pTitle"></div><div id="pSub"></div><div id="pBar"><i></i></div><div id="pTime"><span id="pPos"></span><span id="pDur"></span></div>
+  <div id="pHint">OK Pause · ← 15 s · → 30 s · ↑ +5 min · ↓ −5 min · +/− Lautstärke · M Ton · Zurück beenden</div></div></div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
+<script>
+(() => {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+  const params = new URLSearchParams(location.search);
+  const kiosk = store.get('mytv.kiosk') === '1';
+  if (kiosk) document.body.classList.add('kiosk');
+  const MYTV = new URL('./', location.href).href;
+  const ARD = 'https://api.ardmediathek.de/page-gateway';
+  const MVW = 'https://mediathekviewweb.de/api/query';
+
+  // ---------- small helpers ----------
+  let toastT = null;
+  function toast(t, ms = 2500) { $('toast').textContent = t; $('toast').classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('show'), ms); }
+  const fmtDur = s => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60); return h ? `${h} Std ${m} Min` : `${m} Min`; };
+  const fmtClock = s => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), x = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(x).padStart(2, '0'); };
+  const fmtDate = ts => { if (!ts) return ''; const d = new Date(ts); return d.toLocaleDateString('de-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' }); };
+  async function getJSON(url, opts) { const r = await fetch(url, opts); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }
+  const resume = (() => { let m = {}; try { m = JSON.parse(store.get('mytv.resume') || '{}'); } catch {} return {
+    get: k => m[k] || 0,
+    set: (k, v) => { m[k] = v; const ks = Object.keys(m); if (ks.length > 300) delete m[ks[0]]; store.set('mytv.resume', JSON.stringify(m)); },
+    del: k => { delete m[k]; store.set('mytv.resume', JSON.stringify(m)); } }; })();
+  setInterval(() => { $('clock').textContent = new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }); }, 1000);
+
+  // ---------- VPN (via the MyTV VPN Bridge userscript, same as MyTV) ----------
+  const VPN = { get bridge() { return document.documentElement.dataset.mytvVpnBridge === '1'; }, country: null, seq: 0, pending: new Map() };
+  const VPN_NAME = { DE: 'Deutschland', CH: 'Schweiz', AT: 'Österreich', OFF: 'aus' };
+  function vpnCall(type, country) {
+    return new Promise(res => {
+      if (!VPN.bridge) return res({ ok: false, error: 'no bridge' });
+      const id = ++VPN.seq; VPN.pending.set(id, res);
+      window.postMessage({ mytvVpn: 1, type, country, id }, location.origin);
+      setTimeout(() => { if (VPN.pending.has(id)) { VPN.pending.delete(id); res({ ok: false, error: 'timeout' }); } }, type === 'set' ? 35000 : 4000);
+    });
+  }
+  window.addEventListener('message', ev => {
+    const d = ev.data;
+    if (!d || d.mytvVpn !== 1 || d.type !== 'result' || ev.origin !== location.origin) return;
+    if (d.country) VPN.country = d.country;
+    const r = VPN.pending.get(d.id); if (r) { VPN.pending.delete(d.id); r(d); }
+  });
+  setTimeout(() => { if (VPN.bridge) vpnCall('status'); }, 300);
+  async function ensureVpn(country) {
+    if (!country || !VPN.bridge || VPN.country === country) return true;
+    toast(`🔒 VPN wird auf ${VPN_NAME[country]} umgestellt …`, 30000);
+    const r = await vpnCall('set', country);
+    toast(r.ok ? `🔒 VPN: ${VPN_NAME[country]}` : `⚠️ VPN: ${r.error || 'Fehler'}`);
+    return r.ok;
+  }
+
+  // ---------- sources ----------
+  const CH_STYLE = {   // MVW channel → colour + VPN country
+    'ARD': ['#003480', 'DE'], 'ZDF': ['#fa7d19', 'DE'], 'ZDFneo': ['#0b8ec2', 'DE'], 'ZDFinfo': ['#3b5998', 'DE'], 'ARTE.DE': ['#2a2a2a', 'DE'], 'ARTE.FR': ['#2a2a2a', 'DE'],
+    '3Sat': ['#a3003b', 'DE'], 'SRF': ['#af001e', 'CH'], 'ORF': ['#c4161c', 'AT'], 'KiKA': ['#66b821', 'DE'], 'PHOENIX': ['#2f6fb5', 'DE'],
+    'ARD-alpha': ['#00518c', 'DE'], 'BR': ['#0f5aa8', 'DE'], 'WDR': ['#00345e', 'DE'], 'NDR': ['#0c3f86', 'DE'], 'SWR': ['#00466d', 'DE'], 'MDR': ['#0d3f8f', 'DE'],
+    'HR': ['#004c8c', 'DE'], 'RBB': ['#d80032', 'DE'], 'SR': ['#00508c', 'DE'], 'Radio Bremen TV': ['#00508c', 'DE'], 'Funk.net': ['#ff5500', 'DE'], 'DW': ['#0a2a52', 'DE'],
+  };
+  const chStyle = c => CH_STYLE[c] || ['#333', 'DE'];
+  // geo restriction hints in the video URL → which VPN is needed
+  function geoFromUrl(u, channel) {
+    if (!u) return null;
+    if (/cms-austria|\/austria\//i.test(u)) return 'AT';
+    if (/srf-vod.*\/ch\//i.test(u) || /\/geo\/ch\//i.test(u)) return 'CH';
+    if (/akamaihd\.net\/de\/|\/geo\/|geoblock|\/de\/[0-9]/i.test(u)) return 'DE';
+    return null;
+  }
+
+  // MediathekViewWeb (ZDF, arte, 3sat, SRF, ORF, KiKA … — direct MP4 links, no images)
+  const BAD = /(Audiodeskription|Gebärdensprache|Hörfassung|\(AD\)|Trailer)/i;
+  async function mvw(queries, { dmin = 0, dmax = 0, size = 40, sort = 'timestamp' } = {}) {
+    const body = { queries, sortBy: sort, sortOrder: 'desc', future: false, offset: 0, size: size * 2 };
+    if (dmin) body.duration_min = dmin; if (dmax) body.duration_max = dmax;
+    const j = await getJSON(MVW, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(body) });
+    const seen = new Set(), out = [];
+    for (const r of j.result.results) {
+      if (BAD.test(r.title) || !r.url_video) continue;
+      const key = (r.channel + '|' + r.topic + '|' + r.title).toLowerCase();
+      if (seen.has(key)) continue; seen.add(key);
+      const [bg, cc] = chStyle(r.channel);
+      const url = r.url_video_hd || r.url_video;
+      out.push({ kind: 'play', title: r.title, topic: r.topic, channel: r.channel, bg, dur: r.duration, ts: r.timestamp * 1000,
+                 desc: r.description, url, geo: geoFromUrl(url, r.channel), country: cc });
+      if (out.length >= size) break;
+    }
+    return out;
+  }
+  const qCh = c => ({ fields: ['channel'], query: c });
+  const qTopic = t => ({ fields: ['topic'], query: t });
+  const qText = t => ({ fields: ['title', 'topic'], query: t });
+
+  // ARD Mediathek API (images, series pages, HLS/MP4)
+  const ardImg = (im, w = 400) => { const a = im && (im.aspect16x9 || im.aspect16x7 || Object.values(im)[0]); return a && a.src ? a.src.replace('{width}', w) : ''; };
+  function ardTeaser(t) {
+    const tgt = t.links && t.links.target; if (!tgt || !tgt.href) return null;
+    const isItem = /\/item\//.test(tgt.href);
+    const show = t.show && t.show.title, pub = t.publicationService && t.publicationService.name;
+    return { kind: isItem ? 'ard' : 'page', href: tgt.href.replace(/embedded=false/, 'embedded=true'), title: t.mediumTitle || t.shortTitle || t.longTitle || '',
+             topic: isItem ? (show || pub || '') : (pub || 'Sendung'), channel: pub || 'ARD', img: ardImg(t.images), dur: t.duration, ts: t.broadcastedOn ? Date.parse(t.broadcastedOn) : 0,
+             bg: '#003480', country: 'DE', series: !isItem };
+  }
+  const ardTeasers = list => (list || []).map(ardTeaser).filter(Boolean);
+  const widgetUrl = (href, size = 24) => { const u = new URL(href); u.searchParams.set('embedded', 'true'); u.searchParams.set('pageSize', size); u.searchParams.set('pageNumber', 0); return u.href; };
+  function ardRows(widgets) {
+    return widgets.filter(w => /^(stage|gridlist|extended_gridlist|swipeable)$/.test(w.type) || (w.teasers && w.teasers.length))
+      .filter(w => !(w.links && w.links.self && /\{/.test(w.links.self.href)))
+      .map(w => ({ title: w.title || '', load: (w.teasers && w.teasers.length) ? async () => ardTeasers(w.teasers)
+                                              : async () => ardTeasers((await getJSON(widgetUrl(w.links.self.href))).teasers) }));
+  }
+  async function ardPage(href) { const j = await getJSON(href); return { title: j.title || '', rows: ardRows(j.widgets || []) }; }
+  async function ardStream(href) {
+    const j = await getJSON(href);
+    const w = (j.widgets || []).find(x => x.mediaCollection) || {};
+    const mc = w.mediaCollection && w.mediaCollection.embedded;
+    if (!mc || !mc.streams) throw new Error('kein Video');
+    const st = mc.streams.find(s => s.kind === 'main') || mc.streams[0];
+    const media = st.media || [];
+    const hls = media.find(m => /mpegurl/i.test(m.mimeType));
+    const mp4 = media.filter(m => /mp4/i.test(m.mimeType) && (m.maxVResolutionPx || 0) <= 1080).sort((a, b) => (b.maxVResolutionPx || 0) - (a.maxVResolutionPx || 0))[0];
+    const m = hls || mp4 || media[0];
+    if (!m) throw new Error('kein Stream');
+    return { url: m.url.startsWith('//') ? 'https:' + m.url : m.url, geo: (w.geoblocked || mc.isGeoBlocked) ? 'DE' : null, desc: w.synopsis || '' };
+  }
+
+  // ---------- providers (tabs) ----------
+  const mv = (title, queries, o) => ({ title, load: () => mvw(queries, o) });
+  const PROVIDERS = [
+    { id: 'ard', name: 'ARD', root: async () => {
+        const j = await getJSON(ARD + '/pages/ard/home?embedded=false');
+        return { title: 'ARD Mediathek', rows: ardRows(j.widgets || []) };
+      } },
+    { id: 'zdf', name: 'ZDF', root: async () => ({ title: 'ZDF', rows: [
+        mv('Neu in der ZDFmediathek', [qCh('zdf')], { dmin: 600 }),
+        mv('Filme & lange Dokus', [qCh('zdf')], { dmin: 4800 }),
+        mv('Terra X', [qCh('zdf'), qTopic('terra x')], { dmin: 900 }),
+        mv('Krimis: SOKO, Rosenheim-Cops & Co.', [qCh('zdf'), qTopic('soko')], { dmin: 1800 }),
+        mv('heute-show & ZDF Magazin Royale', [qCh('zdf'), qTopic('heute-show')], { dmin: 900 }),
+        mv('ZDFneo', [qCh('zdfneo')], { dmin: 900 }),
+        mv('ZDFinfo Dokus', [qCh('zdfinfo')], { dmin: 1500 }),
+        mv('PHOENIX', [qCh('phoenix')], { dmin: 1500 }),
+      ] }) },
+    { id: 'arte', name: 'arte', root: async () => ({ title: 'arte', rows: [
+        mv('Neu bei arte', [qCh('arte.de')], { dmin: 900 }),
+        mv('Filme', [qCh('arte.de')], { dmin: 4800 }),
+        mv('Dokus', [qCh('arte.de')], { dmin: 2400, dmax: 4700 }),
+      ] }) },
+    { id: '3sat', name: '3sat', root: async () => ({ title: '3sat', rows: [
+        mv('Neu bei 3sat', [qCh('3sat')], { dmin: 900 }),
+        mv('Filme & lange Dokus', [qCh('3sat')], { dmin: 4500 }),
+        mv('Kabarett & Comedy', [qCh('3sat'), qText('kabarett')], { dmin: 900 }),
+      ] }) },
+    { id: 'srf', name: 'SRF', root: async () => ({ title: 'SRF', rows: [
+        mv('Neu bei SRF', [qCh('srf')], { dmin: 900 }),
+        mv('Filme & Serien', [qCh('srf')], { dmin: 2400 }),
+        mv('Tagesschau & 10 vor 10', [qCh('srf'), qTopic('tagesschau')], { dmin: 600 }),
+      ] }) },
+    { id: 'orf', name: 'ORF', root: async () => ({ title: 'ORF', rows: [
+        mv('Neu bei ORF', [qCh('orf')], { dmin: 900 }),
+        mv('Filme & Serien', [qCh('orf')], { dmin: 2700 }),
+        mv('Zeit im Bild', [qCh('orf'), qTopic('zib')], { dmin: 600 }),
+      ] }) },
+    { id: 'kika', name: 'KiKA', root: async () => ({ title: 'KiKA', rows: [
+        mv('Neu bei KiKA', [qCh('kika')], { dmin: 300 }),
+        mv('Längere Sendungen', [qCh('kika')], { dmin: 1500 }),
+      ] }) },
+    { id: 'search', name: '🔍 Suche', search: true },
+  ];
+
+  // ---------- state ----------
+  // stack of views; each view: { path, rows: [{title, items, state, load}], r, c: [] }
+  const S = { tab: 0, zone: 'rows', stack: [], tabSel: 0 };
+  const view = () => S.stack[S.stack.length - 1];
+
+  function renderTabs() {
+    $('tabs').innerHTML = PROVIDERS.map((p, i) => `<button class="tab${i === S.tab ? ' cur' : ''}${S.zone === 'tabs' && i === S.tabSel ? ' sel' : ''}" data-i="${i}">${p.name}</button>`).join('');
+    $('tabs').querySelectorAll('.tab').forEach(b => b.onclick = () => openTab(+b.dataset.i));
+  }
+
+  async function openTab(i) {
+    S.tab = i; S.tabSel = i; S.zone = 'rows';
+    const p = PROVIDERS[i];
+    store.set('mytv.mediathek.tab', p.id);
+    document.body.classList.toggle('searching', !!p.search);
+    S.stack = [{ path: p.name, rows: [], r: 0, c: [], loading: true }];
+    renderTabs(); renderRows();
+    if (p.search) { S.zone = 'search'; $('q').focus(); $('q').select(); view().loading = false; renderRows(); hero(null); return; }
+    try {
+      const v = await p.root();
+      if (S.tab !== i || S.stack.length !== 1) return;
+      Object.assign(view(), { rows: v.rows.map(r => ({ title: r.title, load: r.load, items: null })), loading: false });
+    } catch (e) { view().loading = false; view().error = 'Konnte nicht laden: ' + e.message; }
+    renderRows(); loadVisible();
+  }
+
+  async function pushPage(title, loader) {
+    S.stack.push({ path: title, rows: [], r: 0, c: [], loading: true });
+    const v = view(); renderRows(); hero(null);
+    try { const p = await loader(); v.rows = p.rows.map(r => ({ title: r.title, load: r.load, items: null })); v.path = title || p.title; }
+    catch (e) { v.error = 'Konnte nicht laden: ' + e.message; }
+    v.loading = false;
+    if (view() === v) { renderRows(); loadVisible(); }
+  }
+
+  function loadRow(row) {
+    if (row.items || row.busy) return;
+    row.busy = true;
+    row.load().then(items => { row.items = items; }).catch(e => { row.items = []; row.err = e.message; })
+      .finally(() => { row.busy = false; if (view() && view().rows.includes(row)) { drawRow(view().rows.indexOf(row)); if (view().rows[view().r] === row) hero(curItem()); } });
+  }
+  function loadVisible() { const v = view(); if (!v) return; for (let i = Math.max(0, v.r - 1); i < Math.min(v.rows.length, v.r + 4); i++) loadRow(v.rows[i]); }
+
+  // ---------- rendering ----------
+  function tileHtml(it, sel) {
+    const pos = it.kind === 'play' && it.url ? resume.get(it.url) : (it.href ? resume.get(it.href) : 0);
+    const bar = pos && it.dur ? `<div class="bar" style="width:${Math.min(100, pos / it.dur * 100)}%"></div>` : '';
+    if (it.img) return `<div class="tile${sel ? ' sel' : ''}" style="background-image:url('${esc(it.img)}')">
+        ${it.series ? '<span class="badge">SERIE</span>' : it.dur ? `<span class="badge">${Math.round(it.dur / 60)}′</span>` : ''}
+        <div class="cap">${esc(it.title)}<small>${esc(it.topic)}</small></div>${bar}</div>`;
+    return `<div class="tile text${sel ? ' sel' : ''}" style="background:linear-gradient(150deg, ${it.bg}, #111 90%)">
+        ${it.dur ? `<span class="badge">${Math.round(it.dur / 60)}′</span>` : ''}
+        <div class="tp">${esc(it.channel)} · ${esc(it.topic)}</div><div class="tt">${esc(it.title)}</div>${bar}</div>`;
+  }
+  function drawRow(i) {
+    const v = view(), row = v.rows[i], el = document.querySelector(`.row[data-r="${i}"]`);
+    if (!el) return;
+    el.classList.toggle('cur', S.zone === 'rows' && i === v.r);
+    const strip = el.querySelector('.stripIn');
+    if (!row.items) { strip.innerHTML = `<div class="msg">${row.busy || !row.err ? 'Lädt …' : esc(row.err)}</div>`; return; }
+    if (!row.items.length) { strip.innerHTML = `<div class="msg">${row.err ? 'Fehler: ' + esc(row.err) : 'Nichts gefunden'}</div>`; return; }
+    const c = v.c[i] || 0;
+    strip.innerHTML = row.items.map((it, j) => tileHtml(it, S.zone === 'rows' && i === v.r && j === c)).join('');
+    strip.querySelectorAll('.tile').forEach((t, j) => t.onclick = () => { v.r = i; v.c[i] = j; activate(); });
+    const step = 272, visible = Math.max(1, Math.floor((innerWidth - 80) / step));
+    const first = Math.max(0, Math.min(c - 1, row.items.length - visible));
+    strip.style.transform = `translateX(${-first * step}px)`;
+  }
+  function renderRows() {
+    const v = view(), box = $('rowsIn');
+    if (!v) return;
+    if (v.loading) { box.innerHTML = '<div class="msg" style="padding-left:40px">Lädt …</div>'; return; }
+    if (v.error) { box.innerHTML = `<div class="msg" style="padding-left:40px">${esc(v.error)}</div>`; return; }
+    if (!v.rows.length) { box.innerHTML = PROVIDERS[S.tab].search ? '' : '<div class="msg" style="padding-left:40px">Keine Inhalte</div>'; return; }
+    box.innerHTML = v.rows.map((r, i) => `<div class="row" data-r="${i}"><h3>${esc(r.title)}</h3><div class="strip"><div class="stripIn"></div></div></div>`).join('');
+    v.rows.forEach((r, i) => drawRow(i));
+    box.style.transform = `translateY(${-Math.max(0, v.r) * 214}px)`;
+    hero(curItem());
+  }
+  function curItem() { const v = view(); if (!v || !v.rows.length) return null; const row = v.rows[v.r]; return row && row.items ? row.items[v.c[v.r] || 0] : null; }
+  function hero(it) {
+    const v = view();
+    $('heroPath').textContent = v ? S.stack.map(x => x.path).filter(Boolean).join(' › ') : '';
+    if (!it) { $('heroTitle').textContent = ''; $('heroMeta').textContent = ''; $('heroDesc').textContent = ''; $('heroImg').style.background = ''; return; }
+    $('heroTitle').textContent = it.title;
+    $('heroMeta').textContent = [it.series ? 'Sendung · alle Folgen' : '', it.channel !== it.topic ? it.channel : '', it.topic, it.dur ? fmtDur(it.dur) : '', it.ts ? fmtDate(it.ts) : ''].filter(Boolean).join(' · ');
+    $('heroDesc').textContent = it.desc || '';
+    $('heroImg').style.background = it.img ? `#151922 center/cover no-repeat url('${it.img.replace(/w=\d+/, 'w=640')}')` : `linear-gradient(150deg, ${it.bg}, #111)`;
+  }
+  function move(dr, dc) {
+    const v = view(); if (!v || !v.rows.length) return;
+    if (dr) {
+      const r = v.r + dr;
+      if (r < 0) { S.zone = PROVIDERS[S.tab].search ? 'search' : 'tabs'; S.tabSel = S.tab; if (S.zone === 'search') $('q').focus(); renderTabs(); drawRow(v.r); hero(null); return; }
+      if (r >= v.rows.length) return;
+      const prev = v.r; v.r = r; drawRow(prev); drawRow(r);
+      $('rowsIn').style.transform = `translateY(${-r * 214}px)`;
+      loadVisible();
+    } else {
+      const row = v.rows[v.r]; if (!row.items || !row.items.length) return;
+      const c = Math.max(0, Math.min(row.items.length - 1, (v.c[v.r] || 0) + dc));
+      v.c[v.r] = c; drawRow(v.r);
+    }
+    hero(curItem());
+  }
+
+  // ---------- actions ----------
+  function activate() {
+    const it = curItem(); if (!it) return;
+    if (it.kind === 'page') pushPage(it.title, () => ardPage(it.href));
+    else play(it);
+  }
+  function back() {
+    if ($('player').classList.contains('on')) return stopPlayer();
+    if (S.zone === 'tabs') { S.zone = 'rows'; renderTabs(); renderRows(); return; }
+    if (S.stack.length > 1) { S.stack.pop(); renderRows(); loadVisible(); return; }
+    toMyTV();
+  }
+  function toMyTV() { location.replace(MYTV + (kiosk ? '?kiosk=1&back=1&lib=1' : '?lib=1')); }
+
+  // search
+  let searchSeq = 0;
+  async function runSearch(text) {
+    text = text.trim(); if (!text) return;
+    const seq = ++searchSeq;
+    S.stack = [{ path: 'Suche: ' + text, r: 0, c: [], rows: [
+      { title: 'ARD – Sendungen', items: null, load: async () => ardTeasers((await getJSON(`${ARD}/widgets/ard/search/grouping?searchString=${encodeURIComponent(text)}&pageNumber=0&pageSize=24`)).teasers) },
+      { title: 'ARD – Videos', items: null, load: async () => ardTeasers((await getJSON(`${ARD}/widgets/ard/search/vod?searchString=${encodeURIComponent(text)}&pageNumber=0&pageSize=24`)).teasers) },
+      { title: 'Alle Sender (ZDF, arte, 3sat, SRF, ORF …)', items: null, load: () => mvw([qText(text)], { dmin: 300, size: 50 }) },
+    ] }];
+    if (seq !== searchSeq) return;
+    S.zone = 'rows'; $('q').blur(); renderRows(); loadVisible();
+  }
+  $('q').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); runSearch($('q').value); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); e.stopPropagation(); if (view() && view().rows.length) { S.zone = 'rows'; $('q').blur(); renderRows(); } }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); e.stopPropagation(); S.zone = 'tabs'; $('q').blur(); renderTabs(); }
+    else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); $('q').blur(); S.zone = 'tabs'; renderTabs(); }
+    else e.stopPropagation();          // normal typing (incl. B, M …) stays in the field
+  });
+
+  // ---------- player ----------
+  const vid = $('vid');
+  let hls = null, cur = null, uiT = null, saveT = null, triedVpn = false;
+  let volume = parseFloat(store.get('mytv.volume')); if (isNaN(volume)) volume = 1;
+  let muted = store.get('mytv.muted') === '1';
+  function showUi() { $('player').classList.remove('hideui'); clearTimeout(uiT); uiT = setTimeout(() => { if (!vid.paused) $('player').classList.add('hideui'); }, 3500); }
+  function flashState(s) { $('pState').textContent = s; $('pState').classList.add('show'); setTimeout(() => $('pState').classList.remove('show'), 700); }
+  function updUi() {
+    const d = vid.duration && isFinite(vid.duration) ? vid.duration : (cur && cur.dur) || 0;
+    $('pPos').textContent = fmtClock(vid.currentTime); $('pDur').textContent = d ? fmtClock(d) : '';
+    $('pBar').firstElementChild.style.width = d ? (vid.currentTime / d * 100) + '%' : '0';
+  }
+  vid.addEventListener('timeupdate', updUi);
+  async function play(it) {
+    cur = it; triedVpn = false;
+    $('pTitle').textContent = it.title; $('pSub').textContent = [it.topic, it.channel, it.dur ? fmtDur(it.dur) : ''].filter(Boolean).join(' · ');
+    $('player').classList.add('on'); showUi(); $('pPos').textContent = 'Lädt …'; $('pDur').textContent = '';
+    try {
+      if (it.kind === 'ard') { const s = await ardStream(it.href); it.url = s.url; it.geo = s.geo; it.desc = it.desc || s.desc; it.key = it.href; }
+      else it.key = it.url;
+      if (cur !== it) return;
+      if (it.geo) await ensureVpn(it.geo);
+      if (cur !== it) return;
+      load(it);
+    } catch (e) { toast('⚠️ ' + e.message); stopPlayer(); }
+  }
+  function load(it) {
+    if (hls) { hls.destroy(); hls = null; }
+    vid.muted = muted; vid.volume = volume;
+    const start = resume.get(it.key);
+    const go = () => { if (start > 30 && (!it.dur || start < it.dur - 60)) { vid.currentTime = start; toast('▶ Fortsetzen bei ' + fmtClock(start)); } vid.play().catch(() => {}); };
+    if (/\.m3u8/i.test(it.url) && window.Hls && Hls.isSupported()) {
+      hls = new Hls({ startPosition: start > 30 ? start : -1 });
+      hls.loadSource(it.url); hls.attachMedia(vid);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => vid.play().catch(() => {}));
+      hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) onErr(d.response && d.response.code); });
+      if (start > 30) toast('▶ Fortsetzen bei ' + fmtClock(start));
+    } else {
+      vid.src = it.url;
+      vid.addEventListener('loadedmetadata', go, { once: true });
+    }
+    clearInterval(saveT);
+    saveT = setInterval(() => { if (cur && !vid.paused && vid.currentTime > 30) resume.set(cur.key, Math.floor(vid.currentTime)); }, 5000);
+  }
+  vid.addEventListener('error', () => { if ($('player').classList.contains('on') && vid.getAttribute('src')) onErr(); });
+  async function onErr(code) {
+    if (!cur) return;
+    const want = cur.geo || cur.country;
+    if (!triedVpn && want && VPN.bridge && VPN.country !== want) {   // maybe geo-blocked → switch VPN and retry once
+      triedVpn = true;
+      if (await ensureVpn(want)) { load(cur); return; }
+    }
+    toast('⚠️ Video nicht abspielbar' + (code ? ' (' + code + ')' : ''), 4000);
+  }
+  vid.addEventListener('ended', () => { if (cur) resume.del(cur.key); stopPlayer(); });
+  function stopPlayer() {
+    if (cur && vid.currentTime > 30 && !vid.ended) resume.set(cur.key, Math.floor(vid.currentTime));
+    clearInterval(saveT); cur = null;
+    if (hls) { hls.destroy(); hls = null; }
+    vid.pause(); vid.removeAttribute('src'); vid.load();
+    $('player').classList.remove('on');
+    const v = view(); if (v) drawRow(v.r);
+  }
+  function seek(d) { if (!isFinite(vid.duration) && !hls) return; vid.currentTime = Math.max(0, Math.min((vid.duration || 1e9) - 2, vid.currentTime + d)); flashState(d > 0 ? '⏩' : '⏪'); showUi(); updUi(); }
+  function setVol(dv) { volume = Math.min(1, Math.max(0, Math.round((volume + dv) * 10) / 10)); muted = volume === 0; vid.volume = volume; vid.muted = muted; saveSound(); toast('🔊 ' + Math.round(volume * 100) + '%', 900); }
+  function saveSound() { store.set('mytv.volume', String(volume)); store.set('mytv.muted', muted ? '1' : '0'); }
+
+  // ---------- keys ----------
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    const k = e.key;
+    if ($('player').classList.contains('on')) {
+      if (k === 'Enter' || k === ' ' || k === 'MediaPlayPause') { if (vid.paused) { vid.play().catch(() => {}); flashState('▶'); } else { vid.pause(); flashState('⏸'); } showUi(); }
+      else if (k === 'ArrowLeft' || k === 'MediaRewind') seek(-15);
+      else if (k === 'ArrowRight' || k === 'MediaFastForward') seek(30);
+      else if (k === 'ArrowUp' || k === 'PageUp') seek(300);
+      else if (k === 'ArrowDown' || k === 'PageDown') seek(-300);
+      else if (k === '+' || k === '=') setVol(0.1);
+      else if (k === '-' || k === '_') setVol(-0.1);
+      else if (k === 'm' || k === 'M') { muted = !muted; vid.muted = muted; saveSound(); toast(muted ? '🔇 Ton aus' : '🔊 Ton an', 900); }
+      else if (k === 'i' || k === 'I') showUi();
+      else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') stopPlayer();
+      else if (k === 'b' || k === 'B') { stopPlayer(); toMyTV(); }
+      else return;
+      e.preventDefault(); return;
+    }
+    if (S.zone === 'search') return;      // input handles its own keys
+    if (S.zone === 'tabs') {
+      if (k === 'ArrowLeft') S.tabSel = Math.max(0, S.tabSel - 1);
+      else if (k === 'ArrowRight') S.tabSel = Math.min(PROVIDERS.length - 1, S.tabSel + 1);
+      else if (k === 'Enter' || k === 'ArrowDown') { if (S.tabSel !== S.tab || k === 'Enter') openTab(S.tabSel); else { S.zone = 'rows'; renderRows(); } }
+      else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') back();
+      else if (k === 'b' || k === 'B') toMyTV();
+      else return;
+      e.preventDefault(); renderTabs(); return;
+    }
+    if (k === 'ArrowUp') move(-1, 0);
+    else if (k === 'ArrowDown') move(1, 0);
+    else if (k === 'ArrowLeft') move(0, -1);
+    else if (k === 'ArrowRight') move(0, 1);
+    else if (k === 'Enter') activate();
+    else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') back();
+    else if (k === 'b' || k === 'B') toMyTV();
+    else if (k === '/' || k === 's' || k === 'S') openTab(PROVIDERS.findIndex(p => p.search));
+    else return;
+    e.preventDefault();
+  });
+  // mouse: wheel scrolls rows
+  $('rows').addEventListener('wheel', e => { e.preventDefault(); move(e.deltaY > 0 ? 1 : -1, 0); }, { passive: false });
+  $('player').addEventListener('click', () => { if (vid.paused) vid.play().catch(() => {}); else vid.pause(); showUi(); });
+  $('player').addEventListener('mousemove', showUi);
+
+  // ---------- start ----------
+  const want = params.get('p') || store.get('mytv.mediathek.tab') || 'ard';
+  openTab(Math.max(0, PROVIDERS.findIndex(p => p.id === want)));
+})();
+</script>
+</body>
+</html>
