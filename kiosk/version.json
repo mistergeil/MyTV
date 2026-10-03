@@ -1,11 +1,12 @@
 {
-  "version": "1.7.1",
+  "version": "1.7.2",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "b84c534b8d1ab3c06b5f06e974b7d9e4ac5d868686eba288417369f75f35794d",
-  "size": 30277,
+  "sha256": "9a82686789b22395a4ade42d8a5dabcb8ced135cd5df1bda1991b85abf467c19",
+  "size": 30972,
   "notes": [
-    "Favoriten: Sender nach rechts wischen statt lang drücken (kein versehentliches Markieren beim Scrollen)"
+    "Selbstheilung: Der Umschalter startet sich nach einem Absturz innerhalb von 2 Minuten selbst neu",
+    "Robuster bei Netzwerkwechseln (VPN-Umschaltung, WLAN)"
   ],
   "installer": false
 }

@@ -20,9 +20,10 @@ if ($missing) {
 # conhost --headless: no console window flashes up and steals the focus from Chrome (taskbar would appear)
 $Con = Join-Path $env:WINDIR 'System32\conhost.exe'
 $action    = New-ScheduledTaskAction -Execute $Con -Argument "--headless powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$Agent`""
-$trigger   = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+$trigger   = @((New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME),
+               (New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 2)))   # watchdog
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
-$settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+$settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
 Unregister-ScheduledTask -TaskName $Task -Confirm:$false -ErrorAction SilentlyContinue
 # stop a switcher that is still running (otherwise the old version keeps the port)
 Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*mytv-vpn-agent.ps1*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }

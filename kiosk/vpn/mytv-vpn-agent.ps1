@@ -258,6 +258,22 @@ function Set-HiddenTasks {
     } catch { Write-Log "could not update task '$t': $_" }
   }
 }
+# watchdog: the switcher task also runs every 2 minutes; if it is already running nothing happens (IgnoreNew),
+# if it stopped for whatever reason it comes back by itself
+function Set-Watchdog {
+  try {
+    $task = Get-ScheduledTask -TaskName 'MyTV VPN Switcher' -ErrorAction SilentlyContinue
+    if (-not $task) { return }
+    $has = @($task.Triggers | Where-Object { $_.Repetition -and $_.Repetition.Interval -eq 'PT2M' }).Count -gt 0
+    if ($has -and $task.Settings.MultipleInstances -eq 'IgnoreNew') { return }
+    $logon = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+    $rep = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes 2)
+    $set = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) `
+             -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -MultipleInstances IgnoreNew
+    Set-ScheduledTask -TaskName 'MyTV VPN Switcher' -Trigger @($logon, $rep) -Settings $set | Out-Null
+    Write-Log 'watchdog on: switcher restarts itself within 2 minutes if it ever stops'
+  } catch { Write-Log "watchdog setup failed: $_" }
+}
 function Restore-KioskFocus {
   try {
     $p = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
@@ -272,19 +288,40 @@ function Send-Bytes($res, [byte[]]$bytes, $type) {
 
 if (-not (Test-Path $WG)) { Write-Log "WireGuard not installed"; exit 1 }
 Set-HiddenTasks
+Set-Watchdog
 # started by an update a moment ago → give the TV picture back to Chrome
 $us = Get-UpdateState
 if ($us -and ((Get-Date) - [DateTime]$us.t).TotalMinutes -lt 3) { Start-Sleep -Seconds 1; Restore-KioskFocus }
-$l = New-Object System.Net.HttpListener
-$l.Prefixes.Add("http://127.0.0.1:$Port/")
-if ($Key) { $l.Prefixes.Add("http://+:$LanPort/") }
-$l.Start()
+# the listener survives network changes (VPN switch, Wi-Fi) and aborted requests: on any error it is rebuilt,
+# and the switcher never ends by itself. If it does end anyway, the watchdog trigger starts it again within 2 minutes.
+function Start-Listener {
+  for ($i = 0; $i -lt 30; $i++) {
+    try {
+      $x = New-Object System.Net.HttpListener
+      $x.Prefixes.Add("http://127.0.0.1:$Port/")
+      if ($Key) { $x.Prefixes.Add("http://+:$LanPort/") }
+      $x.Start()
+      return $x
+    } catch { Write-Log "listener start failed (try $($i + 1)): $_"; Start-Sleep -Seconds 2 }
+  }
+  throw 'listener could not be started'
+}
+$l = Start-Listener
 Write-Log ("agent $Version started on 127.0.0.1:$Port" + $(if ($Key) { " + iPhone remote on port $LanPort" } else { ' (no remote.key -> iPhone remote off)' }))
-while ($l.IsListening) {
-  $ctx = $l.GetContext(); $req = $ctx.Request; $res = $ctx.Response
-  $out = [ordered]@{}
-  $page = $null
-  $lan = $req.LocalEndPoint.Port -eq $LanPort
+while ($true) {
+  try {
+    if (-not $l.IsListening) { throw 'listener stopped' }
+    $ctx = $l.GetContext(); $req = $ctx.Request; $res = $ctx.Response
+    $out = [ordered]@{}
+    $page = $null
+    $lan = $req.LocalEndPoint.Port -eq $LanPort
+  } catch {
+    Write-Log "listener error: $_ - restarting listener"
+    try { $l.Close() } catch {}
+    Start-Sleep -Seconds 1
+    $l = Start-Listener
+    continue
+  }
   try {
     if ($lan) {
       # ---------- home network: iPhone remote (secret key required) ----------
