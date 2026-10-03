@@ -852,6 +852,7 @@
         break;
       case 'Enter': {
         const ch = channels[index];
+        if (overlay && !listOpen) { toHost({ type: 'ok' }); break; }
         if (!overlay && !listOpen && frame && frame.tagName === 'IFRAME') {
           e.preventDefault();
           const on = frame.style.pointerEvents === 'none';

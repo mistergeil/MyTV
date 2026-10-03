@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.8.0
+// @version      1.8.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -214,6 +214,18 @@
       orfBtn.click();
       return true;
     }
+    // RTL+ (and others): button/tile labelled "Video abspielen" – match by visible text or label
+    if (IS_RTL || IS_JOYN) {
+      const rx = /^(video abspielen|abspielen|jetzt abspielen|live ansehen|jetzt live|weiterschauen|wiedergabe starten)$/i;
+      const hits = [...document.querySelectorAll('button, [role="button"], a, div[tabindex]')].filter(e => {
+        if (e.closest('#mytv-overlay')) return false;
+        const txt = ((e.getAttribute('aria-label') || '') + '|' + (e.innerText || '')).split('|').map(x => x.trim()).filter(Boolean);
+        if (!txt.some(x => rx.test(x))) return false;
+        const r = e.getBoundingClientRect(); return r.width > 10 && r.height > 10;
+      });
+      const t = hits.find(e => !hits.some(o => o !== e && e.contains(o)));   // innermost match = the real button
+      if (t) { (window.__mytvLog || []).push('click "' + (t.innerText || t.getAttribute('aria-label') || '').trim().slice(0, 30) + '" (' + reason + ')'); t.click(); return true; }
+    }
     const sel = [
       '[class*="hugeplayback" i]', '[class*="playbacktoggle" i]', '[class*="big-play" i]', '[class*="bigplay" i]',
       '[class*="play-button" i]', '[class*="playbutton" i]', '[class*="vjs-big-play" i]',
@@ -343,6 +355,7 @@
       if (d.type === 'ready') window.__mytvOvReady = true;
       else if (d.type === 'tune') go('ch=' + d.number + '&from=' + CH);
       else if (d.type === 'back') go('back=1&from=' + CH);
+      else if (d.type === 'ok') { if (IS_OFFICIAL && !clickPlay('OK')) L0('OK: nothing to click'); }
       else if (d.type === 'lib') go('back=1&from=' + CH + '&lib=1');
       else if (d.type === 'sound') { wantSound = { muted: d.muted, volume: d.volume }; withPlayer(applySound); }
       else if (d.type === 'fullscreen') {
@@ -418,7 +431,7 @@
         const v = pickVideo();
         // video may already be running before we hooked it (fast autoplay, e.g. Joyn) → count as started
         if (!started && v && !v.paused && v.readyState >= 3) { started = true; L('already playing'); setTimeout(() => unmuteOnce(v), 300); }
-        if (IS_ORF && (tries === 4 || tries === 10 || tries === 20 || tries === 32) && (!v || v.paused)) {
+        if ((IS_ORF || IS_RTL) && (tries === 4 || tries === 10 || tries === 20 || tries === 32 || tries === 50) && (!v || v.paused)) {
           if (!clickPlay('auto')) L('no play button found');
         }
         if (started) { clearInterval(timer); return; }
