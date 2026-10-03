@@ -10,7 +10,7 @@
 //   mode:   "external" → provider blocks embedding; opens its player in a new tab
 // Tested from Canada on 2026-10-02.
 window.CHANNELS = [
-  { number: 1,  name: "Das Erste",    short: "ARD",   type: "hls", epg: "daserste", url: "https://daserste-live.ard-mcdn.de/daserste/live/hls/int/master.m3u8" },
+  { number: 1,  name: "Das Erste",    short: "ARD",   mode: "external", geo: true, epg: "daserste", url: "https://www.joyn.de/play/live-tv?channel_id=165" },   // official HLS: https://daserste-live.ard-mcdn.de/daserste/live/hls/int/master.m3u8
   { number: 2,  name: "ZDF",          short: "ZDF",   type: "hls", geo: true, xmltv: "ZDF.de", url: "https://zdf-hls-15.akamaized.net/hls/live/2016498/de/high/master.m3u8" },
   { number: 3,  name: "tagesschau24", short: "TS24",  type: "hls", epg: "tagesschau24", url: "https://tagesschau.akamaized.net/hls/live/2020115/tagesschau/tagesschau_1/master.m3u8" },
   { number: 4,  name: "phoenix",      short: "phx",   type: "hls", geo: true, epg: "phoenix", url: "https://zdf-hls-19.akamaized.net/hls/live/2016502/de/high/master.m3u8" },
