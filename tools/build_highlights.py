@@ -230,7 +230,7 @@ MVW_CH = {"ARD": "DE", "ZDF": "DE", "ARTE.DE": "DE", "3Sat": "DE", "SRF": "CH", 
           "SWR": "DE", "MDR": "DE", "HR": "DE", "RBB": "DE", "PHOENIX": "DE"}
 MVW_BAD = re.compile(r"audiodeskription|gebärdensprache|hörfassung|\(ad\)|trailer|\(ov\)|originalversion|englische fassung|"
                      r"tagesschau|heute journal|nachrichten|gottesdienst|konzert|oper\b|live\b|talk|sportschau|bundesliga|"
-                     r"folge \d|teil \d|staffel|episode", re.I)
+                     r"folge \d|teil \d|staffel|episode|\(s\d+/e\d+\)|klare sprache|leichte sprache", re.I)
 
 def mediathek(now):
     """new long films / documentaries (MediathekViewWeb, last 7 days)"""
