@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.9.1
+// @version      1.9.2
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -129,6 +129,16 @@
     (document.head || document.documentElement).appendChild(s);
   }
   if (document.documentElement) addStyle(); else document.addEventListener('DOMContentLoaded', addStyle);
+  // hide the mouse pointer on the provider page after 3 s without movement (RTL+, Joyn, ORF … show it in the middle)
+  if (isTop) {
+    const st = document.createElement('style');
+    st.textContent = 'html.mytv-idle, html.mytv-idle * { cursor: none !important; }';
+    (document.head || document.documentElement).appendChild(st);
+    let idleT = null;
+    const idle = () => { clearTimeout(idleT); document.documentElement.classList.remove('mytv-idle'); idleT = setTimeout(() => document.documentElement.classList.add('mytv-idle'), 3000); };
+    ['mousemove', 'mousedown'].forEach(ev => window.addEventListener(ev, idle, { capture: true, passive: true }));
+    idle();
+  }
 
   // ---- Navigation back into MyTV (always replace → no history pile-up) ----
   function go(q) { window.top.location.replace(MYTV + '?kiosk=1&' + q); }
