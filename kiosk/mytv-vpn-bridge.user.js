@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.5.0
+// @version      1.6.0
 // @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites, iPhone remote commands; switches to another VPN server when a site says "VPN erkannt".
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
@@ -123,6 +123,11 @@
     if (c.do === 'ch') {
       if (IS_INDEX) window.postMessage({ mytvRemote: 1, do: 'ch', n: +c.n }, location.origin);
       else location.replace(MYTV + '?kiosk=1&ch=' + (+c.n));
+      return;
+    }
+    if (c.do === 'reload') {               // "Anderer Server" on the remote → reload what is playing
+      if (IS_INDEX) window.postMessage({ mytvRemote: 1, do: 'reload' }, location.origin);
+      else location.reload();
       return;
     }
     if (c.do === 'favs') {                 // favorites changed on the iPhone → MyTV re-sorts its lists

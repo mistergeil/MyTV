@@ -69,16 +69,21 @@ function Get-Configs($c) {
             Where-Object { $_.Name -match "^$c[^A-Za-z.].*\.conf$" } | Sort-Object Name)
   return @(@($main) + $more | Where-Object { $_ })
 }
+# the server that worked last is remembered by file name (run\server-DE.txt), so adding / removing files doesn't mix it up
 function Get-ServerIdx($c) {
-  $f = Join-Path $RunDir "server-$c.txt"; $i = 0
-  if (Test-Path $f) { [void][int]::TryParse((Get-Content $f -Raw).Trim(), [ref]$i) }
-  $n = (Get-Configs $c).Count
-  if ($n -gt 0) { $i = $i % $n } else { $i = 0 }
-  return $i
+  $cfg = Get-Configs $c
+  if (-not $cfg.Count) { return 0 }
+  $f = Join-Path $RunDir "server-$c.txt"
+  if (-not (Test-Path $f)) { return 0 }
+  $v = (Get-Content $f -Raw).Trim()
+  for ($k = 0; $k -lt $cfg.Count; $k++) { if ($cfg[$k].BaseName -eq $v) { return $k } }
+  $i = 0; if ([int]::TryParse($v, [ref]$i)) { return ($i % $cfg.Count) }      # old format: index
+  return 0
 }
 function Set-ServerIdx($c, $i) {
   if (-not (Test-Path $RunDir)) { New-Item -ItemType Directory -Path $RunDir | Out-Null }
-  Set-Content -Path (Join-Path $RunDir "server-$c.txt") -Value $i -Encoding ascii -NoNewline
+  $cfg = Get-Configs $c
+  Set-Content -Path (Join-Path $RunDir "server-$c.txt") -Value $cfg[$i].BaseName -Encoding ascii -NoNewline
 }
 function Get-ServerInfo($c) {
   $cfg = Get-Configs $c; $i = Get-ServerIdx $c
@@ -269,6 +274,7 @@ while ($l.IsListening) {
         $c = ([string]$req.QueryString['c']).ToUpper(); if (-not $c) { $c = Get-Active }
         if ($Allowed -notcontains $c) { throw 'VPN ist aus - erst einen Sender mit VPN wählen' }
         $out.country = Switch-Server $c; $out.server = Get-ServerInfo $c; $out.ok = ($out.country -eq $c)
+        if ($out.ok) { Add-Cmd 'reload' '' '' }          # the channel on the TV reloads with the new server
       } elseif ($path -eq '/favs') {
         $out.ok = $true; $out.favs = @(Get-Favs)
       } elseif ($path -eq '/favs/set') {

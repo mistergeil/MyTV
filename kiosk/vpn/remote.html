@@ -281,7 +281,7 @@
   document.querySelector('[data-k="g"]').addEventListener('click', () => setTimeout(pollUi, 700));
   $('vnext').addEventListener('click', async () => {
     say('wechsle Server …');
-    try { const j = await api('/vpn/next'); say(j.ok ? 'Server: ' + (j.server ? j.server.name + ' (' + j.server.n + '/' + j.server.of + ')' : 'neu') + ' – Sender neu laden' : (j.error || 'Fehler'), !j.ok); pollUi(); }
+    try { const j = await api('/vpn/next'); say(j.ok ? 'Server: ' + (j.server ? j.server.name + ' (' + j.server.n + '/' + j.server.of + ')' : 'neu') + ' – Sender lädt neu' : (j.error || 'Fehler'), !j.ok); pollUi(); }
     catch (e) { say('Notebook nicht erreichbar', true); }
   });
   pollUi();

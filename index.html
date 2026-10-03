@@ -1160,6 +1160,7 @@
     const d = ev.data;
     if (!d || d.mytvRemote !== 1 || ev.origin !== location.origin || overlay) return;
     if (d.do === 'favs') { loadFavs(); return; }
+    if (d.do === 'reload') { if (!standby) { flash('🔄 Neuer VPN-Server – lade neu …'); tune(index, { remember: false, vpnDone: true }); } return; }
     if (d.do === 'on') { exitStandby(); wake(); }
     else if (d.do === 'ch') { exitStandby(false); tuneNumber(+d.n); }
   });
