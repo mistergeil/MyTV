@@ -531,6 +531,11 @@
   $('player').addEventListener('click', () => { if (vid.paused) vid.play().catch(() => {}); else vid.pause(); showUi(); });
   $('player').addEventListener('mousemove', showUi);
 
+  // TV turned off with the TV remote? After 4 h without any input → MyTV standby (stops streaming)
+  let lastInput = Date.now();
+  ['keydown', 'mousemove', 'mousedown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { lastInput = Date.now(); }, { capture: true, passive: true }));
+  setInterval(() => { if (Date.now() - lastInput > 4 * 3600e3) { stopPlayer(); location.replace(MYTV + '?kiosk=1&back=1&standby=1'); } }, 60e3);
+
   // ---------- start ----------
   const want = params.get('p') || store.get('mytv.mediathek.tab') || 'ard';
   openTab(Math.max(0, PROVIDERS.findIndex(p => p.id === want)));

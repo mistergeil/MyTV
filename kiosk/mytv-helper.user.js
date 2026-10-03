@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.8.2
+// @version      1.9.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -132,6 +132,9 @@
 
   // ---- Navigation back into MyTV (always replace → no history pile-up) ----
   function go(q) { window.top.location.replace(MYTV + '?kiosk=1&' + q); }
+  // TV turned off with the TV remote? After 4 h without any input go to MyTV standby (stops streaming).
+  let lastInput = Date.now();
+  if (isTop) setInterval(() => { if (Date.now() - lastInput > 4 * 3600e3) go('standby=1&from=' + CH); }, 60e3);
 
   // ---- MyTV overlay: the real MyTV interface (remote bar, list, guide, volume, info)
   //      loaded transparently on top of the player. Keys are forwarded to it. ----
@@ -144,6 +147,7 @@
   let digits = '', digitTimer = null;
   function onKey(e) {
     const k = e.key;
+    lastInput = Date.now();
     let handled = true;
     if (IS_OFFICIAL && k === 'Enter' && window.top === window) {
       clickPlay('OK');
@@ -363,6 +367,7 @@
       if (ev.origin !== OV_ORIGIN) return;
       const d = ev.data;
       if (!d || d.mytv !== 1) return;
+      if (d.type !== 'ready') lastInput = Date.now();
       if (d.type === 'ready') window.__mytvOvReady = true;
       else if (d.type === 'tune') go('ch=' + d.number + '&from=' + CH);
       else if (d.type === 'back') go('back=1&from=' + CH);
@@ -493,6 +498,9 @@
   function libraryMode(name) {
     if (window.top !== window) return;
     const back = () => window.top.location.replace(MYTV + '?kiosk=1&back=1&lib=1');
+    let lastInput = Date.now();
+    ['keydown', 'mousemove', 'mousedown', 'wheel'].forEach(ev => window.addEventListener(ev, () => { lastInput = Date.now(); }, { capture: true, passive: true }));
+    setInterval(() => { if (Date.now() - lastInput > 4 * 3600e3) window.top.location.replace(MYTV + '?kiosk=1&back=1&standby=1'); }, 60e3);
     const mount = () => {
       if (document.getElementById('mytv-home')) return;
       const b = document.createElement('button');

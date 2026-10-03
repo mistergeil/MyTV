@@ -125,6 +125,10 @@
   #osd img { height: 40px; max-width: 120px; object-fit: contain; }
 
   /* number entry */
+  #standby { position: fixed; inset: 0; z-index: 40; background: #000; display: none; place-items: center; text-align: center; color: #555; cursor: none; }
+  #standby.on { display: grid; }
+  #standby .t { font-size: 64px; font-weight: 800; color: #3a3a3a; font-variant-numeric: tabular-nums; }
+  #standby .h { font-size: 15px; margin-top: 8px; }
   #entry {
     position: fixed; top: 24px; right: 24px; font-size: 56px; font-weight: 700; color: var(--accent);
     font-variant-numeric: tabular-nums; text-shadow: 0 2px 12px rgba(0,0,0,.8); opacity: 0; transition: opacity .2s; pointer-events: none;
@@ -222,6 +226,7 @@
   <div class="l-hint">← → ↑ ↓ wählen · OK öffnen · B / Esc schliessen · In der Mediathek: B oder ⌂-Knopf = zurück zu MyTV</div>
 </div>
 
+<div id="standby"><div><div class="t" id="sbClock"></div><div class="h">Standby · OK oder Sticker zum Einschalten</div></div></div>
 <div id="entry"></div>
 <button id="soundHint">🔊 Klicken für Ton</button>
 
@@ -806,9 +811,44 @@
   $('btnHelp').onclick = () => $('help').classList.toggle('open');
   $('help').onclick = e => { if (e.target.id === 'help') $('help').classList.remove('open'); };
 
+  // ---------- standby (iPhone sticker wakes it; auto after 4 h without any input) ----------
+  let standby = false, lastInput = Date.now();
+  const IDLE_MS = 4 * 3600e3;
+  function stopPlayback() {
+    clearTimeout(extTimer);
+    if (hls) { hls.destroy(); hls = null; }
+    if (frame) { if (frame.tagName === 'VIDEO') { frame.pause(); frame.removeAttribute('src'); frame.load(); } frame.remove(); frame = null; }
+  }
+  function enterStandby() {
+    if (overlay || standby) return;
+    standby = true; stopPlayback(); toggleList(false); closeGuide(); closeLibMenu();
+    $('sbClock').textContent = clock(); $('standby').classList.add('on');
+    document.title = 'MyTV – Standby';
+  }
+  function exitStandby(retune = true) {
+    lastInput = Date.now();
+    if (!standby) return false;
+    standby = false; $('standby').classList.remove('on');
+    if (retune) tune(index, { remember: false });
+    return true;
+  }
+  setInterval(() => {
+    if (standby) $('sbClock').textContent = clock();
+    else if (!overlay && Date.now() - lastInput > IDLE_MS) enterStandby();
+  }, 30e3);
+  // commands from the iPhone remote (delivered by the MyTV Bridge userscript)
+  window.addEventListener('message', ev => {
+    const d = ev.data;
+    if (!d || d.mytvRemote !== 1 || ev.origin !== location.origin || overlay) return;
+    if (d.do === 'on') { exitStandby(); wake(); }
+    else if (d.do === 'ch') { exitStandby(false); tuneNumber(+d.n); }
+  });
+
   document.addEventListener('keydown', handleKey);
   function handleKey(e) {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
+    lastInput = Date.now();
+    if (standby) { e.preventDefault(); exitStandby(); return; }
     const listOpen = $('list').classList.contains('open');
     if ($('lib').classList.contains('open')) {
       const k = e.key;
@@ -885,7 +925,7 @@
       if (!$('list').classList.contains('open')) document.body.classList.add('idle');
     }, 3500);
   }
-  ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, wake, { passive: true }));
+  ['mousemove', 'touchstart', 'click'].forEach(ev => document.addEventListener(ev, () => { lastInput = Date.now(); wake(); }, { passive: true }));
   $('shield').addEventListener('dblclick', toggleFull);
 
   // Resume if the browser paused the stream while the window was hidden/minimized
@@ -929,9 +969,10 @@
     const li = byNum(parseInt(store.get('mytv.lastInternal'), 10));
     if (li >= 0) start = li;
   }
-  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
+  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
   renderList();
-  tune(start, { remember: false });
+  if (params.get('standby') === '1') { index = start; renderList(); enterStandby(); }
+  else tune(start, { remember: false });
   prevIndex = prev;
   if (params.get('list') === '1') toggleList(true);
   if (params.get('lib') === '1') openLibMenu();

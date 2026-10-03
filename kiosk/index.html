@@ -103,6 +103,55 @@
     </li>
   </ol>
 
+  <h1 style="margin-top:44px" id="iphone">Optional: iPhone remote + NFC sticker</h1>
+  <p class="sub">Tap a sticker → Samsung TV turns on, switches to HDMI, MyTV wakes up and a remote opens on your iPhone. Home Wi-Fi only.</p>
+  <ol>
+    <li>
+      <h2>Update the switcher</h2>
+      <p>Download <code>MyTV-Windows.zip</code> again and unzip it into <code>C:\MyTV</code> (overwrite; your <code>.conf</code> files stay). Then run <code>vpn\VPN-Install.bat</code>. At the end Notepad opens <code>Remote-Links.txt</code> with your personal links (they contain a secret key – don't share them).</p>
+      <a class="btn" href="MyTV-Windows.zip" download>Download MyTV-Windows.zip</a>
+    </li>
+    <li>
+      <h2>Update both Tampermonkey scripts</h2>
+      <p>In the MyTV profile (<code>MyTV-Setup.bat</code>): install the Helper (1.9.0) and the VPN Bridge (1.1.0) again.</p>
+      <a class="btn" href="mytv-helper.user.js">Install MyTV Helper</a> <a class="btn ghost" href="mytv-vpn-bridge.user.js">Install MyTV VPN Bridge</a>
+    </li>
+    <li>
+      <h2>Let the iPhone in (Windows firewall – you do this by hand)</h2>
+      <ul>
+        <li>Settings → Network &amp; internet → Wi-Fi (or Ethernet) → your network → <b>Network profile type: Private network</b>.</li>
+        <li>Start menu → type <b>Windows Defender Firewall with Advanced Security</b> → <b>Inbound Rules</b> → <b>New Rule…</b></li>
+        <li><b>Port</b> → <b>TCP</b>, specific local port <code>8766</code> → <b>Allow the connection</b> → tick only <b>Private</b> → name <code>MyTV Remote</code> → Finish.</li>
+        <li>Double-click the new rule → tab <b>Scope</b> → Remote IP address: <b>These IP addresses</b> → Add → <b>Predefined set: Local subnet</b> → OK.</li>
+        <li>Router: give the notebook a fixed IP (DHCP reservation), otherwise the links stop working when the IP changes.</li>
+      </ul>
+    </li>
+    <li>
+      <h2>Test on the iPhone</h2>
+      <p>Open the <b>Test</b> link from <code>Remote-Links.txt</code> in Safari (send it to yourself e.g. via AirDrop/Notes) – it must show <code>"ok":true</code>. Then open the <b>Remote page</b> link → Share → <b>Add to Home Screen</b>.</p>
+    </li>
+    <li>
+      <h2>Samsung TV + SmartThings</h2>
+      <ul>
+        <li>TV: Settings → General → Network → Expert Settings → <b>Power On with Mobile</b> = On.</li>
+        <li>SmartThings app → Routines/Scenes → <b>+ Scene</b> → name <code>MyTV</code> → add your TV → <b>Power On</b> + <b>Input source: HDMI&nbsp;x</b> (the port the notebook uses) → Save.</li>
+      </ul>
+    </li>
+    <li>
+      <h2>iPhone Shortcut for the sticker</h2>
+      <ul>
+        <li>Shortcuts → <b>Automation</b> → <b>+</b> → <b>NFC</b> → Scan → hold the sticker → name it <code>MyTV</code>.</li>
+        <li>Choose <b>Run Immediately</b> (no confirmation).</li>
+        <li>Action 1: <b>SmartThings → Run scene</b> → <code>MyTV</code>.</li>
+        <li>Action 2: <b>Wait</b> 3 seconds.</li>
+        <li>Action 3: <b>Get Contents of URL</b> → paste the <b>Wake MyTV</b> link.</li>
+        <li>Action 4: <b>Open URLs</b> → paste the <b>Remote page</b> link.</li>
+      </ul>
+      <p>Bonus: the same shortcut works with Siri – name a normal shortcut e.g. "Fernseher".</p>
+    </li>
+  </ol>
+  <p class="sub" style="margin-top:14px">Standby: if nobody presses a key for 4 hours (TV switched off with the TV remote), MyTV stops streaming and shows a black standby screen. The sticker, the remote page or any key wakes it up.</p>
+
   <section class="keys">
     <h2>Remote / keyboard</h2>
     <dl>
