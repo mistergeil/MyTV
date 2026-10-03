@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.6.0
+// @version      1.6.1
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -385,8 +385,10 @@
       const timer = setInterval(() => {
         if (consentOpen()) return;              // wait for the user's cookie choice
         tries++;
+        document.querySelectorAll('video').forEach(hook);
         const v = pickVideo();
-        if (v) hook(v);
+        // video may already be running before we hooked it (fast autoplay, e.g. Joyn) → count as started
+        if (!started && v && !v.paused && v.readyState >= 3) { started = true; L('already playing'); setTimeout(() => unmuteOnce(v), 300); }
         if (IS_ORF && (tries === 4 || tries === 10 || tries === 20 || tries === 32) && (!v || v.paused)) {
           if (!clickPlay('auto')) L('no play button found');
         }
@@ -397,6 +399,7 @@
         }
         if (tries >= 80) {      // ~40 s
           clearInterval(timer);
+          if ([...document.querySelectorAll('video')].some(x => !x.paused && x.currentTime > 0)) { L('playing (late check)'); return; }
           osd(CH, NAME + ' — kein Signal (↑/↓ zum Weiterschalten)', true);
           showLog('kein Start');
         }
