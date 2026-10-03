@@ -164,6 +164,27 @@ function Start-Updater($action) {
   Start-ScheduledTask -TaskName $UpdTask
   Write-Log "update: $action requested (installed $Version)"
 }
+# ---- keep the TV screen clean: no console windows that pull focus away from Chrome (taskbar would show) ----
+function Set-HiddenTasks {
+  $ch = Join-Path $env:WINDIR 'System32\conhost.exe'
+  foreach ($t in @('MyTV VPN Switcher', 'MyTV Updater')) {
+    try {
+      $task = Get-ScheduledTask -TaskName $t -ErrorAction SilentlyContinue
+      if (-not $task -or -not (Test-Path $ch)) { continue }
+      $a = $task.Actions[0]
+      if ($a.Execute -match 'powershell\.exe$') {
+        Set-ScheduledTask -TaskName $t -Action (New-ScheduledTaskAction -Execute $ch -Argument ('--headless powershell.exe ' + $a.Arguments)) | Out-Null
+        Write-Log "task '$t' now starts without a window"
+      }
+    } catch { Write-Log "could not update task '$t': $_" }
+  }
+}
+function Restore-KioskFocus {
+  try {
+    $p = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+    if ($p) { [void](New-Object -ComObject WScript.Shell).AppActivate($p.Id); Write-Log 'brought Chrome back to the front' }
+  } catch {}
+}
 function Send-Bytes($res, [byte[]]$bytes, $type) {
   $res.ContentType = $type
   $res.OutputStream.Write($bytes, 0, $bytes.Length)
@@ -171,6 +192,10 @@ function Send-Bytes($res, [byte[]]$bytes, $type) {
 }
 
 if (-not (Test-Path $WG)) { Write-Log "WireGuard not installed"; exit 1 }
+Set-HiddenTasks
+# started by an update a moment ago → give the TV picture back to Chrome
+$us = Get-UpdateState
+if ($us -and ((Get-Date) - [DateTime]$us.t).TotalMinutes -lt 3) { Start-Sleep -Seconds 1; Restore-KioskFocus }
 $l = New-Object System.Net.HttpListener
 $l.Prefixes.Add("http://127.0.0.1:$Port/")
 if ($Key) { $l.Prefixes.Add("http://+:$LanPort/") }

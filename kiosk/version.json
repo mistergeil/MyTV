@@ -1,13 +1,12 @@
 {
-  "version": "1.1.0",
+  "version": "1.1.1",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "938b2b35327aa3cb4bf49b8aa7874f243886358b8f01ed5fafc6c6787b0d3066",
-  "size": 23641,
+  "sha256": "13e55bbf7219fd5eb9468fdacfa7f28ac491d4f75af908c4c2ef046c889df108",
+  "size": 24283,
   "notes": [
-    "★ Favoriten: in der Senderliste lang drücken",
-    "Favoriten stehen zuerst – auf dem iPhone, im Guide und in der Liste am TV",
-    "CH ▲▼ zappt zuerst durch die Favoriten, dann durch alle anderen"
+    "Kein Taskleisten-Blitzer mehr: Hintergrund-Prozesse starten ohne Fenster",
+    "Nach einem Update bekommt MyTV den Bildschirm automatisch zurück"
   ],
   "installer": false
 }

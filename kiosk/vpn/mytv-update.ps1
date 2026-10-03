@@ -127,6 +127,8 @@ try {
   if (Start-AgentAndWait $newVer) {
     $note = if ($v.installer) { ' - bitte einmal VPN-Install.bat am Notebook ausführen' } else { '' }
     Set-State 'ok' "Aktualisiert auf $newVer$note" @{ from = $from; to = $newVer }
+    try { $p = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
+          if ($p) { [void](New-Object -ComObject WScript.Shell).AppActivate($p.Id) } } catch {}
   } else {
     # new switcher did not come up -> put the old files back
     Write-Log 'new version did not answer - rolling back'
