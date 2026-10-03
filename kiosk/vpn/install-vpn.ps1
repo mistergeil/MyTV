@@ -58,6 +58,51 @@ if (Test-Path $IpFile) {
 $ip = (Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | Where-Object {
   $_.IPAddress -notmatch '^(127|169\.254)\.' -and $_.InterfaceAlias -notmatch 'WireGuard|vEthernet|Loopback|^(DE|CH|AT)$' } |
   Sort-Object InterfaceMetric | Select-Object -First 1).IPAddress
+# ---- SmartThings: the notebook starts your routine "MyTV" (TV on + HDMI) when the sticker is tapped ----
+$StFile = Join-Path $Dir 'st-cli.txt'; $SceneFile = Join-Path $Dir 'st-scene.txt'
+$ans = Read-Host "Set up SmartThings (TV on + HDMI via your SmartThings routine)? [Y/n]"
+if ($ans -notmatch '^[nN]') {
+  function Find-StCli {
+    $c = Get-Command smartthings -ErrorAction SilentlyContinue
+    if ($c) { return $c.Source }
+    foreach ($root in @($env:ProgramFiles, ${env:ProgramFiles(x86)}, (Join-Path $env:LOCALAPPDATA 'Programs'))) {
+      if ($root -and (Test-Path $root)) {
+        $f = Get-ChildItem -Path $root -Filter 'smartthings.exe' -Recurse -Depth 3 -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($f) { return $f.FullName }
+      }
+    }
+    return $null
+  }
+  $exe = Find-StCli
+  if (-not $exe) {
+    Write-Host "Downloading Samsung's SmartThings CLI (official, github.com/SmartThingsCommunity/smartthings-cli) ..."
+    $msi = Join-Path $env:TEMP 'smartthings.msi'
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/SmartThingsCommunity/smartthings-cli/releases/latest/download/smartthings.msi' -OutFile $msi
+      Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn" -Wait
+    } catch { Write-Host "Download/installation failed: $_" -ForegroundColor Yellow }
+    $exe = Find-StCli
+  }
+  if (-not $exe) { Write-Host "SmartThings CLI not found - skipped." -ForegroundColor Yellow }
+  else {
+    $exe | Set-Content -Path $StFile -Encoding ascii -NoNewline
+    Write-Host "`nA browser window opens: log in with your Samsung account and allow access." -ForegroundColor Cyan
+    & $exe scenes | Out-Host
+    $scenes = @()
+    try { $scenes = @((& $exe scenes --json) -join "`n" | ConvertFrom-Json) } catch { }
+    if (-not $scenes.Count) { Write-Host "No SmartThings routines found. Create the manual routine 'MyTV' in the app, then run VPN-Install.bat again." -ForegroundColor Yellow }
+    else {
+      $pick = $scenes | Where-Object { $_.sceneName -eq 'MyTV' } | Select-Object -First 1
+      if (-not $pick) {
+        for ($i = 0; $i -lt $scenes.Count; $i++) { Write-Host ("  {0}) {1}" -f ($i + 1), $scenes[$i].sceneName) }
+        $n = Read-Host "Number of the routine that turns the TV on + HDMI"
+        if ($n -match '^\d+$' -and [int]$n -ge 1 -and [int]$n -le $scenes.Count) { $pick = $scenes[[int]$n - 1] }
+      }
+      if ($pick) { $pick.sceneId | Set-Content -Path $SceneFile -Encoding ascii -NoNewline; Write-Host "Sticker will start the routine '$($pick.sceneName)'." -ForegroundColor Green }
+    }
+  }
+}
+
 $base = "http://$($ip):8766"
 @(
   "MyTV iPhone remote",

@@ -25,6 +25,8 @@ $Log     = Join-Path $Dir 'agent.log'
 $RunDir  = Join-Path $Dir 'run'
 $KeyFile = Join-Path $Dir 'remote.key'
 $MacFile = Join-Path $Dir 'tv-mac.txt'
+$StFile  = Join-Path $Dir 'st-cli.txt'      # path of Samsung's SmartThings CLI (smartthings.exe)
+$SceneFile = Join-Path $Dir 'st-scene.txt'  # id of the SmartThings routine "MyTV" (TV on + HDMI)
 $Key     = if (Test-Path $KeyFile) { (Get-Content $KeyFile -Raw).Trim() } else { '' }
 $Keys    = @('ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Enter', 'Backspace', 'Escape', 'g', 'l', 'b', 'm', 'i', '+', '-')
 $Boot    = [string][DateTime]::UtcNow.Ticks
@@ -100,6 +102,16 @@ function Send-Wol {
   $u.Close()
   return 'sent to ' + (($targets | Select-Object -Unique) -join ', ')
 }
+# Start the user's SmartThings routine (TV on + HDMI) with Samsung's official SmartThings CLI
+function Start-StScene {
+  if (-not (Test-Path $StFile) -or -not (Test-Path $SceneFile)) { return $null }
+  $exe = (Get-Content $StFile -Raw).Trim(); $id = (Get-Content $SceneFile -Raw).Trim()
+  if (-not (Test-Path $exe)) { return 'smartthings.exe not found' }
+  if (-not (Test-Path $RunDir)) { New-Item -ItemType Directory -Path $RunDir | Out-Null }
+  Start-Process -FilePath $exe -ArgumentList "scenes:execute $id" -NoNewWindow `
+    -RedirectStandardOutput (Join-Path $RunDir 'st-out.txt') -RedirectStandardError (Join-Path $RunDir 'st-err.txt')
+  return "routine $id started"
+}
 function Add-Cmd($do, $n, $k) {
   $script:Seq++
   [void]$Queue.Add(@{ seq = $script:Seq; do = $do; n = $n; k = $k; t = [DateTime]::UtcNow })
@@ -140,8 +152,10 @@ while ($l.IsListening) {
         elseif ($do -ne 'on') { throw "unknown command '$do'" }
         if ($do -eq 'on') {
           $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)"
-          # switch the TV to the notebook's HDMI input in the background (tv-remote.ps1, needs tv-ip.txt)
-          if (Test-Path (Join-Path $Dir 'tv-ip.txt')) {
+          # TV on + HDMI: preferably via the SmartThings routine, otherwise the TV's network remote (tv-remote.ps1)
+          $st = Start-StScene
+          if ($st) { $out.tv = $st; Write-Log "smartthings: $st" }
+          elseif (Test-Path (Join-Path $Dir 'tv-ip.txt')) {
             Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$(Join-Path $Dir 'tv-remote.ps1')`""
             $out.hdmi = 'switching'
           }
