@@ -110,6 +110,12 @@
   s.onerror = () => { document.getElementById('list').textContent = 'Senderliste nicht geladen (Internet?)'; };
   document.head.appendChild(s);
   if (!key) say('Link ohne key=…', true);
+  // sticker link ...&on=1 → switch the TV on right away (once; the parameter is removed so a reload doesn't repeat it)
+  const qp = new URLSearchParams(location.search);
+  if (key && qp.get('on') === '1') {
+    qp.delete('on'); history.replaceState(null, '', location.pathname + '?' + qp.toString());
+    send('do=on'); say('TV wird eingeschaltet …');
+  }
 })();
 </script>
 </body>

@@ -114,6 +114,9 @@ $base = "http://$($ip):8766"
   "2) Remote page (Safari -> Share -> Add to Home Screen):",
   "   $base/remote?key=$Key",
   "",
+  "NFC sticker link (write with the app 'NFC Tools' -> Write -> URL) - any iPhone: tap sticker -> TV on + remote:",
+  "   $base/remote?key=$Key&on=1",
+  "",
   "3) For the Shortcut ('Get contents of URL'):",
   "   Wake MyTV:          $base/cmd?key=$Key&do=on",
   "   Channel, e.g. 22:   $base/cmd?key=$Key&do=ch&n=22"
