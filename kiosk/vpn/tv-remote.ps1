@@ -13,7 +13,9 @@ function Write-Log($m) { "$(Get-Date -Format s)  tv: $m" | Out-File -FilePath $L
 $IpFile = Join-Path $Dir 'tv-ip.txt'
 if (-not (Test-Path $IpFile)) { exit 0 }
 $Ip   = (Get-Content $IpFile -Raw).Trim()
-$Hdmi = if (Test-Path (Join-Path $Dir 'tv-hdmi.txt')) { (Get-Content (Join-Path $Dir 'tv-hdmi.txt') -Raw).Trim() } else { '1' }
+$Hdmi = if (Test-Path (Join-Path $Dir 'tv-hdmi.txt')) { (Get-Content (Join-Path $Dir 'tv-hdmi.txt') -Raw).Trim() } else { 'auto' }
+# 1-4 = direct HDMI key (older models); auto = general HDMI key (newer models; jumps to the connected HDMI device)
+$TvKey = if ($Hdmi -match '^[1-4]$') { "KEY_HDMI$Hdmi" } else { 'KEY_HDMI' }
 $TokenFile = Join-Path $Dir 'tv-token.txt'
 
 Add-Type -TypeDefinition @'
@@ -54,6 +56,7 @@ public static class MyTvSamsungRemote {
             }
             Match m = Regex.Match(msg, "\"token\"\\s*:\\s*\"?([0-9]+)");
             if (m.Success) File.WriteAllText(tokenFile, m.Groups[1].Value);
+            Thread.Sleep(1000);
             foreach (string k in keys) {
                 string cmd = "{\"method\":\"ms.remote.control\",\"params\":{\"Cmd\":\"Click\",\"DataOfCmd\":\"" + k + "\",\"Option\":\"false\",\"TypeOfRemote\":\"SendRemoteKey\"}}";
                 byte[] b = Encoding.UTF8.GetBytes(cmd);
@@ -78,8 +81,9 @@ if (-not $up) { Write-Log "TV $Ip not reachable on port 8002 (is it on? IP Remot
 Start-Sleep -Seconds 3
 for ($try = 1; $try -le 3; $try++) {
   try {
-    $r = [MyTvSamsungRemote]::Send($Ip, $TokenFile, @("KEY_HDMI$Hdmi"))
-    Write-Log "HDMI $Hdmi -> $r"
+    Write-Log "connecting to $Ip, sending $TvKey"
+    $r = [MyTvSamsungRemote]::Send($Ip, $TokenFile, @($TvKey))
+    Write-Log "$TvKey -> $r"
     if ($r -eq 'ok') { exit 0 } else { exit 1 }
   } catch {
     Write-Log "try $($try): $($_.Exception.GetBaseException().Message)"

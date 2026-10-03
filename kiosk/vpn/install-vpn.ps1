@@ -50,8 +50,8 @@ $v = Read-Host ("TV IP address (e.g. 192.168.1.94)" + $(if ($cur) { " [Enter = k
 if ($v.Trim() -match '^\d{1,3}(\.\d{1,3}){3}$') { $v.Trim() | Set-Content -Path $IpFile -Encoding ascii -NoNewline }
 elseif ($v.Trim()) { Write-Host "That doesn't look like an IP address - skipped." -ForegroundColor Yellow }
 if (Test-Path $IpFile) {
-  $cur = if (Test-Path $HdmiFile) { (Get-Content $HdmiFile -Raw).Trim() } else { '1' }
-  $v = Read-Host "HDMI port number the notebook is plugged into (1-4) [Enter = $cur]"
+  $cur = 'auto'
+  $v = Read-Host "HDMI: Enter = automatic (recommended) or type the port number 1-4"
   if ($v.Trim() -match '^[1-4]$') { $cur = $v.Trim() }
   $cur | Set-Content -Path $HdmiFile -Encoding ascii -NoNewline
 }
