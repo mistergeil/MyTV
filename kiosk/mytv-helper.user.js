@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.6.1
+// @version      1.7.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -10,6 +10,7 @@
 // @match        https://www.rsi.ch/play/embed*
 // @match        https://on.orf.at/*
 // @match        https://www.joyn.de/play/live-tv*
+// @match        https://plus.rtl.de/*
 // @run-at       document-start
 // @grant        none
 // @updateURL    https://mistergeil.github.io/MyTV/kiosk/mytv-helper.user.js
@@ -29,7 +30,8 @@
   const IS_SRG = /(^|\.)(srf|rts|rsi)\.ch$/.test(location.hostname);
   const IS_ORF = location.hostname === 'on.orf.at';
   const IS_JOYN = location.hostname === 'www.joyn.de';
-  const IS_OFFICIAL = IS_SRG || IS_ORF || IS_JOYN;            // official broadcaster player pages (plain <video>)
+  const IS_RTL = location.hostname === 'plus.rtl.de';
+  const IS_OFFICIAL = IS_SRG || IS_ORF || IS_JOYN || IS_RTL;            // official broadcaster player pages (plain <video>)
 
   // ---- Official SRG player (SRF/RTS/RSI) framed inside MyTV (legacy path) ----
   if (IS_SRG && window.top !== window) {
@@ -78,7 +80,7 @@
   try { topHash = window.top.location.hash; } catch (e) { return; }
   const RX = /mytv=(\d+)(?:&n=([^&]*))?/;
   let m = RX.exec(topHash);
-  if ((IS_ORF || IS_JOYN) && window.top === window) {   // SPA may drop the hash → remember it for this tab
+  if ((IS_ORF || IS_JOYN || IS_RTL) && window.top === window) {   // SPA may drop the hash → remember it for this tab
     try {
       if (m) sessionStorage.setItem('mytv.session', topHash);
       else { const saved = sessionStorage.getItem('mytv.session'); if (saved) m = RX.exec(saved); }
@@ -103,6 +105,12 @@
     .player-area-player video { width:100% !important; height:100% !important; object-fit:contain !important; }
     html.mytv-dialog .player-area-player { z-index:auto !important; }
     [aria-label="Bundesland hier wählen"] { display:none !important; }
+  ` : '') + (IS_RTL ? `
+    .mytv-fs { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
+               max-width:none !important; max-height:none !important; margin:0 !important; padding:0 !important;
+               transform:none !important; z-index:2147483000 !important; background:#000 !important; }
+    .mytv-fs video { width:100% !important; height:100% !important; object-fit:contain !important; }
+    html.mytv-dialog .mytv-fs { z-index:auto !important; }
   ` : '') + (IS_OFFICIAL ? '' : `
     html, body { cursor:none !important; }
     body > a, body > p, body > h1, body > h2, body > h3 { display:none !important; }
@@ -267,9 +275,13 @@
     };
     if (IS_ORF) setInterval(hideRegionHints, 1000);
     const blocker = () => {
-      if (!(IS_ORF || IS_JOYN) || !document.body) return '';
+      if (!(IS_ORF || IS_JOYN || IS_RTL) || !document.body) return '';
       hideRegionHints();
       if (IS_ORF && document.body.classList.contains('didomi-popup-open')) return 'Cookie-Auswahl';
+      if (IS_RTL) {   // RTL+ cookie wall ("Einwilligen und weiter")
+        const b = [...document.querySelectorAll('button, a, [role="button"]')].find(e => /Einwilligen und weiter/i.test(e.textContent || '') && visible(e));
+        if (b) return 'Cookie-Auswahl';
+      }
       if (IS_JOYN) {
         const cmp = document.querySelector('cmp-banner');
         if (cmp && visible(cmp)) {
@@ -305,7 +317,7 @@
       f.allow = 'fullscreen';
       document.body.appendChild(f);
       window.__mytvOv = f;
-      if (IS_ORF || IS_JOYN) setInterval(() => {
+      if (IS_ORF || IS_JOYN || IS_RTL) setInterval(() => {
         const b = blocker(), open = !!b;
         if (b !== lastBlock) { lastBlock = b; L0(open ? 'popup: ' + b : 'popup closed'); }
         document.documentElement.classList.toggle('mytv-dialog', open);
@@ -329,6 +341,15 @@
         if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.().catch(() => {});
       }
     });
+
+    if (IS_RTL) setInterval(() => {
+      const v = pickVideo(); if (!v || document.querySelector('.mytv-fs')) return;
+      const r = v.getBoundingClientRect(); if (r.width < 50) return;
+      // biggest ancestor that still has (about) the video's size = the player box with its controls
+      let box = v, e = v.parentElement;
+      while (e && e !== document.body) { const q = e.getBoundingClientRect(); if (q.width > r.width * 1.05 + 4 || q.height > r.height * 1.25 + 4) break; box = e; e = e.parentElement; }
+      box.classList.add('mytv-fs'); (window.__mytvLog || []).push('fullscreen player: ' + box.tagName + '.' + String(box.className).slice(0, 40));
+    }, 1000);
 
     if (IS_OFFICIAL) { srgWatch(); return; }
 

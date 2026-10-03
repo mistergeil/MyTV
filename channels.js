@@ -30,19 +30,19 @@ window.CHANNELS = [
   { number: 18, name: "SWR",          short: "SWR",   type: "hls", geo: true, epg: "swr", url: "https://swrbwd-hls.akamaized.net/hls/live/2018672/swrbwd/master.m3u8" },
   { number: 19, name: "rbb",          short: "rbb",   type: "hls", geo: true, epg: "rbb", url: "https://rbb-hls-berlin.akamaized.net/hls/live/2017824/rbb_berlin/master.m3u8" },
   // Private channels: Joyn (official, free, Germany → VPN DE) where available, otherwise livehdtv
-  { number: 20, name: "RTL",          short: "RTL",   mode: "external", xmltv: "RTL.de", url: "https://www.livehdtv.net/embed/rtl-germany/" },
+  { number: 20, name: "RTL",          short: "RTL",   mode: "external", geo: true, xmltv: "RTL.de", url: "https://plus.rtl.de/rtl/live" },
   { number: 21, name: "SAT.1",        short: "SAT.1", mode: "external", xmltv: "SAT.1.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=2" },
   { number: 22, name: "ProSieben",    short: "PRO7",  mode: "external", xmltv: "ProSieben.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=1" },
-  { number: 23, name: "VOX",          short: "VOX",   mode: "external", xmltv: "VOX.de", url: "https://www.livehdtv.net/embed/vox/" },
+  { number: 23, name: "VOX",          short: "VOX",   mode: "external", geo: true, xmltv: "VOX.de", url: "https://plus.rtl.de/vox/live" },
   { number: 24, name: "kabel eins",   short: "kab1",  mode: "external", xmltv: "kabel.eins.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=3" },
-  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", xmltv: "RTLZWEI.de", url: "https://www.livehdtv.net/embed/rtl2/" },
+  { number: 25, name: "RTLZWEI",      short: "RTL2",  mode: "external", geo: true, xmltv: "RTLZWEI.de", url: "https://plus.rtl.de/rtlzwei/live" },
   { number: 26, name: "ProSieben MAXX", short: "MAXX", mode: "external", xmltv: "ProSieben.MAXX.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=5" },
   { number: 27, name: "SAT.1 Gold", short: "Gold", mode: "external", xmltv: "SAT.1.Gold.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=6" },
   { number: 28, name: "sixx", short: "sixx", mode: "external", xmltv: "sixx.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=4" },
   { number: 29, name: "kabel eins Doku", short: "k1Dok", mode: "external", xmltv: "kabel.eins.Doku.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=7" },
-  { number: 30, name: "Super RTL", short: "SRTL", mode: "external", xmltv: "SUPER.RTL.de", url: "https://www.livehdtv.net/embed/super-rtl/" },
-  { number: 31, name: "RTL Nitro", short: "Nitro", mode: "external", xmltv: "NITRO.de", url: "https://www.livehdtv.net/embed/rtl-nitro/" },
-  { number: 32, name: "n-tv", short: "n-tv", mode: "external", xmltv: "ntv.de", url: "https://www.livehdtv.net/embed/ntv-german/" },
+  { number: 30, name: "Super RTL", short: "SRTL", mode: "external", geo: true, xmltv: "SUPER.RTL.de", url: "https://plus.rtl.de/super-rtl/live" },
+  { number: 31, name: "RTL Nitro", short: "Nitro", mode: "external", geo: true, xmltv: "NITRO.de", url: "https://plus.rtl.de/nitro/live" },
+  { number: 32, name: "n-tv", short: "n-tv", mode: "external", geo: true, xmltv: "ntv.de", url: "https://plus.rtl.de/ntv/live" },
   { number: 33, name: "WELT", short: "WELT", mode: "external", xmltv: "WELT.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=113" },
   { number: 34, name: "Tele 5", short: "Tele5", mode: "external", xmltv: "Tele.5.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=1026" },
   { number: 35, name: "DMAX", short: "DMAX", mode: "external", xmltv: "DMAX.de", geo: true, url: "https://www.joyn.de/play/live-tv?channel_id=110" },
@@ -69,5 +69,9 @@ window.CHANNELS = [
   { number: 54, name: "ORF 2",   short: "ORF2", mode: "external", geo: "AT", xmltv: "ORF.2.at", url: "https://on.orf.at/live?channel=orf2" },
   { number: 55, name: "ORF III", short: "ORF3", mode: "external", geo: "AT", xmltv: "ORF.3.at", url: "https://on.orf.at/live?channel=orf3" },
   // Sport
-  { number: 56, name: "Eurosport 1", short: "ES1", mode: "external", geo: true, xmltv: "Eurosport.1.de", url: "https://www.joyn.de/play/live-tv?channel_id=122" }
+  { number: 56, name: "Eurosport 1", short: "ES1", mode: "external", geo: true, xmltv: "Eurosport.1.de", url: "https://www.joyn.de/play/live-tv?channel_id=122" },
+  // RTL+ (Premium account, VPN DE)
+  { number: 57, name: "RTLup",      short: "RTLup", mode: "external", geo: true, xmltv: "RTLup.de",     url: "https://plus.rtl.de/rtlup/live" },
+  { number: 58, name: "VOXup",      short: "VOXup", mode: "external", geo: true, xmltv: "VOXup.de",     url: "https://plus.rtl.de/voxup/live" },
+  { number: 59, name: "Toggo Plus", short: "Toggo", mode: "external", geo: true, xmltv: "TOGGO.plus.de", url: "https://plus.rtl.de/toggo-plus/live" }
 ];
