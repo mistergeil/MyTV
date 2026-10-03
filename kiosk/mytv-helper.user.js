@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.8.1
+// @version      1.8.2
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -200,8 +200,19 @@
       setVolume(x) { v.volume = Math.max(0, Math.min(1, x / 100)); }, getVolume() { return Math.round(v.volume * 100); },
     };
   }
+  // all <video> elements, also inside open shadow roots and same-origin iframes (Joyn renders its player in web components)
+  function allVideos(root = document, out = [], depth = 0) {
+    if (!root || depth > 6) return out;
+    root.querySelectorAll('video').forEach(v => out.push(v));
+    root.querySelectorAll('*').forEach(e => {
+      if (e.shadowRoot) allVideos(e.shadowRoot, out, depth + 1);
+      if (e.tagName === 'IFRAME') { try { if (e.contentDocument) allVideos(e.contentDocument, out, depth + 1); } catch (x) {} }
+    });
+    return out;
+  }
+  const anyPlaying = () => allVideos().some(x => !x.paused && x.currentTime > 0 && x.readyState >= 2);
   function pickVideo() {
-    const vs = [...document.querySelectorAll('video')];
+    const vs = allVideos();
     return vs.find(v => !v.paused) || vs.find(v => v.currentSrc) || vs[0] || null;
   }
   function clickPlay(reason) {
@@ -400,7 +411,7 @@
       }
       function hook(v) {
         if (hooked.has(v)) return; hooked.add(v);
-        L('video #' + document.querySelectorAll('video').length + ' found, muted=' + v.muted);
+        L('video #' + allVideos().length + ' found, muted=' + v.muted);
         ['play', 'playing', 'waiting', 'stalled', 'emptied', 'abort', 'ended'].forEach(ev => v.addEventListener(ev, () => L(ev)));
         v.addEventListener('volumechange', () => L('volumechange → ' + (v.muted ? 'muted' : Math.round(v.volume * 100))));
         v.addEventListener('error', () => {
@@ -427,10 +438,10 @@
       const timer = setInterval(() => {
         if (consentOpen()) return;              // wait for the user's cookie choice
         tries++;
-        document.querySelectorAll('video').forEach(hook);
+        allVideos().forEach(hook);
         const v = pickVideo();
         // video may already be running before we hooked it (fast autoplay, e.g. Joyn) → count as started
-        if (!started && v && !v.paused && v.readyState >= 3) { started = true; L('already playing'); setTimeout(() => unmuteOnce(v), 300); }
+        if (!started && ((v && !v.paused && v.readyState >= 3) || anyPlaying())) { started = true; L('already playing'); if (v) setTimeout(() => unmuteOnce(v), 300); }
         if ((IS_ORF || IS_RTL) && (tries === 4 || tries === 10 || tries === 20 || tries === 32 || tries === 50) && (!v || v.paused)) {
           if (!clickPlay('auto')) L('no play button found');
         }
@@ -441,8 +452,10 @@
         }
         if (tries >= 80) {      // ~40 s
           clearInterval(timer);
-          if ([...document.querySelectorAll('video')].some(x => !x.paused && x.currentTime > 0)) { L('playing (late check)'); return; }
+          if (anyPlaying()) { L('playing (late check)'); return; }
           osd(CH, NAME + ' — kein Signal (↑/↓ zum Weiterschalten)', true);
+          // stream may still come up (long ads, slow start) → remove the warning as soon as anything plays
+          const late = setInterval(() => { if (anyPlaying()) { clearInterval(late); L('playing (late)'); if (osdEl) osdEl.style.opacity = '0'; } }, 2000);
           showLog('kein Start');
         }
       }, 500);
