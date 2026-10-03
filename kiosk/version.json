@@ -1,13 +1,13 @@
 {
-  "version": "1.4.0",
+  "version": "1.5.0",
   "date": "03.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "1fa9fa54f2e19731732c1b2c0131411291c496f593ed2a20ba36fc11581fb575",
-  "size": 27482,
+  "sha256": "7ff337d1c73490de79dc8859e0af9385b02d19c8d5ab24707b7b6494987fc8bd",
+  "size": 28373,
   "notes": [
-    "Neue Fernbedienung im Stil der Apple TV Remote: Touch-Fläche (wischen = bewegen, tippen = OK)",
-    "Runde Tasten, Sender-Liste und Einstellungen im iOS-Look",
-    "Leichtes haptisches Feedback (iOS 18)"
+    "Fernbedienung neu im Stil der Apple TV Remote-App: grosse Touch-Fläche, Symbol-Tasten, Tab-Leiste unten",
+    "Sender (Liste + Nummernblock) und Einstellungen als eigene Tabs",
+    "Guide-Tage als iOS-Segmentschalter über der Touch-Fläche"
   ],
   "installer": false
 }

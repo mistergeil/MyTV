@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV VPN Bridge
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.6.0
+// @version      1.7.0
 // @description  Connects MyTV with the local MyTV switcher (127.0.0.1:8765): VPN country, favorites, iPhone remote commands; switches to another VPN server when a site says "VPN erkannt".
 // @match        https://mistergeil.github.io/MyTV/*
 // @match        https://www.livehdtv.net/*
@@ -64,12 +64,20 @@
     });
   }
 
-  // ---- MyTV overlay on a provider page (iframe, no bridge inside): relay what is on screen ----
+  // ---- MyTV overlay on a provider page (iframe, no bridge inside): relay screen state + favorites ----
+  const OV = 'https://mistergeil.github.io';
+  async function pushFavs(target) {
+    const r = await call('/favs', 3000);
+    if (!r.ok) return;
+    const frames = target ? [target] : [...document.querySelectorAll('iframe')].map(f => f.contentWindow).filter(Boolean);
+    frames.forEach(w => { try { w.postMessage({ mytvFavs: 1, favs: r.favs || [] }, OV); } catch (e) {} });
+  }
   if (!IS_MYTV) {
     window.addEventListener('message', ev => {
       const d = ev.data;
-      if (!d || d.mytvState !== 1 || ev.origin !== 'https://mistergeil.github.io') return;
-      call('/ui?guide=' + (d.guide ? 1 : 0), 2000);
+      if (!d || ev.origin !== OV) return;
+      if (d.mytvState === 1) call('/ui?guide=' + (d.guide ? 1 : 0), 2000);
+      if (d.mytvFavsReq === 1) pushFavs(ev.source);
     });
   }
 
@@ -132,6 +140,7 @@
     }
     if (c.do === 'favs') {                 // favorites changed on the iPhone → MyTV re-sorts its lists
       if (IS_MYTV) window.postMessage({ mytvRemote: 1, do: 'favs' }, location.origin);
+      else pushFavs();                     // MyTV overlay on Joyn / RTL+ / ORF
       return;
     }
     if (c.do === 'on') {
