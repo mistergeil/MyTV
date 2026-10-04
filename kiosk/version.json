@@ -1,11 +1,11 @@
 {
-  "version": "1.8.0",
-  "date": "03.10.2026",
+  "version": "1.8.1",
+  "date": "04.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "6229fc4d3199d8dae9dd950bee683085a25cb5e5ef88121f1db9d5a5597e1ba5",
-  "size": 31869,
+  "sha256": "83000946f778f0f0a7b15795679f7158d9dd4809c6dc2bfd589cbabe886d4803",
+  "size": 32058,
   "notes": [
-    "Einstellungen zeigen die installierten Tampermonkey-Versionen (Bridge, Helper) und ob ein Update bereitsteht"
+    "Fix: Erinnerungen verschwanden aus Highlights und Guide (Windows-PowerShell-Eigenheit beim Lesen der Liste)"
   ],
   "installer": false
 }

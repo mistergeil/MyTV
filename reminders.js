@@ -12,6 +12,7 @@
   const same = (a, b) => a.ch === b.ch && a.start === b.start;
   let hooks = {}, banner = null, bannerRem = null, bannerT = null;
   let cache = []; try { cache = JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) {}
+  cache = (Array.isArray(cache) ? cache.flat(3) : []).filter(x => x && typeof x === 'object' && x.ch && x.start);
   const saveCache = l => { cache = l; try { localStorage.setItem(KEY, JSON.stringify(l)); } catch (e) {} };
 
   // ---- talk to the notebook: directly via the bridge (top-level MyTV) or through the provider page (overlay) ----
@@ -37,7 +38,7 @@
   async function sync() {
     const r = await agent('/rem');
     if (!r || !r.ok) return false;
-    let list = r.list || [];
+    let list = clean(r.list);
     if (!online) {
       // first contact: move reminders that were only stored in this page's browser storage to the notebook
       const local = cache.filter(x => x.start > Date.now() - 15 * 60e3 && !list.some(y => same(x, y)));
@@ -48,10 +49,13 @@
     if (hooks.changed) hooks.changed();
     return true;
   }
+  // accept only real reminder objects (older switchers could send a nested list)
+  const clean = l => (Array.isArray(l) ? l.flat(3) : []).filter(x => x && typeof x === 'object' && +x.ch > 0 && +x.start > 0)
+    .map(x => Object.assign({}, x, { ch: +x.ch, start: +x.start, end: +x.end }));
   const q = r => `ch=${r.ch}&start=${r.start}`;
   async function add(r, quiet) {
     const a = await agent(`/rem/add?${q(r)}&end=${r.end}&mode=${r.mode}&chName=${encodeURIComponent(r.chName || '')}&title=${encodeURIComponent(r.title || '')}`);
-    return a && a.ok ? a.list : null;
+    return a && a.ok ? clean(a.list) : null;
   }
 
   const R = window.MyTVReminders = {
@@ -63,14 +67,14 @@
     },
     remove(ch, start) {
       saveCache(cache.filter(x => !(x.ch === ch && x.start === start)));
-      agent(`/rem/del?ch=${ch}&start=${start}`).then(a => { if (a && a.ok) { saveCache(a.list || []); if (hooks.changed) hooks.changed(); } });
+      agent(`/rem/del?ch=${ch}&start=${start}`).then(a => { if (a && a.ok) { saveCache(clean(a.list)); if (hooks.changed) hooks.changed(); } });
     },
     sync,
     // each step (tvOn / done) runs exactly once, whichever page asks first (decided on the notebook)
     async take(r, step) {
       if (online) {
         const a = await agent(`/rem/take?${q(r)}&step=${step}`);
-        if (a && a.ok) { saveCache(a.list || []); return !!a.took; }
+        if (a && a.ok) { saveCache(clean(a.list)); return !!a.took; }
       }
       const l = cache, x = l.find(y => same(y, r));                   // offline fallback: this page only
       if (!x || x[step]) return false;

@@ -204,11 +204,14 @@ function Set-Fav([int]$n, [bool]$on) {
   return @(Get-Favs)
 }
 # ---- reminders: one list on the notebook (browser storage is split per website, so every channel page had its own) ----
+# Windows PowerShell 5.1: ConvertFrom-Json hands back a JSON array as ONE object (not item by item), so it has to be
+# flattened explicitly - otherwise the list gets nested ([[...]]) and the reminders vanish in MyTV
+function Expand-Items($x) { foreach ($i in $x) { if ($i -is [System.Array]) { Expand-Items $i } elseif ($null -ne $i) { $i } } }
 function Get-Rems {
   if (-not (Test-Path $RemFile)) { return @() }
-  try { $l = @(Get-Content $RemFile -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { return @() }
+  try { $raw = Get-Content $RemFile -Raw -Encoding UTF8 | ConvertFrom-Json } catch { return @() }
   $cut = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - 15 * 60000
-  return @($l | Where-Object { $_ -and [int64]$_.end -gt $cut })
+  return @(Expand-Items $raw | Where-Object { $_.PSObject.Properties['ch'] -and $_.PSObject.Properties['start'] -and [int64]$_.end -gt $cut })
 }
 function Save-Rems($l) {
   $json = ConvertTo-Json -InputObject @($l) -Depth 4 -Compress
