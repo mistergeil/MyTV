@@ -10,102 +10,221 @@
 <title>MyTV · Mitschauen</title>
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%23000'/><rect x='30' y='48' width='120' height='78' rx='14' fill='none' stroke='%23fff' stroke-width='10'/><path d='M66 146h48' stroke='%23fff' stroke-width='10' stroke-linecap='round'/></svg>">
 <style>
-  /* the TV picture of the notebook, fullscreen; tap = small remote bar (Apple-TV style glass) */
+  /* the TV picture always stays full screen; every control floats over it as glass and fades away */
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden;
-               font: 17px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; }
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden; overscroll-behavior: none;
+               font: 17px/1.3 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   video { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
-  .center { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+  #touch { position: fixed; inset: 0; touch-action: none; }
+  .glass { background: rgba(28,28,32,.62); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%); border: .5px solid rgba(255,255,255,.1); }
+  svg.i { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* start / wait screens */
+  .center { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; z-index: 5; }
   .center[hidden] { display: none; }
-  .big { width: 96px; height: 96px; border-radius: 50%; border: 0; background: rgba(255,255,255,.14); color: #fff; font-size: 40px;
-         -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); transition: transform .2s; }
+  .big { width: 96px; height: 96px; border-radius: 50%; border: 0; color: #fff; font-size: 40px; transition: transform .2s; }
   .big:active { transform: scale(.92); }
-  .t { font-size: 20px; font-weight: 600; }
-  .s { font-size: 14px; color: rgba(235,235,245,.6); max-width: 420px; }
-  .btn { border: 0; border-radius: 22px; height: 44px; padding: 0 20px; background: rgba(255,255,255,.14); color: #fff; font: inherit; font-size: 15px; font-weight: 600; }
-  #bar { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px); transform: translate(-50%, 20px); display: flex; gap: 6px; padding: 8px;
-         border-radius: 999px; background: rgba(30,30,34,.62); -webkit-backdrop-filter: blur(30px) saturate(180%); backdrop-filter: blur(30px) saturate(180%);
-         border: .5px solid rgba(255,255,255,.08); opacity: 0; pointer-events: none; transition: opacity .3s, transform .4s cubic-bezier(.2,.9,.25,1.05); }
-  #bar.on { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-  #bar button { width: 52px; height: 52px; border-radius: 50%; border: 0; background: transparent; color: #fff; font: inherit; font-size: 15px; font-weight: 600; }
-  #bar button:active { background: rgba(255,255,255,.18); }
-  #bar .sep { width: 1px; background: rgba(255,255,255,.14); margin: 10px 4px; }
-  #live { position: fixed; top: calc(env(safe-area-inset-top) + 14px); left: 16px; font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 6px;
-          background: rgba(255,69,58,.9); opacity: 0; transition: opacity .3s; }
-  #live.on { opacity: 1; }
+  .t { font-size: 20px; font-weight: 600; } .s { font-size: 14px; color: rgba(235,235,245,.6); max-width: 420px; }
+  .btn { border: 0; border-radius: 22px; height: 44px; padding: 0 20px; color: #fff; font: inherit; font-size: 15px; font-weight: 600; }
+
+  /* top-right capsule: mode switch, keyboard, panel - dims when idle, never disappears */
+  #top { position: fixed; top: calc(env(safe-area-inset-top) + 12px); right: calc(env(safe-area-inset-right) + 12px); z-index: 4; display: flex; align-items: center; gap: 4px;
+         padding: 4px; border-radius: 999px; transition: opacity .5s; }
+  #top.dim { opacity: .28; }
+  .seg { display: flex; padding: 2px; border-radius: 999px; background: rgba(120,120,128,.24); }
+  .seg button, #top .ib { border: 0; background: transparent; color: #fff; font: inherit; }
+  .seg button { height: 34px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: rgba(235,235,245,.7); display: flex; align-items: center; gap: 6px; }
+  .seg button.on { background: rgba(255,255,255,.92); color: #000; }
+  #top .ib { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
+  #top .ib:active { background: rgba(255,255,255,.18); }
+
+  /* side panel with the full remote (landscape: right, portrait: bottom) */
+  #panel { position: fixed; z-index: 3; padding: 14px; border-radius: 28px; display: grid; grid-template-columns: repeat(3, 64px); gap: 12px; justify-content: center;
+           transition: transform .45s cubic-bezier(.2,.9,.25,1.05), opacity .35s; opacity: 0; pointer-events: none; }
+  @media (orientation: landscape) { #panel { right: calc(env(safe-area-inset-right) + 12px); top: 50%; transform: translate(30px, -50%); } #panel.on { transform: translate(0, -50%); } }
+  @media (orientation: portrait) { #panel { left: 50%; bottom: calc(env(safe-area-inset-bottom) + 12px); transform: translate(-50%, 30px); grid-template-columns: repeat(6, 56px); } #panel.on { transform: translate(-50%, 0); } }
+  #panel.on { opacity: 1; pointer-events: auto; }
+  #panel button { width: 100%; aspect-ratio: 1; border-radius: 50%; border: 0; background: rgba(120,120,128,.26); color: #fff; font: inherit; font-size: 13px; font-weight: 600;
+                  display: grid; place-items: center; transition: transform .15s, background .15s; }
+  #panel button:active { transform: scale(.9); background: rgba(255,255,255,.3); }
+  #panel button.wide { aspect-ratio: auto; border-radius: 999px; height: 44px; grid-column: span 3; }
+  @media (orientation: portrait) { #panel button.wide { grid-column: span 2; } }
+
+  /* instant feedback: shows right away, even though the picture follows a moment later */
+  #fb { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.9); z-index: 4; padding: 14px 22px; border-radius: 22px; font-size: 22px; font-weight: 700;
+        opacity: 0; pointer-events: none; transition: opacity .2s, transform .25s; }
+  #fb.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #ring { position: fixed; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%; border: 2px solid rgba(255,255,255,.85); z-index: 4; pointer-events: none; opacity: 0; }
+  #ring.go { animation: ring .45s ease-out; }
+  @keyframes ring { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(1.3); opacity: 0; } }
+  #kb { position: fixed; left: -1000px; top: 0; opacity: 0; width: 10px; height: 10px; font-size: 16px; }
+  #hint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px); transform: translateX(-50%); z-index: 2; padding: 8px 14px; border-radius: 16px;
+          font-size: 13px; color: rgba(235,235,245,.8); transition: opacity .6s; white-space: nowrap; }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="i-remote" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="5"/><circle cx="12" cy="8" r="2.2"/></symbol>
+  <symbol id="i-mouse" viewBox="0 0 24 24"><path d="M5 3l14 7-6 1.5L10 18z"/></symbol>
+  <symbol id="i-kb" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18" cy="12" r="1.2"/></symbol>
+</svg>
 <video id="v" playsinline webkit-playsinline></video>
+<div id="touch"></div>
+
 <div class="center" id="start">
-  <button class="big" id="go" aria-label="Mitschauen">▶︎</button>
+  <button class="big glass" id="go" aria-label="Mitschauen">▶︎</button>
   <div class="t">Mitschauen</div>
-  <div class="s">Zeigt, was gerade auf dem Fernseher läuft – mit ein paar Sekunden Verzögerung.</div>
+  <div class="s">Zeigt, was gerade auf dem Fernseher läuft – und du steuerst direkt hier.</div>
 </div>
 <div class="center" id="wait" hidden>
   <div class="t" id="waitT">Verbinde mit dem Notebook …</div>
   <div class="s" id="waitS"></div>
-  <button class="btn" id="tvon" hidden>TV einschalten</button>
+  <button class="btn glass" id="tvon" hidden>TV einschalten</button>
 </div>
-<div id="live">LIVE</div>
-<div id="bar">
-  <button data-k="ArrowDown">CH−</button><button data-k="ArrowUp">CH+</button>
-  <span class="sep"></span>
-  <button data-k="g">Guide</button><button data-k="l">Liste</button><button data-k="Enter">OK</button><button data-k="Backspace">‹</button>
-  <span class="sep"></span>
-  <button data-k="-">−</button><button data-k="m">🔇</button><button data-k="+">+</button>
+
+<div id="top" class="glass">
+  <div class="seg"><button class="on" data-m="remote"><svg class="i"><use href="#i-remote"/></svg>Fernbedienung</button><button data-m="mouse"><svg class="i"><use href="#i-mouse"/></svg>Maus</button></div>
+  <button class="ib" id="kbBtn" aria-label="Tastatur"><svg class="i"><use href="#i-kb"/></svg></button>
+  <button class="ib" id="menuBtn" aria-label="Mehr"><svg class="i"><use href="#i-menu"/></svg></button>
 </div>
+
+<div id="panel" class="glass">
+  <button data-k="Backspace">‹ Zurück</button><button data-k="g">Guide</button><button data-k="h">★</button>
+  <button data-k="b">▶︎ Media</button><button data-k="l">Sender</button><button data-k="i">Info</button>
+  <button data-k="ArrowDown">CH −</button><button data-k="Enter">OK</button><button data-k="ArrowUp">CH +</button>
+  <button data-k="-">🔉</button><button data-k="m">🔇</button><button data-k="+">🔊</button>
+  <button class="wide" data-k="GuidePrime">Primetime 20:15</button>
+</div>
+
+<div id="fb" class="glass"></div>
+<div id="ring"></div>
+<div id="hint" class="glass">Wischen = bewegen · Tippen = OK · lange halten = Zurück</div>
+<input id="kb" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
+
 <script>
 (() => {
   const key = new URLSearchParams(location.search).get('key') || '';
   const $ = id => document.getElementById(id);
-  const v = $('v');
-  const api = async (p, q = '') => (await fetch(p + '?key=' + encodeURIComponent(key) + q, { cache: 'no-store' })).json();
+  const v = $('v'), touch = $('touch');
+  const q = encodeURIComponent(key);
+  const get = (p, extra = '') => fetch(p + '?key=' + q + extra, { cache: 'no-store' });
+  const api = async (p, extra = '') => (await get(p, extra)).json();
   const wait = (t, s) => { $('start').hidden = true; $('wait').hidden = !t; $('waitT').textContent = t || ''; $('waitS').textContent = s || ''; };
-  let keepT = null, hls = null, stalls = 0;
+  const sendKey = k => get('/cmd', '&do=key&k=' + encodeURIComponent(k)).catch(() => {});
+  let fbT = null;
+  const fb = t => { $('fb').textContent = t; $('fb').classList.add('on'); clearTimeout(fbT); fbT = setTimeout(() => $('fb').classList.remove('on'), 650); };
+  const ringAt = (x, y) => { const r = $('ring'); r.style.left = x + 'px'; r.style.top = y + 'px'; r.classList.remove('go'); void r.offsetWidth; r.classList.add('go'); };
 
+  // ---------------- stream ----------------
+  let keepT = null, stalls = 0;
   async function start() {
     wait('Starte Übertragung …', 'Das Notebook nimmt das TV-Bild auf, das dauert ein paar Sekunden.');
-    try {
-      const j = await api('/cast/start');
-      if (!j.ok) { wait('Übertragung nicht möglich', j.error || ''); $('tvon').hidden = false; return; }
-    } catch (e) { wait('Notebook nicht erreichbar', 'Bist du im Heim-WLAN?'); return; }
-    // wait until the first segments exist
+    try { const j = await api('/cast/start'); if (!j.ok) { wait('Übertragung nicht möglich', j.error || ''); $('tvon').hidden = false; return; } }
+    catch (e) { wait('Notebook nicht erreichbar', 'Bist du im Heim-WLAN?'); return; }
     for (let i = 0; i < 30; i++) {
-      await new Promise(r => setTimeout(r, 1000));
+      await new Promise(r => setTimeout(r, 800));
       let st = null; try { st = await api('/cast/status'); } catch (e) {}
       if (st && st.ready) break;
       if (st && !st.running) { wait('Aufnahme gestoppt', st.log || 'FFmpeg auf dem Notebook prüfen'); return; }
     }
     play();
-    clearInterval(keepT); keepT = setInterval(() => api('/cast/status').catch(() => {}), 15000);   // "still watching"
+    clearInterval(keepT); keepT = setInterval(() => api('/cast/status').catch(() => {}), 15000);
   }
   function play() {
-    const src = '/cast/index.m3u8?key=' + encodeURIComponent(key);
-    if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = src;                       // Safari / iPad: native
-    else if (window.Hls) { hls = new Hls({ liveSyncDurationCount: 2 }); hls.loadSource(src); hls.attachMedia(v); }
+    const src = '/cast/index.m3u8?key=' + q;
+    if (v.canPlayType('application/vnd.apple.mpegurl')) v.src = src;
+    else if (window.Hls) { const h = new Hls({ liveSyncDurationCount: 2, liveMaxLatencyDurationCount: 4 }); h.loadSource(src); h.attachMedia(v); }
     else { wait('Dieser Browser kann den Stream nicht abspielen', 'Auf dem iPad/iPhone Safari verwenden.'); return; }
-    v.play().then(() => { wait(''); $('live').classList.add('on'); }).catch(() => { $('start').hidden = false; $('wait').hidden = true; });
+    v.play().then(() => { wait(''); idle(); }).catch(() => { $('start').hidden = false; $('wait').hidden = true; });
   }
-  // stuck? jump back to the live edge / reload the playlist
+  // stay close to live: if we fall more than ~4 s behind, jump forward
+  setInterval(() => { try { const r = v.seekable; if (r.length && r.end(r.length - 1) - v.currentTime > 4) v.currentTime = r.end(r.length - 1) - 1; } catch (e) {} }, 3000);
   v.addEventListener('waiting', () => { if (++stalls > 3) { stalls = 0; v.src = v.src; v.play().catch(() => {}); } });
   v.addEventListener('playing', () => { stalls = 0; });
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { v.pause(); }
-    else if (v.src) { api('/cast/start').then(() => { v.src = v.src; v.play().catch(() => {}); }).catch(() => {}); }
+    if (document.hidden) v.pause();
+    else if (v.src) api('/cast/start').then(() => { v.src = v.src; v.play().catch(() => {}); }).catch(() => {});
   });
-
   $('go').addEventListener('click', () => { v.muted = false; start(); });
-  $('tvon').addEventListener('click', () => fetch('/cmd?key=' + encodeURIComponent(key) + '&do=on'));
+  $('tvon').addEventListener('click', () => get('/cmd', '&do=on'));
 
-  // tap = show the remote bar for 4 s
-  let barT = null;
-  const showBar = () => { $('bar').classList.add('on'); clearTimeout(barT); barT = setTimeout(() => $('bar').classList.remove('on'), 4000); };
-  v.addEventListener('click', showBar);
-  document.querySelectorAll('#bar [data-k]').forEach(b => b.addEventListener('click', e => {
-    e.stopPropagation(); showBar();
-    fetch('/cmd?key=' + encodeURIComponent(key) + '&do=key&k=' + encodeURIComponent(b.dataset.k)).catch(() => {});
-  }));
+  // ---------------- controls ----------------
+  let mode = 'remote', idleT = null, panelT = null;
+  const idle = () => { $('top').classList.remove('dim'); clearTimeout(idleT); idleT = setTimeout(() => $('top').classList.add('dim'), 4000); };
+  const setMode = m => {
+    mode = m; idle();
+    document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    $('hint').textContent = m === 'mouse' ? 'Tippen = klicken · wischen = scrollen · ⌨︎ = schreiben' : 'Wischen = bewegen · Tippen = OK · lange halten = Zurück';
+    $('hint').style.opacity = 1; setTimeout(() => $('hint').style.opacity = 0, 3500);
+    fb(m === 'mouse' ? 'Maus' : 'Fernbedienung');
+  };
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setMode(b.dataset.m)));
+  setTimeout(() => $('hint').style.opacity = 0, 5000);
+  const showPanel = on => { $('panel').classList.toggle('on', on); clearTimeout(panelT); if (on) panelT = setTimeout(() => showPanel(false), 7000); };
+  $('menuBtn').addEventListener('click', () => { idle(); showPanel(!$('panel').classList.contains('on')); });
+  const KEYFB = { Backspace: '‹', g: 'Guide', h: '★', b: 'Mediathek', l: 'Sender', i: 'Info', ArrowDown: 'CH −', ArrowUp: 'CH +', Enter: 'OK', '-': '🔉', '+': '🔊', m: '🔇', GuidePrime: '20:15' };
+  document.querySelectorAll('#panel [data-k]').forEach(b => b.addEventListener('click', () => { sendKey(b.dataset.k); fb(KEYFB[b.dataset.k] || b.textContent); showPanel(true); }));
+
+  // where in the picture was tapped (0..1) - the video is letterboxed (object-fit: contain)
+  function picPos(x, y) {
+    const W = innerWidth, H = innerHeight, vw = v.videoWidth || 16, vh = v.videoHeight || 9;
+    const s = Math.min(W / vw, H / vh), w = vw * s, h = vh * s, ox = (W - w) / 2, oy = (H - h) / 2;
+    const nx = (x - ox) / w, ny = (y - oy) / h;
+    return nx < 0 || nx > 1 || ny < 0 || ny > 1 ? null : { x: nx.toFixed(4), y: ny.toFixed(4) };
+  }
+
+  // gestures on the picture
+  let p0 = null, last = null, moved = 0, lpT = null, scrollAcc = 0, scrollBusy = false;
+  const STEP = 60;
+  touch.addEventListener('pointerdown', e => {
+    touch.setPointerCapture(e.pointerId); idle(); showPanel(false);
+    p0 = last = { x: e.clientX, y: e.clientY, t: Date.now() }; moved = 0; scrollAcc = 0;
+    clearTimeout(lpT);
+    if (mode === 'remote') lpT = setTimeout(() => { if (!moved) { sendKey('Backspace'); fb('‹ Zurück'); moved = -1; } }, 650);
+  });
+  touch.addEventListener('pointermove', e => {
+    if (!p0) return;
+    const dx = e.clientX - last.x, dy = e.clientY - last.y;
+    if (mode === 'remote') {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < STEP) return;
+      clearTimeout(lpT);
+      const k = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : (dy > 0 ? 'ArrowDown' : 'ArrowUp');
+      sendKey(k); fb({ ArrowRight: '›', ArrowLeft: '‹', ArrowDown: '⌄', ArrowUp: '⌃' }[k]); moved++;
+      last = { x: e.clientX, y: e.clientY };
+    } else {
+      if (Math.abs(e.clientY - p0.y) < 10 && !moved) return;
+      moved = 1; scrollAcc += dy; last = { x: e.clientX, y: e.clientY };
+      if (!scrollBusy && Math.abs(scrollAcc) >= 8) {                     // send in small batches, never flood the notebook
+        const d = Math.round(scrollAcc * 4); scrollAcc = 0; scrollBusy = true;
+        const at = picPos(p0.x, p0.y);
+        get('/input/scroll', '&d=' + d + (at ? '&x=' + at.x + '&y=' + at.y : '')).finally(() => { scrollBusy = false; });
+      }
+    }
+  });
+  touch.addEventListener('pointerup', e => {
+    clearTimeout(lpT);
+    if (!p0) return;
+    const tap = !moved && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) < 12;
+    if (tap && mode === 'remote') { sendKey('Enter'); fb('OK'); ringAt(e.clientX, e.clientY); }
+    if (tap && mode === 'mouse') {
+      const at = picPos(e.clientX, e.clientY);
+      if (at) { get('/input/click', '&x=' + at.x + '&y=' + at.y); ringAt(e.clientX, e.clientY); }
+    }
+    p0 = null;
+  });
+  touch.addEventListener('pointercancel', () => { clearTimeout(lpT); p0 = null; });
+
+  // keyboard: whatever is typed on the iPad goes into the focused field on the TV (click into the search box first)
+  const kb = $('kb');
+  $('kbBtn').addEventListener('click', () => { idle(); kb.value = ''; kb.focus(); fb('⌨︎'); });
+  kb.addEventListener('beforeinput', e => {
+    if (e.inputType === 'insertText' || e.inputType === 'insertReplacementText') { if (e.data) get('/input/text', '&t=' + encodeURIComponent(e.data)); }
+    else if (e.inputType === 'deleteContentBackward') get('/input/key', '&k=Backspace');
+    else if (e.inputType === 'insertLineBreak') { get('/input/key', '&k=Enter'); kb.blur(); }
+  });
+  kb.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); get('/input/key', '&k=Enter'); kb.blur(); } });
+
   if (!key) wait('Link ohne key=…', 'Den Link aus der Fernbedienung verwenden (Einstellungen → Mitschauen).');
 })();
 </script>

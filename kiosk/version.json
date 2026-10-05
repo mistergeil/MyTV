@@ -1,12 +1,13 @@
 {
-  "version": "1.10.2",
+  "version": "1.11.0",
   "date": "05.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "cb044b2273f984a5f305f7477280de5d07d78102390f986cd8ec41138b28bfa4",
-  "size": 40817,
+  "sha256": "2c40e5e97592b2affa01635b0a209d408c0cb93bdd83c83492c1da5f00b73d7f",
+  "size": 46295,
   "notes": [
-    "Kein doppelter Umschalter mehr im Hintergrund (weniger Log-Rauschen)",
-    "„Wiederherstellen“ nimmt immer die neueste Sicherung"
+    "Mausmodus: Webseiten wie RTL+ und Joyn mit der Fernbedienung bedienen (Trackpad, Klick, Scrollen, Tastatur)",
+    "iPad-Mitschauen: Bild antippen = genau dort klicken, Wischen = Navigation, volle Fernbedienung als Glas-Panel",
+    "Weniger Verzögerung beim Mitschauen (ca. 2–3 s)"
   ],
   "installer": false
 }

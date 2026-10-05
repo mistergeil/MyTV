@@ -96,6 +96,14 @@
   .progress { height: 4px; border-radius: 2px; background: var(--g2); margin: 12px 16px 0; overflow: hidden; }
   .progress i { display: block; height: 100%; width: 0; background: var(--blue); transition: width .3s; }
   .cell .play { color: var(--blue); font-size: 15px; font-weight: 600; }
+  .modes { display: flex; gap: 8px; margin: 0 0 10px; }
+  .seg2 { flex: 1; display: flex; padding: 2px; border-radius: 9px; background: var(--g2); }
+  .seg2 button { flex: 1; height: 32px; border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .seg2 button.on { background: #636366; color: #fff; }
+  .kbb { width: 44px; height: 36px; border-radius: 9px; background: var(--g2); font-size: 18px; }
+  .kbb:active { background: #636366; }
+  #kb { position: fixed; left: -1000px; top: 0; opacity: 0; width: 10px; height: 10px; font-size: 16px; }
+  #pad.mouse { background: linear-gradient(180deg, #1f2430 0%, #171a22 100%); }
   .note { font-size: 13px; color: var(--muted); margin: 7px 16px 0; line-height: 1.35; }
   .seg { display: flex; padding: 2px; border-radius: 9px; background: var(--g2); margin: 2px 0 6px; }
   .seg button { flex: 1; height: 30px; border-radius: 7px; font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -147,6 +155,9 @@
     <button class="ib pw" data-do="on" aria-label="TV einschalten"><svg class="i"><use href="#i-power"/></svg></button>
   </div>
   <div id="gbar"><button data-k="GuideNow">Jetzt</button><button data-k="GuidePrime">Primetime</button><button data-k="GuideDay1">Morgen</button><button data-k="GuideDay2">Übermorgen</button></div>
+  <div class="modes"><div class="seg2" id="modeSeg"><button class="on" data-m="remote">Fernbedienung</button><button data-m="mouse">Maus</button></div>
+    <button class="kbb" id="kbBtn" aria-label="Tastatur">⌨︎</button></div>
+  <input id="kb" type="text" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search">
   <div id="pad" aria-label="Touch-Fläche: wischen = navigieren, tippen = OK">
     <div class="trail" id="trail"></div><div class="ring" id="ring"></div>
     <div id="toast"></div>
@@ -288,15 +299,52 @@
   };
   document.querySelectorAll('#tabs button').forEach(b => b.addEventListener('click', () => { haptic(); show(b.dataset.v); }));
 
-  // ---------- touch surface: swipe = arrows (one step per ~55 px), tap = OK ----------
+  // ---------- touch surface ----------
+  // Fernbedienung: swipe = arrows (one step per ~55 px), tap = OK
+  // Maus: trackpad for web pages (RTL+, Joyn …): move = pointer, tap = click, two fingers = scroll, ⌨︎ = type
   const pad = $('pad'), ring = $('ring'), trail = $('trail');
+  let mode = 'remote';
+  const inp = (p, extra) => fetch(p + '?key=' + encodeURIComponent(key) + extra, { cache: 'no-store' }).catch(() => {});
+  document.querySelectorAll('#modeSeg button').forEach(b => b.addEventListener('click', () => {
+    mode = b.dataset.m; haptic();
+    document.querySelectorAll('#modeSeg button').forEach(x => x.classList.toggle('on', x === b));
+    pad.classList.toggle('mouse', mode === 'mouse');
+    $('hint').style.opacity = 1;
+    $('hint').textContent = mode === 'mouse' ? 'Finger bewegen = Zeiger · Tippen = Klick · 2 Finger = scrollen' : 'Wischen zum Navigieren · Tippen für OK';
+  }));
   let p0 = null, last = null, moved = 0;
   const STEP = 55;
+  const pts = new Map();                                  // active fingers (two = scroll)
+  let accX = 0, accY = 0, accS = 0, busy = false;
+  function flush() {                                       // batched, one request at a time - smooth without flooding
+    if (busy) return;
+    if (accS) { const d = Math.round(accS * -6); accS = 0; busy = true; inp('/input/scroll', '&d=' + d).finally(() => { busy = false; flush(); }); return; }
+    if (accX || accY) {
+      const dx = Math.round(accX), dy = Math.round(accY); accX -= dx; accY -= dy;
+      if (!dx && !dy) return;
+      busy = true; inp('/input/move', '&dx=' + dx + '&dy=' + dy).finally(() => { busy = false; flush(); });
+    }
+  }
   const at = (el, e) => { const r = pad.getBoundingClientRect(); el.style.left = (e.clientX - r.left) + 'px'; el.style.top = (e.clientY - r.top) + 'px'; };
-  pad.addEventListener('pointerdown', e => { pad.setPointerCapture(e.pointerId); p0 = last = { x: e.clientX, y: e.clientY }; moved = 0; at(trail, e); pad.classList.add('touch'); });
+  pad.addEventListener('pointerdown', e => {
+    pad.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.size === 1) { p0 = last = { x: e.clientX, y: e.clientY }; moved = 0; }
+    at(trail, e); pad.classList.add('touch');
+  });
   pad.addEventListener('pointermove', e => {
-    if (!p0) return;
+    if (!p0 || !pts.has(e.pointerId)) return;
+    const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
     at(trail, e);
+    if (mode === 'mouse') {
+      const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+      if (Math.abs(e.clientX - p0.x) + Math.abs(e.clientY - p0.y) > 6) moved = 1;
+      if (pts.size >= 2) { accS += dy / pts.size; }      // two fingers: scroll
+      else {
+        const sp = Math.hypot(dx, dy), gain = 1.6 + Math.min(3, sp / 6);   // pointer acceleration like a trackpad
+        accX += dx * gain; accY += dy * gain;
+      }
+      flush(); $('hint').style.opacity = 0; return;
+    }
     const dx = e.clientX - last.x, dy = e.clientY - last.y;
     if (Math.max(Math.abs(dx), Math.abs(dy)) < STEP) return;
     const k = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'ArrowRight' : 'ArrowLeft') : (dy > 0 ? 'ArrowDown' : 'ArrowUp');
@@ -305,15 +353,29 @@
     $('hint').style.opacity = 0;
   });
   const end = e => {
+    pts.delete(e.pointerId);
+    if (pts.size) return;
     pad.classList.remove('touch');
     if (!p0) return;
     if (!moved && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) < 14) {
       at(ring, e); ring.classList.remove('go'); void ring.offsetWidth; ring.classList.add('go');
-      haptic(); sendKey('Enter'); $('hint').style.opacity = 0;
+      haptic();
+      if (mode === 'mouse') inp('/input/click', ''); else sendKey('Enter');
+      $('hint').style.opacity = 0;
     }
     p0 = null;
   };
-  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', () => { p0 = null; pad.classList.remove('touch'); });
+  pad.addEventListener('pointerup', end); pad.addEventListener('pointercancel', e => { pts.delete(e.pointerId); if (!pts.size) { p0 = null; pad.classList.remove('touch'); } });
+
+  // keyboard: type on the phone → text appears in the focused field on the TV (click into the search box first)
+  const kb = $('kb');
+  $('kbBtn').addEventListener('click', () => { haptic(); kb.value = ''; kb.focus(); });
+  kb.addEventListener('beforeinput', e => {
+    if (e.inputType === 'insertText' || e.inputType === 'insertReplacementText') { if (e.data) inp('/input/text', '&t=' + encodeURIComponent(e.data)); }
+    else if (e.inputType === 'deleteContentBackward') inp('/input/key', '&k=Backspace');
+    else if (e.inputType === 'insertLineBreak') { inp('/input/key', '&k=Enter'); kb.blur(); }
+  });
+  kb.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); inp('/input/key', '&k=Enter'); kb.blur(); } });
 
   // ---------- channels: list / keypad ----------
   document.querySelectorAll('#chSeg button').forEach(b => b.addEventListener('click', () => {

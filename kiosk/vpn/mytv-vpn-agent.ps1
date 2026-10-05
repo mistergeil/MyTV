@@ -14,6 +14,8 @@
 #    GET /cmd?key=KEY&do=album&k=<album>  -> start the Galerie (NFC sticker), empty k = back to TV
 #    GET /watch?key=KEY (LAN) -> watch the TV picture on the iPad (mirroring via FFmpeg -> HLS)
 #    GET /cast/start|stop|status?key=KEY, /cast/index.m3u8?key=KEY, /cast/segNNNNN.ts?key=KEY
+#    GET /input/move?dx=&dy= | /input/abs?x=&y= (0..1) | /input/click?[x=&y=][&b=right] | /input/scroll?d= |
+#        /input/text?t= | /input/key?k=Enter|Backspace|Escape|Tab|Up|Down|Left|Right   (LAN, key) -> mouse mode
 #    GET /pipe/test, /pipe/result?ok=1&where=  -> "Verbindung testen" (remote -> notebook -> MyTV -> notebook)
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
@@ -335,8 +337,8 @@ function Start-Cast {
   $scOpt = if ($enc -eq 'libx264') { '-sc_threshold 0' } else { '' }
   $ffArgs = "-hide_banner -loglevel warning $vin $audioIn " +
           "-vf $vf -c:v $enc $encOpts -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
-          "-g $($fps * 2) -keyint_min $($fps * 2) $scOpt $audioOut " +
-          "-f hls -hls_time 2 -hls_list_size 6 -hls_flags delete_segments+omit_endlist+independent_segments " +
+          "-g $fps -keyint_min $fps $scOpt $audioOut " +
+          "-f hls -hls_time 1 -hls_list_size 4 -hls_flags delete_segments+omit_endlist+independent_segments " +
           "-hls_segment_filename `"$(Join-Path $CastDir 'seg%05d.ts')`" `"$(Join-Path $CastDir 'index.m3u8')`""
   # FFmpeg's messages go to a file (no event handlers: those would run outside PowerShell's thread and crash the switcher)
   $script:CastProc = Start-Process -FilePath $c.ffmpeg -ArgumentList $ffArgs -WindowStyle Hidden -PassThru `
@@ -348,6 +350,40 @@ function Stop-Cast($why) {
   $script:CastProc = $null
 }
 function Get-CastLogTail { $f = Join-Path $CastDir 'ffmpeg.log'; if (Test-Path $f) { return ((Get-Content $f -Tail 6) -join ' | ') } return '' }
+# ---- mouse mode: the remote / iPad moves the real pointer and types into web pages (RTL+, Joyn, …) ----
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public static class MyTVInput {
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")] public static extern bool GetCursorPos(out POINT p);
+  [DllImport("user32.dll")] public static extern int GetSystemMetrics(int i);
+  [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
+  [DllImport("user32.dll")] public static extern void mouse_event(uint f, int dx, int dy, int data, UIntPtr extra);
+  [DllImport("user32.dll", SetLastError = true)] public static extern uint SendInput(uint n, INPUT[] inputs, int size);
+  [StructLayout(LayoutKind.Sequential)] public struct POINT { public int X; public int Y; }
+  [StructLayout(LayoutKind.Sequential)] public struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+  [StructLayout(LayoutKind.Sequential)] public struct MOUSEINPUT { public int dx; public int dy; public uint mouseData; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+  [StructLayout(LayoutKind.Explicit)] public struct INPUTUNION { [FieldOffset(0)] public MOUSEINPUT mi; [FieldOffset(0)] public KEYBDINPUT ki; }
+  [StructLayout(LayoutKind.Sequential)] public struct INPUT { public uint type; public INPUTUNION u; }
+  static void Key(ushort vk, ushort scan, uint flags) {
+    INPUT[] a = new INPUT[1]; a[0].type = 1; a[0].u.ki.wVk = vk; a[0].u.ki.wScan = scan; a[0].u.ki.dwFlags = flags;
+    SendInput(1, a, Marshal.SizeOf(typeof(INPUT)));
+  }
+  public static void Text(string s) { foreach (char c in s) { Key(0, c, 4); Key(0, c, 6); } }      // KEYEVENTF_UNICODE (+KEYUP)
+  public static void VK(ushort vk) { Key(vk, 0, 0); Key(vk, 0, 2); }
+  public static void Move(int dx, int dy) { POINT p; GetCursorPos(out p); SetCursorPos(p.X + dx, p.Y + dy); }
+  public static void Abs(double x, double y) { SetCursorPos((int)Math.Round(x * (GetSystemMetrics(0) - 1)), (int)Math.Round(y * (GetSystemMetrics(1) - 1))); }
+  public static void Click(bool right) { uint d = right ? 8u : 2u, u = right ? 16u : 4u; mouse_event(d, 0, 0, 0, UIntPtr.Zero); mouse_event(u, 0, 0, 0, UIntPtr.Zero); }
+  public static void Wheel(int delta) { mouse_event(0x0800, 0, 0, delta, UIntPtr.Zero); }
+}
+"@
+[void][MyTVInput]::SetProcessDPIAware()          # real screen pixels, also with Windows display scaling
+$InputKeys = @{ Enter = 0x0D; Backspace = 0x08; Escape = 0x1B; Tab = 0x09; Up = 0x26; Down = 0x28; Left = 0x25; Right = 0x27; Space = 0x20 }
+function Get-Num($req, $n, $min, $max) {
+  $v = 0.0
+  if (-not [double]::TryParse([string]$req.QueryString[$n], [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$v)) { throw "$n missing" }
+  return [Math]::Max($min, [Math]::Min($max, $v))
+}
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {
   if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
@@ -468,6 +504,23 @@ while ($true) {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'remote.html'))
       } elseif ($path -eq '/watch') {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'watch.html'))
+      } elseif ($path -like '/input/*') {
+        switch ($path) {
+          '/input/move'   { [MyTVInput]::Move([int](Get-Num $req 'dx' -400 400), [int](Get-Num $req 'dy' -400 400)) }
+          '/input/abs'    { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)) }
+          '/input/click'  {
+            if ($req.QueryString['x']) { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)); Start-Sleep -Milliseconds 30 }
+            [MyTVInput]::Click(([string]$req.QueryString['b'] -eq 'right'))
+          }
+          '/input/scroll' {
+            if ($req.QueryString['x']) { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)) }
+            [MyTVInput]::Wheel([int](Get-Num $req 'd' -2400 2400))
+          }
+          '/input/text'   { $t = Get-QS $req 't'; if ($t.Length -gt 200) { throw 'text too long' }; [MyTVInput]::Text($t) }
+          '/input/key'    { $vk = $InputKeys[[string]$req.QueryString['k']]; if (-not $vk) { throw 'unknown key' }; [MyTVInput]::VK([uint16]$vk) }
+          default { throw 'unknown input' }
+        }
+        $out.ok = $true
       } elseif ($path -eq '/cast/start') {
         Start-Cast; $out.ok = $true; $out.running = (Test-Cast); $out.ready = (Test-Path (Join-Path $CastDir 'index.m3u8'))
       } elseif ($path -eq '/cast/status') {
