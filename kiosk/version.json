@@ -1,11 +1,13 @@
 {
-  "version": "1.8.1",
-  "date": "04.10.2026",
+  "version": "1.9.0",
+  "date": "05.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "83000946f778f0f0a7b15795679f7158d9dd4809c6dc2bfd589cbabe886d4803",
-  "size": 32058,
+  "sha256": "02e3f582ebca665c590a91ab12476223b350b8a91cf1d5f18c38f20bc8b1cccb",
+  "size": 35112,
   "notes": [
-    "Fix: Erinnerungen verschwanden aus Highlights und Guide (Windows-PowerShell-Eigenheit beim Lesen der Liste)"
+    "Neu: Galerie – eure Fotos als Bilderrahmen im Stil echter Abzüge",
+    "Fernbedienung → Fotos: Fotos vom iPhone hochladen, Alben anlegen und am TV zeigen",
+    "NFC-Sticker können ein Album starten (…/cmd?do=album&k=Album)"
   ],
   "installer": false
 }

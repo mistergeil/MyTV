@@ -476,6 +476,40 @@
   #list li.sel button { background: #fff !important; color: #000 !important; transform: scale(1.04); box-shadow: 0 .8vw 2vw rgba(0,0,0,.45); }
   #list li.sel button .n, #list li.sel button .tag { color: rgba(0,0,0,.55) !important; border-color: rgba(0,0,0,.2) !important; }
   #list li button:focus-visible { background: transparent; color: inherit; transform: none; box-shadow: none; }
+
+  /* =================== Galerie: a picture frame on the TV ===================
+     albums = folders on the notebook (C:\MyTV\photos\<album>), album.json: { style, seconds, order, type, title }
+     styles: print (default: real printed photo on a wall), natural (full screen) — type "scene" (campfire …) comes later */
+  #gal { position: fixed; inset: 0; z-index: 40; display: none; overflow: hidden; cursor: none;
+         background: radial-gradient(ellipse at 50% 38%, #2b2420 0%, #17120f 55%, #080605 100%); }
+  #gal.open { display: block; animation: ovIn .8s ease; }
+  #gal::after { content: ''; position: absolute; inset: 0; pointer-events: none;              /* wall texture + vignette */
+                background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .45 0 0 0 0 .4 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+  .gal-stage { position: absolute; inset: 0; }
+  .gal-slide { position: absolute; left: 50%; top: 50%; opacity: 0; transition: opacity 2.6s ease, transform 2.6s cubic-bezier(.2,.8,.25,1);
+               will-change: opacity, transform; }
+  .gal-slide.in { opacity: 1; }
+  .gal-slide .drift { animation: galDrift var(--dur, 20s) linear forwards; }
+  @keyframes galDrift { from { transform: translate(-.5vw, .25vw) scale(1); } to { transform: translate(.5vw, -.25vw) scale(1.035); } }
+  /* printed photo: matte paper border, grain, gentle warm print tones, soft shadow, slightly turned */
+  .gal-print { position: relative; background: #f3efe6; padding: 2.1vmin 2.1vmin 2.1vmin; border-radius: 2px;
+               box-shadow: 0 .35vmin .6vmin rgba(0,0,0,.35), 0 3.2vmin 7vmin rgba(0,0,0,.6); }
+  .gal-print img { display: block; max-width: 74vw; max-height: 76vh; filter: sepia(.1) saturate(.9) contrast(.95) brightness(1.03); }
+  .gal-print::before { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: multiply; opacity: .35;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .5 0 0 0 0 .45 0 0 0 .35 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)'/%3E%3C/svg%3E"); }
+  .gal-print::after { content: ''; position: absolute; inset: 0; pointer-events: none;     /* soft sheen of photo paper */
+    background: linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 38%, rgba(255,255,255,0) 70%, rgba(255,255,255,.05) 100%); }
+  .gal-slide.natural img { max-width: none; width: 100vw; height: 100vh; object-fit: cover; }
+  .gal-slide.natural .drift { animation-name: galDriftBig; }
+  @keyframes galDriftBig { from { transform: scale(1.02); } to { transform: scale(1.09) translate(-1vw, -.6vh); } }
+  .gal-cap { position: absolute; left: var(--safe-x); bottom: var(--safe-y); z-index: 2; padding: .8vw 1.4vw; border-radius: 999px;
+             background: rgba(20,16,14,.6); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); color: rgba(255,255,255,.85);
+             font-size: var(--t-call); font-weight: 600; opacity: 0; transition: opacity .5s; }
+  .gal-cap.on { opacity: 1; }
+  .gal-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; text-align: center; color: rgba(255,255,255,.8);
+             font-size: var(--t-head); font-weight: 600; line-height: 1.4; max-width: 60vw; }
+  .gal-msg small { display: block; font-size: var(--t-call); color: rgba(255,255,255,.5); font-weight: 500; margin-top: .6vw; }
   @media (max-width: 800px) {
     #osd { width: calc(100vw - 32px); padding: 14px 16px; }
     #list { min-width: 0; width: calc(100vw - 32px); right: 16px; }
@@ -534,6 +568,12 @@
   <div class="h-rows" id="hlRows"><div class="h-inner" id="hlInner"></div></div>
   <div id="hlmenu"></div>
   <div class="h-hint">↑ ↓ Reihe · ← → wählen · OK schauen / erinnern · H / Esc schliessen · Zeiten in Ortszeit, deutsche Zeit klein daneben</div>
+</div>
+
+<div id="gal" aria-label="Galerie">
+  <div class="gal-stage" id="galStage"></div>
+  <div class="gal-cap" id="galCap"></div>
+  <div class="gal-msg" id="galMsg"></div>
 </div>
 
 <div id="standby"><div><div class="t" id="sbClock"></div><div class="h">Standby · OK oder Sticker zum Einschalten</div></div></div>
@@ -988,6 +1028,7 @@
 
   // ---------- Mediathek launcher ----------
   const LIBS = [
+    { name: 'Galerie',       desc: 'Eure Fotos als Bilderrahmen', gallery: true, native: 'gal', bg: '#5b4636' },
     { name: 'ARD Mediathek', desc: 'Serien, Filme, Tatort, Dokus', native: 'ard',  bg: '#003480' },
     { name: 'ZDF',           desc: 'ZDF, ZDFneo, ZDFinfo, PHOENIX', native: 'zdf', bg: '#fa7d19' },
     { name: 'arte',          desc: 'Filme, Dokus, Kultur',   native: 'arte',  bg: '#2a2a2a' },
@@ -1022,6 +1063,7 @@
     L.sel = i; renderLib();
   }
   async function openLib(l) {
+    if (l.gallery) { closeLibMenu(); openGallery('Allgemein'); return; }
     if (l.native) { location.replace('mediathek.html?p=' + l.native); return; }
     if (!kiosk) { window.open(l.url, 'mytv-lib'); return; }
     clearTimeout(extTimer);
@@ -1380,6 +1422,91 @@
   $('btnHl').onclick = openHl;
   setInterval(() => { if ($('hl').classList.contains('open') && !HL.menu) { buildHlRows(); renderHl(); } }, 60 * 1000);
 
+
+  // ---------- Galerie (picture frame) ----------
+  // pictures come from the notebook through the pipe (bridge 1.9): /photos/list + /photos/img (base64)
+  const GAL = { open: false, album: '', files: [], order: [], pos: -1, settings: {}, timer: null, paused: false, cur: null, next: null, capT: null };
+  const galShuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  async function galLoad(i) {
+    const f = GAL.files[GAL.order[i]];
+    const r = await pipe('/photos/img?a=' + encodeURIComponent(GAL.album) + '&f=' + encodeURIComponent(f), 20000);
+    if (!r.ok || !r.data) return null;
+    const bin = atob(r.data), u8 = new Uint8Array(bin.length);
+    for (let k = 0; k < bin.length; k++) u8[k] = bin.charCodeAt(k);
+    const url = URL.createObjectURL(new Blob([u8], { type: r.mime || 'image/jpeg' }));
+    await new Promise(res => { const im = new Image(); im.onload = im.onerror = res; im.src = url; });
+    return { url, name: f };
+  }
+  function galMsg(t, sub) { $('galMsg').innerHTML = t ? esc(t) + (sub ? `<small>${esc(sub)}</small>` : '') : ''; }
+  async function openGallery(album) {
+    if (overlay) { toHost({ type: 'go', q: 'gal=' + album }); return; }
+    album = /^[A-Za-z0-9_-]{1,32}$/.test(album || '') ? album : 'Allgemein';
+    if (GAL.open && GAL.album === album) return closeGallery();       // same NFC sticker again → back to TV
+    closeGuide(); toggleList(false); closeLibMenu(); closeHl();
+    if (standby) exitStandby(false);
+    stopPlayback(); clearTimeout(GAL.timer);
+    Object.assign(GAL, { open: true, album, pos: -1, paused: false });
+    $('galStage').innerHTML = ''; $('gal').classList.add('open'); galMsg('Lade Fotos …');
+    const r = await pipe('/photos/list?a=' + encodeURIComponent(album), 15000);
+    if (!GAL.open || GAL.album !== album) return;
+    if (!r.ok) { galMsg('Galerie nicht erreichbar', r.error === 'Bridge 1.9 fehlt' ? 'MyTV Bridge 1.9 nötig' : (r.error || '')); return; }
+    GAL.settings = r.settings || {};
+    GAL.files = r.files || [];
+    if (!GAL.files.length) { galMsg(`Album „${GAL.settings.title || album}“ ist noch leer`, 'Fotos hochladen: Fernbedienung → Fotos'); return; }
+    if (GAL.settings.type && GAL.settings.type !== 'photos') { galMsg('Diese Szene kommt bald', GAL.settings.type); return; }
+    GAL.order = GAL.files.map((f, i) => i);
+    if ((GAL.settings.order || 'shuffle') === 'shuffle') galShuffle(GAL.order);
+    galMsg('');
+    GAL.next = galLoad(0);
+    galAdvance(1);
+  }
+  function closeGallery() {
+    if (!GAL.open) return;
+    GAL.open = false; clearTimeout(GAL.timer);
+    $('gal').classList.remove('open');
+    setTimeout(() => { if (!GAL.open) $('galStage').querySelectorAll('img').forEach(im => URL.revokeObjectURL(im.src)), $('galStage').innerHTML = ''; }, 900);
+    tune(index, { remember: false });
+  }
+  async function galAdvance(step) {
+    clearTimeout(GAL.timer);
+    if (!GAL.open || !GAL.order.length) return;
+    const n = GAL.order.length;
+    GAL.pos = ((GAL.pos + step) % n + n) % n;
+    const pic = step === 1 && GAL.next ? await GAL.next : await galLoad(GAL.pos);
+    if (!GAL.open) return;
+    GAL.next = galLoad((GAL.pos + 1) % n);                               // preload the next one
+    if (!pic) { GAL.timer = setTimeout(() => galAdvance(1), 1500); return; }
+    const secs = Math.max(5, +GAL.settings.seconds || 20);
+    const style = GAL.settings.style === 'natural' ? 'natural' : 'print';
+    const el = document.createElement('div');
+    el.className = 'gal-slide ' + style;
+    const tilt = style === 'print' ? (Math.random() * 3.2 - 1.6).toFixed(2) : 0;
+    el.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scale(.985)`;
+    el.innerHTML = style === 'print'
+      ? `<div class="drift" style="--dur:${secs + 3}s"><div class="gal-print"><img src="${pic.url}" alt=""></div></div>`
+      : `<div class="drift" style="--dur:${secs + 3}s"><img src="${pic.url}" alt=""></div>`;
+    const stage = $('galStage'), old = [...stage.children];
+    stage.appendChild(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => { el.classList.add('in'); el.style.transform = `translate(-50%, -50%) rotate(${tilt}deg) scale(1)`; }));
+    old.forEach(o => { o.classList.remove('in'); setTimeout(() => { const im = o.querySelector('img'); if (im) URL.revokeObjectURL(im.src); o.remove(); }, 2800); });
+    lastInput = Date.now();                                              // a picture frame never falls asleep by itself
+    if (!GAL.paused) GAL.timer = setTimeout(() => galAdvance(1), secs * 1000);
+  }
+  function galCaption(t) {
+    $('galCap').textContent = t; $('galCap').classList.add('on');
+    clearTimeout(GAL.capT); GAL.capT = setTimeout(() => $('galCap').classList.remove('on'), 3500);
+  }
+  function galKey(k) {
+    if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack') closeGallery();
+    else if (k === 'ArrowRight') galAdvance(1);
+    else if (k === 'ArrowLeft') galAdvance(-1);
+    else if (k === 'Enter' || k === ' ') { GAL.paused = !GAL.paused; galCaption(GAL.paused ? '❚❚  Pausiert' : '▶  Weiter'); if (!GAL.paused) galAdvance(1); else clearTimeout(GAL.timer); }
+    else if (k === 'i' || k === 'I' || k === 'ArrowUp' || k === 'ArrowDown') galCaption(`${GAL.settings.title || GAL.album} · ${GAL.pos + 1} / ${GAL.order.length}`);
+    else if (/^[0-9]$/.test(k) || k === 'g' || k === 'G' || k === 'l' || k === 'L' || k === 'h' || k === 'H' || k === 'b' || k === 'B') { closeGallery(); return false; }
+    else return true;
+    return true;
+  }
+
   // ---------- number entry ----------
   function digit(d) {
     entryBuf = (entryBuf + d).slice(-3);
@@ -1438,7 +1565,9 @@
   }, 30e3);
   // ---------- generic pipe to the notebook (bridge 1.9+): pipe('/path?x=1') → agent answer, also from the overlay ----------
   const PIPE = { seq: 0, pending: new Map() };
-  function pipe(path, timeout = 8000) {
+  async function pipe(path, timeout = 8000) {
+    // right after page start the bridge may not have marked the page yet → give it up to 3 s
+    for (let i = 0; i < 30 && !overlay && document.documentElement.dataset.mytvPipe !== '1'; i++) await new Promise(r => setTimeout(r, 100));
     return new Promise(res => {
       const id = 'p' + (++PIPE.seq) + '_' + Date.now();
       PIPE.pending.set(id, res);
@@ -1463,6 +1592,7 @@
       flash(r.ok ? `✓ Verbindung ok · MyTV ${r.version || ''}${overlay ? ' · Overlay' : ''}` : `⚠️ Pipe: ${r.error || 'Fehler'}`);
       pipe('/pipe/result?ok=' + (r.ok ? 1 : 0) + (overlay ? '&where=overlay' : '&where=mytv'));
     }
+    if (c.do === 'album') { if (c.k) openGallery(c.k); else if (GAL.open) closeGallery(); }
     // new remote features hook in here
   }
 
@@ -1509,6 +1639,7 @@
     lastInput = Date.now();
     if (window.MyTVReminders && MyTVReminders.bannerKey(e.key)) { e.preventDefault(); return; }
     if (standby) { e.preventDefault(); exitStandby(); return; }
+    if (GAL.open) { if (galKey(e.key) !== false) { e.preventDefault && e.preventDefault(); return; } }
     const listOpen = $('list').classList.contains('open');
     if ($('hl').classList.contains('open')) {
       const k = e.key;
@@ -1700,7 +1831,7 @@
     const li = byNum(parseInt(store.get('mytv.lastInternal'), 10));
     if (li >= 0) start = li;
   }
-  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('hl') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
+  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('hl') || params.has('gal') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
   renderList();
   if (params.get('standby') === '1') { index = start; renderList(); enterStandby(); }
   else tune(start, { remember: false });
@@ -1709,6 +1840,7 @@
   if (params.get('lib') === '1') openLibMenu();
   if (params.get('guide') === '1') openGuide();
   if (params.get('hl') === '1') openHl();
+  if (params.get('gal')) openGallery(params.get('gal'));
   wake();
 })();
 </script>

@@ -9,6 +9,9 @@
 #    GET /favs                -> favorite channel numbers (MyTV lists them first)
 #    GET /rem                 -> reminders (one list for MyTV, the overlay on every channel and the Mediathek)
 #    GET /rem/add?ch=&chName=&title=&start=&end=&mode=remind|auto   /rem/del?ch=&start=   /rem/take?ch=&start=&step=
+#    GET /photos/albums | /photos/list?a= | /photos/img?a=&f=   -> Galerie (pictures in C:\MyTV\photos\<album>)
+#    POST /photos/upload?key=KEY&a=&name=  (LAN) -> upload from the remote; GET /photos/create?key=KEY&a= -> new album
+#    GET /cmd?key=KEY&do=album&k=<album>  -> start the Galerie (NFC sticker), empty k = back to TV
 #    GET /pipe/test, /pipe/result?ok=1&where=  -> "Verbindung testen" (remote -> notebook -> MyTV -> notebook)
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
@@ -227,6 +230,55 @@ function Get-QS($req, $name) {
   return ''
 }
 function Find-Rem($l, $ch, $start) { return @($l | Where-Object { [int]$_.ch -eq $ch -and [int64]$_.start -eq $start }) }
+# ---- Galerie: albums are folders in C:\MyTV\photos, settings per album in album.json ----
+$PhotoRoot = Join-Path (Split-Path -Parent $Dir) 'photos'
+$ImgRe = '\.(jpe?g|png|webp|gif)$'
+function Get-AlbumDir($a) {
+  if ([string]$a -notmatch '^[A-Za-z0-9_-]{1,32}$') { throw 'Albumname: nur Buchstaben, Ziffern, - und _' }
+  return (Join-Path $PhotoRoot $a)
+}
+function Get-AlbumSettings($dir) {
+  $st = [ordered]@{ title = (Split-Path -Leaf $dir); type = 'photos'; style = 'print'; seconds = 20; order = 'shuffle' }
+  $f = Join-Path $dir 'album.json'
+  if (Test-Path $f) { try { (Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $st[$_.Name] = $_.Value } } catch {} }
+  return $st
+}
+function Get-Albums {
+  $def = Join-Path $PhotoRoot 'Allgemein'
+  if (-not (Test-Path $def)) { New-Item -ItemType Directory -Path $def -Force | Out-Null }
+  return @(Get-ChildItem -Path $PhotoRoot -Directory | Where-Object { $_.Name -match '^[A-Za-z0-9_-]{1,32}$' } | Sort-Object Name | ForEach-Object {
+    [ordered]@{ name = $_.Name; count = @(Get-ChildItem -Path $_.FullName -File | Where-Object { $_.Name -match $ImgRe }).Count; settings = (Get-AlbumSettings $_.FullName) }
+  })
+}
+# upload: downscale to max 2560 px, apply the iPhone rotation (EXIF), save as JPEG
+Add-Type -AssemblyName System.Drawing
+function Save-Photo([byte[]]$bytes, $dir, $name) {
+  $ms = New-Object IO.MemoryStream(, $bytes)
+  try { $img = [Drawing.Image]::FromStream($ms) } catch { throw 'Kein lesbares Bild (HEIC? iPhone: Einstellungen → Kamera → Formate → Maximale Kompatibilität)' }
+  try {
+    if ($img.PropertyIdList -contains 0x0112) {
+      switch ([int]$img.GetPropertyItem(0x0112).Value[0]) {
+        3 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate180FlipNone) }
+        6 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate90FlipNone) }
+        8 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate270FlipNone) }
+      }
+    }
+    $sc = [Math]::Min(1.0, 2560.0 / [Math]::Max($img.Width, $img.Height))
+    $w = [int][Math]::Round($img.Width * $sc); $h = [int][Math]::Round($img.Height * $sc)
+    $bmp = New-Object Drawing.Bitmap($w, $h)
+    $g = [Drawing.Graphics]::FromImage($bmp)
+    $g.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+    $g.DrawImage($img, 0, 0, $w, $h); $g.Dispose()
+    $enc = [Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
+    $ep = New-Object Drawing.Imaging.EncoderParameters(1)
+    $ep.Param[0] = New-Object Drawing.Imaging.EncoderParameter([Drawing.Imaging.Encoder]::Quality, [long]86)
+    $base = ([IO.Path]::GetFileNameWithoutExtension([string]$name) -replace '[^A-Za-z0-9_-]', '')
+    if (-not $base) { $base = 'foto' }
+    $file = (Get-Date -Format 'yyyyMMdd-HHmmss') + '_' + $base.Substring(0, [Math]::Min(40, $base.Length)) + '.jpg'
+    $bmp.Save((Join-Path $dir $file), $enc, $ep); $bmp.Dispose()
+    return $file
+  } finally { $img.Dispose(); $ms.Dispose() }
+}
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {
   if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
@@ -344,6 +396,21 @@ while ($true) {
         if ($Allowed -notcontains $c) { throw 'VPN ist aus - erst einen Sender mit VPN wählen' }
         $out.country = Switch-Server $c; $out.server = Get-ServerInfo $c; $out.ok = ($out.country -eq $c)
         if ($out.ok) { Add-Cmd 'reload' '' '' }          # the channel on the TV reloads with the new server
+      } elseif ($path -eq '/photos/albums') {
+        $out.ok = $true; $out.albums = @(Get-Albums)
+      } elseif ($path -eq '/photos/create') {
+        $d = Get-AlbumDir ([string]$req.QueryString['a'])
+        if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null; Write-Log "album created: $d" }
+        $out.ok = $true; $out.albums = @(Get-Albums)
+      } elseif ($path -eq '/photos/upload') {
+        if ($req.HttpMethod -ne 'POST') { throw 'POST needed' }
+        $d = Get-AlbumDir ([string]$req.QueryString['a'])
+        if (-not (Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }
+        if ($req.ContentLength64 -gt 60MB) { throw 'Bild zu gross (max 60 MB)' }
+        $buf = New-Object IO.MemoryStream; $req.InputStream.CopyTo($buf)
+        $out.file = Save-Photo $buf.ToArray() $d (Get-QS $req 'name'); $buf.Dispose()
+        Write-Log "photo uploaded: $($out.file) -> $(Split-Path -Leaf $d)"
+        $out.ok = $true
       } elseif ($path -eq '/favs') {
         $out.ok = $true; $out.favs = @(Get-Favs)
       } elseif ($path -eq '/favs/set') {
@@ -375,12 +442,10 @@ while ($true) {
         $k  = [string]$req.QueryString['k']
         if ($do -eq 'ch') { if ($n -notmatch '^\d{1,3}$') { throw 'ch needs n=<channel number>' } }
         elseif ($do -eq 'key') { if ($Keys -cnotcontains $k) { throw "key '$k' not allowed" } }
-        elseif ($do -eq 'test') { $ScriptsFile = Join-Path $Dir 'scripts.json'
-$Scripts = [ordered]@{}                            # Tampermonkey versions reported by MyTV (bridge) and the overlay (helper)
-try { if (Test-Path $ScriptsFile) { (Get-Content $ScriptsFile -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $Scripts[$_.Name] = $_.Value } } } catch {}
-$PipeTest = $null }
+        elseif ($do -eq 'test') { $PipeTest = $null }
+        elseif ($do -eq 'album') { if ($k -and $k -notmatch '^[A-Za-z0-9_-]{1,32}$') { throw 'album name: letters, digits, - and _ only' } }
         elseif ($do -ne 'on') { throw "unknown command '$do'" }
-        if ($do -eq 'on') {
+        if ($do -eq 'on' -or $do -eq 'album') {
           $out.wol = Send-Wol; Write-Log "wake-on-lan: $($out.wol)"
           # TV on + HDMI: preferably via the SmartThings routine, otherwise the TV's network remote (tv-remote.ps1)
           $st = Start-StScene
@@ -431,6 +496,21 @@ $PipeTest = $null }
           if ($r -and -not $r.PSObject.Properties[$step]) { $r | Add-Member -NotePropertyName $step -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); Save-Rems $l; $out.took = $true }
         }
         $out.ok = $true; $out.list = @(Get-Rems)
+      } elseif ($path -eq '/photos/albums') {
+        $out.ok = $true; $out.albums = @(Get-Albums)
+      } elseif ($path -eq '/photos/list') {
+        $d = Get-AlbumDir ([string]$req.QueryString['a'])
+        if (-not (Test-Path $d)) { throw "Album '$([string]$req.QueryString['a'])' gibt es nicht" }
+        $out.ok = $true; $out.settings = Get-AlbumSettings $d
+        $out.files = @(Get-ChildItem -Path $d -File | Where-Object { $_.Name -match $ImgRe } | Sort-Object Name | ForEach-Object { $_.Name })
+      } elseif ($path -eq '/photos/img') {
+        $d = Get-AlbumDir ([string]$req.QueryString['a']); $f = [string]$req.QueryString['f']
+        if ($f -notmatch '^[^\\/:*?"<>|]{1,120}$' -or $f -notmatch $ImgRe) { throw 'bad file' }
+        $fp = Join-Path $d $f
+        if (-not (Test-Path -LiteralPath $fp)) { throw 'not found' }
+        $ext = [IO.Path]::GetExtension($f).ToLower()
+        $out.mime = if ($ext -eq '.png') { 'image/png' } elseif ($ext -eq '.webp') { 'image/webp' } elseif ($ext -eq '.gif') { 'image/gif' } else { 'image/jpeg' }
+        $out.data = [Convert]::ToBase64String([IO.File]::ReadAllBytes($fp)); $out.ok = $true
       } elseif ($path -eq '/ver/set') {
         foreach ($n in @('bridge', 'helper')) {
           $v = [string]$req.QueryString[$n]
