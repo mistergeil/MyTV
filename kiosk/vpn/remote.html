@@ -212,6 +212,11 @@
     <div class="cell"><span class="nm">Zuletzt geprüft</span><span class="val" id="sChecked">–</span></div>
     <button class="cell primary" id="sCheck">Nach Updates suchen</button>
   </div>
+  <h2>Mitschauen</h2>
+  <div class="group">
+    <a class="cell primary" id="wLink" href="#" style="text-decoration:none">Auf diesem Gerät mitschauen</a>
+  </div>
+  <div class="note">Zeigt das TV-Bild auf iPad oder iPhone (ein paar Sekunden Verzögerung). Für die Familie: Link öffnen → Teilen → „Zum Home-Bildschirm“.</div>
   <h2>Tampermonkey</h2>
   <div class="group">
     <div class="cell"><span class="nm">MyTV Bridge</span><span class="val" id="tBridge">–</span></div>
@@ -542,6 +547,7 @@
     try { const j = await api('/vpn/next'); msg(j.ok ? 'Server ' + (j.server ? j.server.name + ' (' + j.server.n + '/' + j.server.of + ')' : 'gewechselt') + ' – Sender lädt neu' : (j.error || 'Fehler'), j.ok ? 'ok' : 'err'); pollUi(); }
     catch (e) { msg('Notebook nicht erreichbar', 'err'); }
   });
+  $('wLink').href = '/watch?key=' + encodeURIComponent(key);
   pollUi();
   if (key) check(false);
 })();

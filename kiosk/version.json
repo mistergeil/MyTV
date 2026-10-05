@@ -1,13 +1,12 @@
 {
-  "version": "1.9.1",
+  "version": "1.10.0",
   "date": "05.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "31abea11f8354d99f1a43957d721383e5467e0d84cd920bfeffa65ad5ac8305a",
-  "size": 35359,
+  "sha256": "7180d562efd5ca90587a476fe89e5f4070bf4b05f8481515df86c1392d1d6a8b",
+  "size": 40440,
   "notes": [
-    "Fix: Umschalter fiel nach dem Setzen einer Erinnerung kurz aus (daher „switcher not running“)",
-    "Fix: Update-Status auf der Fernbedienung bleibt nicht mehr bei „Startet …“ hängen",
-    "Galerie: Bilder laden deutlich schneller, gleichnamige Uploads überschreiben sich nicht mehr"
+    "Neu: Mitschauen – das TV-Bild auf iPad oder iPhone im Heim-WLAN (Einstellungen → Mitschauen)",
+    "Mit kleiner Fernbedienungsleiste direkt im Bild"
   ],
   "installer": false
 }

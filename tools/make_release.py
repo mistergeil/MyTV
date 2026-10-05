@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parent.parent
 K = ROOT / "kiosk"
 FILES = ["MyTV-Kiosk.bat", "MyTV-Setup.bat", "Autostart-Install.bat", "Autostart-Remove.bat",
          "vpn/VPN-Install.bat", "vpn/VPN-Uninstall.bat", "vpn/install-vpn.ps1", "vpn/uninstall-vpn.ps1",
-         "vpn/mytv-vpn-agent.ps1", "vpn/mytv-update.ps1", "vpn/tv-remote.ps1", "vpn/remote.html", "vpn/VERSION"]
+         "vpn/mytv-vpn-agent.ps1", "vpn/mytv-update.ps1", "vpn/tv-remote.ps1", "vpn/remote.html", "vpn/watch.html", "vpn/VERSION"]
 
 def main():
     args = [a for a in sys.argv[1:] if a != "--installer"]

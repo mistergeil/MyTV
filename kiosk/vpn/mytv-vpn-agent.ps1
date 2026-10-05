@@ -12,6 +12,8 @@
 #    GET /photos/albums | /photos/list?a= | /photos/img?a=&f=   -> Galerie (pictures in C:\MyTV\photos\<album>)
 #    POST /photos/upload?key=KEY&a=&name=  (LAN) -> upload from the remote; GET /photos/create?key=KEY&a= -> new album
 #    GET /cmd?key=KEY&do=album&k=<album>  -> start the Galerie (NFC sticker), empty k = back to TV
+#    GET /watch?key=KEY (LAN) -> watch the TV picture on the iPad (mirroring via FFmpeg -> HLS)
+#    GET /cast/start|stop|status?key=KEY, /cast/index.m3u8?key=KEY, /cast/segNNNNN.ts?key=KEY
 #    GET /pipe/test, /pipe/result?ok=1&where=  -> "Verbindung testen" (remote -> notebook -> MyTV -> notebook)
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
@@ -285,6 +287,58 @@ function Save-Photo([byte[]]$bytes, $dir, $name) {
     return $file
   } finally { $img.Dispose(); $ms.Dispose() }
 }
+# ---- Mitschauen: the notebook records its screen + sound with FFmpeg as HLS, Safari on the iPad plays it ----
+# settings in vpn\cast.json (written once on the notebook, e.g. by Claude Code):
+#   { "ffmpeg": "C:\\...\\ffmpeg.exe", "encoder": "h264_qsv|h264_nvenc|h264_amf|libx264", "fps": 30,
+#     "width": 1920, "height": 1080, "bitrate": "6M", "audio": "<dshow audio device name or empty>" }
+$CastDir = Join-Path $RunDir 'cast'
+$CastProc = $null; $CastHit = [DateTime]::MinValue
+function Get-CastCfg {
+  $c = [ordered]@{ ffmpeg = ''; encoder = 'libx264'; fps = 30; width = 1280; height = 720; bitrate = '4M'; audio = '' }
+  $f = Join-Path $Dir 'cast.json'
+  if (Test-Path $f) { try { (Get-Content $f -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $c[$_.Name] = $_.Value } } catch {} }
+  if (-not $c.ffmpeg) {
+    foreach ($cand in @((Join-Path (Split-Path -Parent $Dir) 'tools\ffmpeg\bin\ffmpeg.exe'), 'ffmpeg.exe')) {
+      $cmd = Get-Command $cand -ErrorAction SilentlyContinue
+      if ($cmd) { $c.ffmpeg = $cmd.Source; break }
+    }
+  }
+  return $c
+}
+function Test-Cast { return ($script:CastProc -and -not $script:CastProc.HasExited) }
+function Start-Cast {
+  $script:CastHit = [DateTime]::UtcNow
+  if (Test-Cast) { return }
+  $c = Get-CastCfg
+  if (-not $c.ffmpeg -or -not (Test-Path $c.ffmpeg)) { throw 'FFmpeg fehlt auf dem Notebook (cast.json / C:\MyTV\tools\ffmpeg)' }
+  if (Test-Path $CastDir) { Remove-Item -Path (Join-Path $CastDir '*') -Force -ErrorAction SilentlyContinue } else { New-Item -ItemType Directory -Path $CastDir -Force | Out-Null }
+  $fps = [int]$c.fps
+  $enc = [string]$c.encoder
+  $vfmt = if ($enc -eq 'libx264') { 'yuv420p' } else { 'nv12' }
+  $encOpts = switch ($enc) {
+    'libx264'    { '-preset veryfast -tune zerolatency' }
+    'h264_qsv'   { '-preset faster -look_ahead 0' }
+    'h264_nvenc' { '-preset p4 -tune ll' }
+    'h264_amf'   { '-usage lowlatency -quality speed' }
+    default      { '' }
+  }
+  $audioIn = if ($c.audio) { "-f dshow -audio_buffer_size 50 -i audio=`"$($c.audio)`"" } else { '' }
+  $audioOut = if ($c.audio) { '-c:a aac -b:a 160k -ar 48000' } else { '-an' }
+  $ffArgs = "-hide_banner -loglevel warning -f gdigrab -framerate $fps -draw_mouse 0 -i desktop $audioIn " +
+          "-vf scale=$($c.width):$($c.height):flags=bicubic,format=$vfmt -c:v $enc $encOpts -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
+          "-g $($fps * 2) -keyint_min $($fps * 2) -sc_threshold 0 $audioOut " +
+          "-f hls -hls_time 2 -hls_list_size 6 -hls_flags delete_segments+omit_endlist+independent_segments " +
+          "-hls_segment_filename `"$(Join-Path $CastDir 'seg%05d.ts')`" `"$(Join-Path $CastDir 'index.m3u8')`""
+  # FFmpeg's messages go to a file (no event handlers: those would run outside PowerShell's thread and crash the switcher)
+  $script:CastProc = Start-Process -FilePath $c.ffmpeg -ArgumentList $ffArgs -WindowStyle Hidden -PassThru `
+                       -RedirectStandardError (Join-Path $CastDir 'ffmpeg.log') -RedirectStandardOutput (Join-Path $CastDir 'ffmpeg.out')
+  Write-Log "cast started: $enc $($c.width)x$($c.height)@$fps $($c.bitrate) audio='$($c.audio)'"
+}
+function Stop-Cast($why) {
+  if (Test-Cast) { try { $script:CastProc.Kill() } catch {}; Write-Log "cast stopped ($why)" }
+  $script:CastProc = $null
+}
+function Get-CastLogTail { $f = Join-Path $CastDir 'ffmpeg.log'; if (Test-Path $f) { return ((Get-Content $f -Tail 6) -join ' | ') } return '' }
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {
   if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
@@ -377,8 +431,10 @@ while ($true) {
     if (-not $l.IsListening) { throw 'listener stopped' }
     $ctx = $l.GetContext(); $req = $ctx.Request; $res = $ctx.Response
     $out = [ordered]@{}
-    $page = $null; $rawJson = $null
+    $page = $null; $rawJson = $null; $bin = $null; $binType = ''
     $lan = $req.LocalEndPoint.Port -eq $LanPort
+    # nobody watching for a minute → stop recording (saves the notebook's power)
+    if ($CastProc -and ([DateTime]::UtcNow - $CastHit).TotalSeconds -gt 60) { Stop-Cast 'no viewer' }
   } catch {
     Write-Log "listener error: $_ - restarting listener"
     try { $l.Close() } catch {}
@@ -393,6 +449,28 @@ while ($true) {
       $path = $req.Url.AbsolutePath
       if ($path -eq '/remote') {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'remote.html'))
+      } elseif ($path -eq '/watch') {
+        $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'watch.html'))
+      } elseif ($path -eq '/cast/start') {
+        Start-Cast; $out.ok = $true; $out.running = (Test-Cast); $out.ready = (Test-Path (Join-Path $CastDir 'index.m3u8'))
+      } elseif ($path -eq '/cast/status') {
+        $CastHit = [DateTime]::UtcNow
+        $out.ok = $true; $out.running = (Test-Cast); $out.ready = (Test-Path (Join-Path $CastDir 'index.m3u8'))
+        if (-not $out.running) { $out.log = Get-CastLogTail }
+      } elseif ($path -eq '/cast/stop') {
+        Stop-Cast 'remote'; $out.ok = $true
+      } elseif ($path -eq '/cast/index.m3u8') {
+        $CastHit = [DateTime]::UtcNow
+        $f = Join-Path $CastDir 'index.m3u8'
+        if (-not (Test-Path $f)) { $res.StatusCode = 404; throw 'not ready' }
+        # segments need the key too → append it to every segment line
+        $txt = ((Get-Content $f) | ForEach-Object { if ($_ -and -not $_.StartsWith('#')) { $_ + '?key=' + $Key } else { $_ } }) -join "`n"
+        $bin = [Text.Encoding]::UTF8.GetBytes($txt + "`n"); $binType = 'application/vnd.apple.mpegurl'
+      } elseif ($path -match '^/cast/(seg\d{5}\.ts)$') {
+        $CastHit = [DateTime]::UtcNow
+        $f = Join-Path $CastDir $Matches[1]
+        if (-not (Test-Path $f)) { $res.StatusCode = 404; throw 'segment gone' }
+        $bin = [IO.File]::ReadAllBytes($f); $binType = 'video/mp2t'
       } elseif ($path -eq '/ping') {
         $out.ok = $true; $out.vpn = Get-Active; $out.version = $Version
         if ($out.vpn -ne 'OFF') { $out.server = Get-ServerInfo $out.vpn }
@@ -558,6 +636,7 @@ while ($true) {
     else { $res.Headers.Add('Access-Control-Allow-Origin', 'https://mistergeil.github.io') }
     if ($page) { Send-Bytes $res $page 'text/html; charset=utf-8' }
     elseif ($rawJson) { Send-Bytes $res ([Text.Encoding]::UTF8.GetBytes($rawJson)) 'application/json' }
+    elseif ($bin) { Send-Bytes $res $bin $binType }
     else { Send-Bytes $res ([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $out -Compress -Depth 4))) 'application/json' }
   } catch { Write-Log "send failed: $_" }
 }
