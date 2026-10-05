@@ -294,7 +294,7 @@ function Save-Photo([byte[]]$bytes, $dir, $name) {
 $CastDir = Join-Path $RunDir 'cast'
 $CastProc = $null; $CastHit = [DateTime]::MinValue
 function Get-CastCfg {
-  $c = [ordered]@{ ffmpeg = ''; encoder = 'libx264'; fps = 30; width = 1280; height = 720; bitrate = '4M'; audio = '' }
+  $c = [ordered]@{ ffmpeg = ''; encoder = 'libx264'; fps = 30; width = 1280; height = 720; bitrate = '4M'; audio = ''; capture = 'gdigrab' }
   $f = Join-Path $Dir 'cast.json'
   if (Test-Path $f) { try { (Get-Content $f -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $c[$_.Name] = $_.Value } } catch {} }
   if (-not $c.ffmpeg) {
@@ -322,17 +322,26 @@ function Start-Cast {
     'h264_amf'   { '-usage lowlatency -quality speed' }
     default      { '' }
   }
-  $audioIn = if ($c.audio) { "-f dshow -audio_buffer_size 50 -i audio=`"$($c.audio)`"" } else { '' }
+  $audioIn = if ($c.audio) { "-thread_queue_size 512 -f dshow -audio_buffer_size 50 -i audio=`"$($c.audio)`"" } else { '' }
   $audioOut = if ($c.audio) { '-c:a aac -b:a 160k -ar 48000' } else { '-an' }
-  $ffArgs = "-hide_banner -loglevel warning -f gdigrab -framerate $fps -draw_mouse 0 -i desktop $audioIn " +
-          "-vf scale=$($c.width):$($c.height):flags=bicubic,format=$vfmt -c:v $enc $encOpts -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
-          "-g $($fps * 2) -keyint_min $($fps * 2) -sc_threshold 0 $audioOut " +
+  # capture: ddagrab (Desktop Duplication, much faster on a 4K desktop) or gdigrab (works everywhere, slow)
+  if ([string]$c.capture -eq 'ddagrab') {
+    $vin = "-thread_queue_size 512 -f lavfi -i ddagrab=output_idx=0:framerate=${fps}:draw_mouse=0"
+    $vf  = "hwdownload,format=bgra,scale=$($c.width):$($c.height):flags=fast_bilinear,format=$vfmt"
+  } else {
+    $vin = "-thread_queue_size 512 -f gdigrab -framerate $fps -draw_mouse 0 -i desktop"
+    $vf  = "scale=$($c.width):$($c.height):flags=bicubic,format=$vfmt"
+  }
+  $scOpt = if ($enc -eq 'libx264') { '-sc_threshold 0' } else { '' }
+  $ffArgs = "-hide_banner -loglevel warning $vin $audioIn " +
+          "-vf $vf -c:v $enc $encOpts -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
+          "-g $($fps * 2) -keyint_min $($fps * 2) $scOpt $audioOut " +
           "-f hls -hls_time 2 -hls_list_size 6 -hls_flags delete_segments+omit_endlist+independent_segments " +
           "-hls_segment_filename `"$(Join-Path $CastDir 'seg%05d.ts')`" `"$(Join-Path $CastDir 'index.m3u8')`""
   # FFmpeg's messages go to a file (no event handlers: those would run outside PowerShell's thread and crash the switcher)
   $script:CastProc = Start-Process -FilePath $c.ffmpeg -ArgumentList $ffArgs -WindowStyle Hidden -PassThru `
                        -RedirectStandardError (Join-Path $CastDir 'ffmpeg.log') -RedirectStandardOutput (Join-Path $CastDir 'ffmpeg.out')
-  Write-Log "cast started: $enc $($c.width)x$($c.height)@$fps $($c.bitrate) audio='$($c.audio)'"
+  Write-Log "cast started: $($c.capture) $enc $($c.width)x$($c.height)@$fps $($c.bitrate) audio='$($c.audio)'"
 }
 function Stop-Cast($why) {
   if (Test-Cast) { try { $script:CastProc.Kill() } catch {}; Write-Log "cast stopped ($why)" }

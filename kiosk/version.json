@@ -1,12 +1,11 @@
 {
-  "version": "1.10.0",
+  "version": "1.10.1",
   "date": "05.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "7180d562efd5ca90587a476fe89e5f4070bf4b05f8481515df86c1392d1d6a8b",
-  "size": 40440,
+  "sha256": "2ce91619d31f1f0ab541b2921b6391a95263955e8e9eae0b962b4bee1f202274",
+  "size": 40632,
   "notes": [
-    "Neu: Mitschauen – das TV-Bild auf iPad oder iPhone im Heim-WLAN (Einstellungen → Mitschauen)",
-    "Mit kleiner Fernbedienungsleiste direkt im Bild"
+    "Mitschauen: schnellere Bildaufnahme (Desktop Duplication) – deutlich flüssiger und weniger Last"
   ],
   "installer": false
 }
