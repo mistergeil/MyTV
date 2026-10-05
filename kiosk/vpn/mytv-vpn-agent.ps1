@@ -359,7 +359,7 @@ function Get-UpdateInfo($force) {
   return $script:UpdInfo
 }
 function Get-UpdateState { if (Test-Path $UpdState) { try { return (Get-Content $UpdState -Raw | ConvertFrom-Json) } catch {} } return $null }
-function Get-BackupNames { $b = Join-Path (Split-Path -Parent $Dir) 'backup'; if (Test-Path $b) { @(Get-ChildItem $b -Directory | Sort-Object Name -Descending | ForEach-Object { $_.Name }) } else { @() } }
+function Get-BackupNames { $b = Join-Path (Split-Path -Parent $Dir) 'backup'; if (Test-Path $b) { @(Get-ChildItem $b -Directory | Sort-Object LastWriteTime -Descending | ForEach-Object { $_.Name }) } else { @() } }
 function Start-Updater($action) {
   if (-not (Get-ScheduledTask -TaskName $UpdTask -ErrorAction SilentlyContinue)) { throw 'Updater nicht installiert - einmal VPN-Install.bat ausführen' }
   $st = Get-UpdateState
@@ -421,7 +421,12 @@ $us = Get-UpdateState
 if ($us -and ((Get-Date) - [DateTime]$us.t).TotalMinutes -lt 3) { Start-Sleep -Seconds 1; Restore-KioskFocus }
 # the listener survives network changes (VPN switch, Wi-Fi) and aborted requests: on any error it is rebuilt,
 # and the switcher never ends by itself. If it does end anyway, the watchdog trigger starts it again within 2 minutes.
+# another switcher already answering on 8765? (watchdog start while one runs outside the task's view) → leave quietly
+function Test-OtherAgent {
+  try { $r = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/status" -TimeoutSec 2; return ($r -and $r.ok) } catch { return $false }
+}
 function Start-Listener {
+  if (Test-OtherAgent) { exit 0 }
   for ($i = 0; $i -lt 30; $i++) {
     try {
       $x = New-Object System.Net.HttpListener
@@ -429,7 +434,10 @@ function Start-Listener {
       if ($Key) { $x.Prefixes.Add("http://+:$LanPort/") }
       $x.Start()
       return $x
-    } catch { Write-Log "listener start failed (try $($i + 1)): $_"; Start-Sleep -Seconds 2 }
+    } catch {
+      if (Test-OtherAgent) { Write-Log 'another switcher is already running - this one exits'; exit 0 }
+      Write-Log "listener start failed (try $($i + 1)): $_"; Start-Sleep -Seconds 2
+    }
   }
   throw 'listener could not be started'
 }

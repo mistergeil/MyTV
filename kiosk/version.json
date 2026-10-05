@@ -1,11 +1,12 @@
 {
-  "version": "1.10.1",
+  "version": "1.10.2",
   "date": "05.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "2ce91619d31f1f0ab541b2921b6391a95263955e8e9eae0b962b4bee1f202274",
-  "size": 40632,
+  "sha256": "cb044b2273f984a5f305f7477280de5d07d78102390f986cd8ec41138b28bfa4",
+  "size": 40817,
   "notes": [
-    "Mitschauen: schnellere Bildaufnahme (Desktop Duplication) – deutlich flüssiger und weniger Last"
+    "Kein doppelter Umschalter mehr im Hintergrund (weniger Log-Rauschen)",
+    "„Wiederherstellen“ nimmt immer die neueste Sicherung"
   ],
   "installer": false
 }

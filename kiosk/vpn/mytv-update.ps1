@@ -65,7 +65,8 @@ function Copy-Tree($from) {
   }
   return $n
 }
-function Get-Backups { if (Test-Path $BackDir) { @(Get-ChildItem -Path $BackDir -Directory | Sort-Object Name -Descending) } else { @() } }
+# newest backup first (by date, whatever the folder is called)
+function Get-Backups { if (Test-Path $BackDir) { @(Get-ChildItem -Path $BackDir -Directory | Sort-Object LastWriteTime -Descending) } else { @() } }
 
 $req = @{ action = 'install' }
 try { if (Test-Path $Request) { $req = Get-Content $Request -Raw | ConvertFrom-Json; Remove-Item $Request -Force } } catch {}
