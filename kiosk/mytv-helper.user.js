@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         MyTV Helper
 // @namespace    https://mistergeil.github.io/MyTV/
-// @version      1.13.0
+// @version      1.14.0
 // @description  Makes external channels opened from MyTV behave like the TV: full screen, autoplay, remote keys.
 // @match        https://www.livehdtv.net/*
 // @match        https://livehdtv.net/*
@@ -102,6 +102,7 @@
                  background:#000 !important; overflow:hidden !important; }
     #mytv-overlay { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
                     border:0 !important; z-index:2147483646 !important; background:transparent !important; color-scheme:normal !important; }
+    #mytv-overlay:not(.mytv-interactive) { pointer-events:none !important; }   /* clicks go to the player page unless guide/list are open */
   ` + (IS_ORF ? `
     .player-area-player { position:fixed !important; inset:0 !important; width:100vw !important; height:100vh !important;
                           max-width:none !important; max-height:none !important; margin:0 !important; padding:0 !important;
@@ -401,6 +402,7 @@
       else if (d.type === 'ok') { if (IS_OFFICIAL && !clickPlay('OK')) L0('OK: nothing to click'); }
       else if (d.type === 'lib') go('back=1&from=' + CH + '&lib=1');
       else if (d.type === 'hl') go('back=1&from=' + CH + '&hl=1');
+      else if (d.type === 'interactive') { const f = document.getElementById('mytv-overlay'); if (f) f.classList.toggle('mytv-interactive', !!d.on); }
       else if (d.type === 'go' && typeof d.q === 'string') {
         // generic pipe for future overlay features: only MyTV's own short parameters (name=value, letters/digits), never a URL
         const q = new URLSearchParams(d.q), out = new URLSearchParams();

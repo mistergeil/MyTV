@@ -1,13 +1,11 @@
 {
-  "version": "1.11.1",
+  "version": "1.11.2",
   "date": "05.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "05b45642a5f884f310ebf6cfbafe8f6c77e36b4cf3b4e121634f430022ecbe83",
-  "size": 46406,
+  "sha256": "53b605c96c1c21929b2199e2ab40793b43271ee4c1dcf4d6f9e98afcfc848d66",
+  "size": 46483,
   "notes": [
-    "Mausmodus: Webseiten wie RTL+ und Joyn mit der Fernbedienung bedienen (Trackpad, Klick, Scrollen, Tastatur)",
-    "iPad-Mitschauen: Bild antippen = genau dort klicken, Wischen = Navigation, volle Fernbedienung als Glas-Panel",
-    "Weniger Verzögerung beim Mitschauen (ca. 2–3 s)"
+    "Mausmodus: Klicks auf RTL+, Joyn & Co. kommen jetzt an"
   ],
   "installer": false
 }

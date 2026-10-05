@@ -515,7 +515,9 @@ while ($true) {
           '/input/move'   { [MyTVInput]::Move([int](Get-Num $req 'dx' -400 400), [int](Get-Num $req 'dy' -400 400)) }
           '/input/abs'    { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)) }
           '/input/click'  {
-            if ($req.QueryString['x']) { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)); Start-Sleep -Milliseconds 30 }
+            if ($req.QueryString['x']) { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)) }
+            # a tiny real move first: the page notices the mouse (pointer-hiding sheet goes away) before the click lands
+            [MyTVInput]::Move(1, 0); Start-Sleep -Milliseconds 25; [MyTVInput]::Move(-1, 0); Start-Sleep -Milliseconds 70
             [MyTVInput]::Click(([string]$req.QueryString['b'] -eq 'right'))
           }
           '/input/scroll' {

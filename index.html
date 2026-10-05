@@ -1601,6 +1601,15 @@
   // Tampermonkey script versions → notebook (⚙︎ on the remote shows them)
   setTimeout(() => { const v = document.documentElement.dataset.mytvBridgeVersion; if (!overlay && v) pipe('/ver/set?bridge=' + v); }, 1500);
 
+  // overlay on Joyn / RTL+ …: the MyTV layer only takes mouse clicks while one of its panels is open (helper ≥ 1.14)
+  if (overlay) {
+    let lastInter = null;
+    setInterval(() => {
+      const on = ['guide', 'list', 'help', 'hl', 'lib'].some(id => $(id) && $(id).classList.contains('open'));
+      if (on !== lastInter) { lastInter = on; toHost({ type: 'interactive', on }); }
+    }, 400);
+  }
+
   // ---------- favorites ----------
   function applyFavs(list) {
     list = (Array.isArray(list) ? list : []).map(Number).filter(n => n > 0);
