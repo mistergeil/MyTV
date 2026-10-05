@@ -351,6 +351,9 @@ function Stop-Cast($why) {
 }
 function Get-CastLogTail { $f = Join-Path $CastDir 'ffmpeg.log'; if (Test-Path $f) { return ((Get-Content $f -Tail 6) -join ' | ') } return '' }
 # ---- mouse mode: the remote / iPad moves the real pointer and types into web pages (RTL+, Joyn, …) ----
+# (wrapped: if compiling ever fails, only mouse mode is missing - the switcher itself keeps running)
+$InputOk = $false
+try {
 Add-Type -TypeDefinition @"
 using System; using System.Runtime.InteropServices;
 public static class MyTVInput {
@@ -378,6 +381,8 @@ public static class MyTVInput {
 }
 "@
 [void][MyTVInput]::SetProcessDPIAware()          # real screen pixels, also with Windows display scaling
+$InputOk = $true
+} catch { Write-Log "mouse mode unavailable: $_" }
 $InputKeys = @{ Enter = 0x0D; Backspace = 0x08; Escape = 0x1B; Tab = 0x09; Up = 0x26; Down = 0x28; Left = 0x25; Right = 0x27; Space = 0x20 }
 function Get-Num($req, $n, $min, $max) {
   $v = 0.0
@@ -505,6 +510,7 @@ while ($true) {
       } elseif ($path -eq '/watch') {
         $page = [IO.File]::ReadAllBytes((Join-Path $Dir 'watch.html'))
       } elseif ($path -like '/input/*') {
+        if (-not $InputOk) { throw 'Mausmodus auf dem Notebook nicht verfügbar (siehe agent.log)' }
         switch ($path) {
           '/input/move'   { [MyTVInput]::Move([int](Get-Num $req 'dx' -400 400), [int](Get-Num $req 'dy' -400 400)) }
           '/input/abs'    { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)) }
