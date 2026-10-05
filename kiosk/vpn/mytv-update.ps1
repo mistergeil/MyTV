@@ -25,11 +25,12 @@ $Base     = 'https://mistergeil.github.io/MyTV/kiosk/'
 $Protect  = '\.conf$|remote\.key$|favorites\.txt$|reminders\.json$|scripts\.json$|tv-[a-z]+\.txt$|st-[a-z]+\.txt$|Remote-Links\.txt$|\.log$|\\run\\|\\photos\\|\\backup\\'
 
 function Write-Log($m) { "$(Get-Date -Format s)  $m" | Out-File -FilePath $Log -Append -Encoding utf8 }
-function Set-State($state, $msg, $extra) {
-  $o = [ordered]@{ state = $state; msg = $msg; t = (Get-Date).ToString('s') }
+# NB: parameter must not be called $state - PowerShell names are case-insensitive, it would hide $State (the file path)
+function Set-State($st, $msg, $extra) {
+  $o = [ordered]@{ state = $st; msg = $msg; t = (Get-Date).ToString('s') }
   if ($extra) { foreach ($k in $extra.Keys) { $o[$k] = $extra[$k] } }
   ConvertTo-Json $o -Compress | Set-Content -Path $State -Encoding utf8
-  Write-Log "$state - $msg"
+  Write-Log "$st - $msg"
 }
 function Get-Installed { $f = Join-Path $Dir 'VERSION'; if (Test-Path $f) { (Get-Content $f -Raw).Trim() } else { '0' } }
 function Stop-Agent {

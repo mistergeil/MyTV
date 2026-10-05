@@ -261,6 +261,10 @@ function Save-Photo([byte[]]$bytes, $dir, $name) {
         3 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate180FlipNone) }
         6 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate90FlipNone) }
         8 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate270FlipNone) }
+        2 { $img.RotateFlip([Drawing.RotateFlipType]::RotateNoneFlipX) }
+        4 { $img.RotateFlip([Drawing.RotateFlipType]::RotateNoneFlipY) }
+        5 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate90FlipX) }
+        7 { $img.RotateFlip([Drawing.RotateFlipType]::Rotate270FlipX) }
       }
     }
     $sc = [Math]::Min(1.0, 2560.0 / [Math]::Max($img.Width, $img.Height))
@@ -275,6 +279,8 @@ function Save-Photo([byte[]]$bytes, $dir, $name) {
     $base = ([IO.Path]::GetFileNameWithoutExtension([string]$name) -replace '[^A-Za-z0-9_-]', '')
     if (-not $base) { $base = 'foto' }
     $file = (Get-Date -Format 'yyyyMMdd-HHmmss') + '_' + $base.Substring(0, [Math]::Min(40, $base.Length)) + '.jpg'
+    $stem = [IO.Path]::GetFileNameWithoutExtension($file); $k = 2
+    while (Test-Path -LiteralPath (Join-Path $dir $file)) { $file = "${stem}_$k.jpg"; $k++ }
     $bmp.Save((Join-Path $dir $file), $enc, $ep); $bmp.Dispose()
     return $file
   } finally { $img.Dispose(); $ms.Dispose() }
@@ -371,7 +377,7 @@ while ($true) {
     if (-not $l.IsListening) { throw 'listener stopped' }
     $ctx = $l.GetContext(); $req = $ctx.Request; $res = $ctx.Response
     $out = [ordered]@{}
-    $page = $null
+    $page = $null; $rawJson = $null
     $lan = $req.LocalEndPoint.Port -eq $LanPort
   } catch {
     Write-Log "listener error: $_ - restarting listener"
@@ -478,22 +484,22 @@ while ($true) {
         $q = $req.QueryString
         $ch = 0; $start = [int64]0
         if (-not [int]::TryParse([string]$q['ch'], [ref]$ch) -or -not [int64]::TryParse([string]$q['start'], [ref]$start)) { throw 'ch / start missing' }
-        $l = @(Get-Rems)
+        $rl = @(Get-Rems)
         if ($path -eq '/rem/add') {
           $end = [int64]0; [void][int64]::TryParse([string]$q['end'], [ref]$end)
           $mode = if ([string]$q['mode'] -eq 'auto') { 'auto' } else { 'remind' }
-          $l = @($l | Where-Object { -not ([int]$_.ch -eq $ch -and [int64]$_.start -eq $start) })
-          $l += [pscustomobject][ordered]@{ ch = $ch; chName = (Get-QS $req 'chName'); title = (Get-QS $req 'title'); start = $start; end = $end; mode = $mode }
-          Save-Rems $l
+          $rl = @($rl | Where-Object { -not ([int]$_.ch -eq $ch -and [int64]$_.start -eq $start) })
+          $rl += [pscustomobject][ordered]@{ ch = $ch; chName = (Get-QS $req 'chName'); title = (Get-QS $req 'title'); start = $start; end = $end; mode = $mode }
+          Save-Rems $rl
         } elseif ($path -eq '/rem/del') {
-          $l = @($l | Where-Object { -not ([int]$_.ch -eq $ch -and [int64]$_.start -eq $start) })
-          Save-Rems $l
+          $rl = @($rl | Where-Object { -not ([int]$_.ch -eq $ch -and [int64]$_.start -eq $start) })
+          Save-Rems $rl
         } else {
           # each step (tvOn / done) happens exactly once, whichever page asks first
           $step = [string]$q['step']; if ($step -notmatch '^(tvOn|done)$') { throw 'bad step' }
-          $r = Find-Rem $l $ch $start | Select-Object -First 1
+          $r = Find-Rem $rl $ch $start | Select-Object -First 1
           $out.took = $false
-          if ($r -and -not $r.PSObject.Properties[$step]) { $r | Add-Member -NotePropertyName $step -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); Save-Rems $l; $out.took = $true }
+          if ($r -and -not $r.PSObject.Properties[$step]) { $r | Add-Member -NotePropertyName $step -NotePropertyValue ([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()); Save-Rems $rl; $out.took = $true }
         }
         $out.ok = $true; $out.list = @(Get-Rems)
       } elseif ($path -eq '/photos/albums') {
@@ -510,7 +516,8 @@ while ($true) {
         if (-not (Test-Path -LiteralPath $fp)) { throw 'not found' }
         $ext = [IO.Path]::GetExtension($f).ToLower()
         $out.mime = if ($ext -eq '.png') { 'image/png' } elseif ($ext -eq '.webp') { 'image/webp' } elseif ($ext -eq '.gif') { 'image/gif' } else { 'image/jpeg' }
-        $out.data = [Convert]::ToBase64String([IO.File]::ReadAllBytes($fp)); $out.ok = $true
+        # built by hand: ConvertTo-Json on a multi-MB base64 string takes seconds in PS 5.1 and blocks everything else
+        $rawJson = '{"ok":true,"mime":"' + $out.mime + '","data":"' + [Convert]::ToBase64String([IO.File]::ReadAllBytes($fp)) + '"}'
       } elseif ($path -eq '/ver/set') {
         foreach ($n in @('bridge', 'helper')) {
           $v = [string]$req.QueryString[$n]
@@ -550,6 +557,7 @@ while ($true) {
     if ($lan) { $res.Headers.Add('Cache-Control', 'no-store') }
     else { $res.Headers.Add('Access-Control-Allow-Origin', 'https://mistergeil.github.io') }
     if ($page) { Send-Bytes $res $page 'text/html; charset=utf-8' }
+    elseif ($rawJson) { Send-Bytes $res ([Text.Encoding]::UTF8.GetBytes($rawJson)) 'application/json' }
     else { Send-Bytes $res ([Text.Encoding]::UTF8.GetBytes((ConvertTo-Json -InputObject $out -Compress -Depth 4))) 'application/json' }
   } catch { Write-Log "send failed: $_" }
 }
