@@ -472,6 +472,12 @@ function Send-Bytes($res, [byte[]]$bytes, $type) {
 if (-not (Test-Path $WG)) { Write-Log "WireGuard not installed"; exit 1 }
 Set-HiddenTasks
 Set-Watchdog
+# FFmpeg left over from an earlier switcher (update / restart) would block the audio device → stop it
+try {
+  $tools = Join-Path (Split-Path -Parent $Dir) 'tools'
+  Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($tools, [StringComparison]::OrdinalIgnoreCase) } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; Write-Log "stopped orphaned ffmpeg (PID $($_.ProcessId))" }
+} catch {}
 # started by an update a moment ago → give the TV picture back to Chrome
 $us = Get-UpdateState
 if ($us -and ((Get-Date) - [DateTime]$us.t).TotalMinutes -lt 3) { Start-Sleep -Seconds 1; Restore-KioskFocus }

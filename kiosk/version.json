@@ -1,12 +1,11 @@
 {
-  "version": "1.12.0",
+  "version": "1.12.1",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "cec209785ef0cd43d268c37ce92bfdb9ad4f1fda54f71cdd988e571db435ed3d",
-  "size": 47595,
+  "sha256": "c4598063d4d9a44144874e867182e9fc44e6e6a4202d5e61c96e67dea5aaa478",
+  "size": 47879,
   "notes": [
-    "Mitschauen fast ohne Verzögerung (WebRTC über MediaMTX, nach einmaliger Einrichtung)",
-    "Mausmodus: Klicks werden jetzt wie echte Mausklicks gesendet"
+    "Mitschauen: hängengebliebene Aufnahmen werden beim Start/Update automatisch beendet (kein Ton-Stottern mehr)"
   ],
   "installer": false
 }

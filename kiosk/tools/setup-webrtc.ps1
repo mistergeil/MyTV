@@ -67,6 +67,7 @@ rtspTransports: [tcp]
 rtmp: no
 hls: no
 srt: no
+moq: no
 webrtc: yes
 webrtcAddress: :8889
 webrtcEncryption: no
@@ -123,4 +124,6 @@ Say 'LAST STEP BY HAND - firewall (only your home network):' Yellow
 Say '  Windows Defender Firewall -> Advanced settings -> Inbound Rules -> New Rule:'
 Say '   1) Port, TCP 8889, Allow, profile Private only, Scope: remote IP = Local subnet, name "MyTV WebRTC TCP"'
 Say '   2) Port, UDP 8189, Allow, profile Private only, Scope: remote IP = Local subnet, name "MyTV WebRTC UDP"'
+Say '  If Windows showed an "Allow access" prompt for mediamtx.exe, delete that broad rule again:'
+Say '   Inbound Rules -> "MediaMTX" (program mediamtx.exe) -> Delete. Only the two port rules above are needed.'
 Say 'Then on the iPad: reload the Mitschauen page.'

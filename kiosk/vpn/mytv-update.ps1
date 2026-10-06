@@ -35,6 +35,9 @@ function Set-State($st, $msg, $extra) {
 function Get-Installed { $f = Join-Path $Dir 'VERSION'; if (Test-Path $f) { (Get-Content $f -Raw).Trim() } else { '0' } }
 function Stop-Agent {
   Stop-ScheduledTask -TaskName $Agent -ErrorAction SilentlyContinue
+  # its FFmpeg (Mitschauen) too - otherwise it keeps running orphaned and blocks the audio device
+  Get-CimInstance Win32_Process -Filter "Name='ffmpeg.exe'" | Where-Object { $_.ExecutablePath -like (Join-Path $Root 'tools\*') } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" | Where-Object { $_.CommandLine -like '*mytv-vpn-agent.ps1*' } |
     ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
   Start-Sleep -Seconds 2
