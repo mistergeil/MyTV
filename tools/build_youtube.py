@@ -28,7 +28,7 @@ def channel_id(handle, cache):
             raise RuntimeError(f"no channel for {handle}")
         cache[handle] = m.group(1)
         return m.group(1)
-    if handle in cache:
+    if handle.startswith("v:") and handle in cache:
         return cache[handle]
     if handle.startswith("v:"):                      # "v:<videoId>" = the channel that uploaded this video
         html = fetch(f"https://www.youtube.com/watch?v={handle[2:]}")
@@ -37,12 +37,20 @@ def channel_id(handle, cache):
             raise RuntimeError(f"no channel for video {handle[2:]}")
         cache[handle] = m.group(1)
         return m.group(1)
-    html = fetch(f"https://www.youtube.com/{handle}")
-    m = re.search(r'"(?:channelId|externalId)":"(UC[\w-]{22})"', html) or re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', html)
-    if not m:
-        raise RuntimeError(f"no channel id for {handle}")
-    cache[handle] = m.group(1)
-    return m.group(1)
+    # @handle: the page's OWN id (canonical link / externalId) - "channelId" can belong to a featured channel
+    # (Jeff Nippard -> his podcast, Jesse James West -> Jesse James East). Resolved every run; cache = fallback only.
+    try:
+        html = fetch(f"https://www.youtube.com/{handle}")
+        m = (re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', html)
+             or re.search(r'"externalId":"(UC[\w-]{22})"', html)
+             or re.search(r'"channelId":"(UC[\w-]{22})"', html))
+        if not m:
+            raise RuntimeError(f"no channel id for {handle}")
+        cache[handle] = m.group(1)
+    except Exception:
+        if handle not in cache:
+            raise
+    return cache[handle]
 
 def is_short(vid):
     # /shorts/<id> answers 200 for Shorts and redirects (303) to /watch for normal videos
