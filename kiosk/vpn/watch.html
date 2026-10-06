@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MyTV">
 <meta name="theme-color" content="#000000">
@@ -207,9 +208,9 @@
     v.pause(); v.removeAttribute('src'); v.srcObject = null; v.load();
     get('/cast/stop').catch(() => {});
     $('top').classList.add('dim'); $('handle').classList.add('off'); showPanel(false);
-    $('start').hidden = false; $('wait').hidden = true;
-    document.querySelector('#start .t').textContent = 'Beendet';
-    document.querySelector('#start .s').textContent = '▶︎ tippen, um wieder mitzuschauen.';
+    // back to the remote (same app on the home screen, no Safari bar)
+    wait('Beendet', 'Zurück zur Fernbedienung …');
+    setTimeout(() => location.replace('/remote?key=' + q), 400);
   });
   const setMode = m => {
     mode = m; idle();

@@ -1,11 +1,11 @@
 {
-  "version": "1.12.4",
+  "version": "1.12.5",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "390e57d9b567c6238db3ff188d69ecc49f2bdfe3ae52ab58043bd8fa12a72d63",
-  "size": 48932,
+  "sha256": "021d0b011d728adf8c5c92d99bf9c5d7e7403311b7b9dc5080ce44ac0f79bdc8",
+  "size": 48967,
   "notes": [
-    "Mitschauen: ✕ Beenden-Taste, Steuerung liegt im schwarzen Rand statt über dem Bild (oder blendet sich aus)"
+    "Mitschauen: ✕ Beenden führt zurück zur Fernbedienung"
   ],
   "installer": false
 }
