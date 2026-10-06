@@ -76,6 +76,6 @@ window.CHANNELS = [
   { number: 59, name: "Toggo Plus", short: "Toggo", mode: "external", geo: true, xmltv: "TOGGO.plus.de", url: "https://plus.rtl.de/toggo-plus/live" },
 
   // YouTube channels: newest video first, then the next ones (list: youtube.json, built hourly by the GitHub Action)
-  { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut", "v:Ybre8Q-iBWw"] },
-  { number: 61, name: "Gym",        short: "GYM",   type: "youtube", yt: ["@JesseJamesWest", "@UrsKalecinski", "@WillTennyson", "@JeffNippard"] }
+  { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut", "v:Ybre8Q-iBWw", "UCk5IRwxIo4lYyV4PzHhWxsg"] },
+  { number: 61, name: "Gym",        short: "GYM",   type: "youtube", yt: ["@JesseJamesWest", "UCxiub44lXA3uQg_OaA9yheg", "@UrsKalecinski", "@WillTennyson", "@JeffNippard"] }
 ];
