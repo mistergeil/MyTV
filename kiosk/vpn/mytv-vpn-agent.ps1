@@ -294,9 +294,9 @@ function Save-Photo([byte[]]$bytes, $dir, $name) {
 #   { "ffmpeg": "C:\\...\\ffmpeg.exe", "encoder": "h264_qsv|h264_nvenc|h264_amf|libx264", "fps": 30,
 #     "width": 1920, "height": 1080, "bitrate": "6M", "audio": "<dshow audio device name or empty>" }
 $CastDir = Join-Path $RunDir 'cast'
-$CastProc = $null; $CastHit = [DateTime]::MinValue
+$CastProc = $null; $CastHit = [DateTime]::MinValue; $CastStart = [DateTime]::MinValue
 function Get-CastCfg {
-  $c = [ordered]@{ ffmpeg = ''; encoder = 'libx264'; fps = 30; width = 1280; height = 720; bitrate = '4M'; audio = ''; capture = 'gdigrab' }
+  $c = [ordered]@{ ffmpeg = ''; encoder = 'libx264'; fps = 30; width = 1280; height = 720; bitrate = '4M'; audio = ''; capture = 'gdigrab'; transport = 'hls' }
   $f = Join-Path $Dir 'cast.json'
   if (Test-Path $f) { try { (Get-Content $f -Raw | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $c[$_.Name] = $_.Value } } catch {} }
   if (-not $c.ffmpeg) {
@@ -325,7 +325,8 @@ function Start-Cast {
     default      { '' }
   }
   $audioIn = if ($c.audio) { "-thread_queue_size 512 -f dshow -audio_buffer_size 50 -i audio=`"$($c.audio)`"" } else { '' }
-  $audioOut = if ($c.audio) { '-c:a aac -b:a 160k -ar 48000' } else { '-an' }
+  $rtc = ([string]$c.transport -eq 'webrtc')
+  $audioOut = if (-not $c.audio) { '-an' } elseif ($rtc) { '-c:a libopus -b:a 128k -ar 48000 -ac 2' } else { '-c:a aac -b:a 160k -ar 48000' }
   # capture: ddagrab (Desktop Duplication, much faster on a 4K desktop) or gdigrab (works everywhere, slow)
   if ([string]$c.capture -eq 'ddagrab') {
     $vin = "-thread_queue_size 512 -f lavfi -i ddagrab=output_idx=0:framerate=${fps}:draw_mouse=0"
@@ -335,11 +336,13 @@ function Start-Cast {
     $vf  = "scale=$($c.width):$($c.height):flags=bicubic,format=$vfmt"
   }
   $scOpt = if ($enc -eq 'libx264') { '-sc_threshold 0' } else { '' }
+  $outArgs = if ($rtc) { '-f rtsp -rtsp_transport tcp rtsp://127.0.0.1:8554/tv' }      # → MediaMTX → WebRTC to the iPad
+             else { "-f hls -hls_time 1 -hls_list_size 4 -hls_flags delete_segments+omit_endlist+independent_segments " +
+                    "-hls_segment_filename `"$(Join-Path $CastDir 'seg%05d.ts')`" `"$(Join-Path $CastDir 'index.m3u8')`"" }
   $ffArgs = "-hide_banner -loglevel warning $vin $audioIn " +
-          "-vf $vf -c:v $enc $encOpts -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
-          "-g $fps -keyint_min $fps $scOpt $audioOut " +
-          "-f hls -hls_time 1 -hls_list_size 4 -hls_flags delete_segments+omit_endlist+independent_segments " +
-          "-hls_segment_filename `"$(Join-Path $CastDir 'seg%05d.ts')`" `"$(Join-Path $CastDir 'index.m3u8')`""
+          "-vf $vf -c:v $enc $encOpts -bf 0 -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
+          "-g $fps -keyint_min $fps $scOpt $audioOut $outArgs"
+  $script:CastStart = [DateTime]::UtcNow
   # FFmpeg's messages go to a file (no event handlers: those would run outside PowerShell's thread and crash the switcher)
   $script:CastProc = Start-Process -FilePath $c.ffmpeg -ArgumentList $ffArgs -WindowStyle Hidden -PassThru `
                        -RedirectStandardError (Join-Path $CastDir 'ffmpeg.log') -RedirectStandardOutput (Join-Path $CastDir 'ffmpeg.out')
@@ -374,10 +377,22 @@ public static class MyTVInput {
   }
   public static void Text(string s) { foreach (char c in s) { Key(0, c, 4); Key(0, c, 6); } }      // KEYEVENTF_UNICODE (+KEYUP)
   public static void VK(ushort vk) { Key(vk, 0, 0); Key(vk, 0, 2); }
-  public static void Move(int dx, int dy) { POINT p; GetCursorPos(out p); SetCursorPos(p.X + dx, p.Y + dy); }
-  public static void Abs(double x, double y) { SetCursorPos((int)Math.Round(x * (GetSystemMetrics(0) - 1)), (int)Math.Round(y * (GetSystemMetrics(1) - 1))); }
-  public static void Click(bool right) { uint d = right ? 8u : 2u, u = right ? 16u : 4u; mouse_event(d, 0, 0, 0, UIntPtr.Zero); mouse_event(u, 0, 0, 0, UIntPtr.Zero); }
-  public static void Wheel(int delta) { mouse_event(0x0800, 0, 0, delta, UIntPtr.Zero); }
+  static void Mouse(int dx, int dy, uint flags, uint data) {
+    INPUT[] a = new INPUT[1]; a[0].type = 0; a[0].u.mi.dx = dx; a[0].u.mi.dy = dy; a[0].u.mi.dwFlags = flags; a[0].u.mi.mouseData = data;
+    SendInput(1, a, Marshal.SizeOf(typeof(INPUT)));
+  }
+  // moves are sent as real input (the page sees mousemove, exactly like a physical mouse)
+  public static void Move(int dx, int dy) { POINT p; GetCursorPos(out p); AbsPx(p.X + dx, p.Y + dy); }
+  public static void Abs(double x, double y) { AbsPx((int)Math.Round(x * (GetSystemMetrics(0) - 1)), (int)Math.Round(y * (GetSystemMetrics(1) - 1))); }
+  static void AbsPx(int x, int y) {
+    int w = GetSystemMetrics(0), h = GetSystemMetrics(1);
+    x = Math.Max(0, Math.Min(w - 1, x)); y = Math.Max(0, Math.Min(h - 1, y));
+    Mouse((int)Math.Round(x * 65535.0 / (w - 1)), (int)Math.Round(y * 65535.0 / (h - 1)), 0x0001 | 0x8000, 0);   // MOVE | ABSOLUTE
+  }
+  public static void Click(bool right) {
+    Mouse(0, 0, right ? 0x0008u : 0x0002u, 0); System.Threading.Thread.Sleep(45); Mouse(0, 0, right ? 0x0010u : 0x0004u, 0);
+  }
+  public static void Wheel(int delta) { Mouse(0, 0, 0x0800, (uint)delta); }
 }
 "@
 [void][MyTVInput]::SetProcessDPIAware()          # real screen pixels, also with Windows display scaling
@@ -530,10 +545,13 @@ while ($true) {
         }
         $out.ok = $true
       } elseif ($path -eq '/cast/start') {
-        Start-Cast; $out.ok = $true; $out.running = (Test-Cast); $out.ready = (Test-Path (Join-Path $CastDir 'index.m3u8'))
+        Start-Cast; $out.ok = $true; $out.running = (Test-Cast); $cc = Get-CastCfg
+        $out.transport = [string]$cc.transport; $out.webrtcPort = 8889
+        $out.ready = if ($out.transport -eq 'webrtc') { ([DateTime]::UtcNow - $CastStart).TotalSeconds -gt 2.5 } else { (Test-Path (Join-Path $CastDir 'index.m3u8')) }
       } elseif ($path -eq '/cast/status') {
         $CastHit = [DateTime]::UtcNow
-        $out.ok = $true; $out.running = (Test-Cast); $out.ready = (Test-Path (Join-Path $CastDir 'index.m3u8'))
+        $out.ok = $true; $out.running = (Test-Cast); $cc = Get-CastCfg; $out.transport = [string]$cc.transport; $out.webrtcPort = 8889
+        $out.ready = if ($out.transport -eq 'webrtc') { $out.running -and ([DateTime]::UtcNow - $CastStart).TotalSeconds -gt 2.5 } else { (Test-Path (Join-Path $CastDir 'index.m3u8')) }
         if (-not $out.running) { $out.log = Get-CastLogTail }
       } elseif ($path -eq '/cast/stop') {
         Stop-Cast 'remote'; $out.ok = $true

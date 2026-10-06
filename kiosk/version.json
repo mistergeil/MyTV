@@ -1,11 +1,12 @@
 {
-  "version": "1.11.2",
-  "date": "05.10.2026",
+  "version": "1.12.0",
+  "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "53b605c96c1c21929b2199e2ab40793b43271ee4c1dcf4d6f9e98afcfc848d66",
-  "size": 46483,
+  "sha256": "cec209785ef0cd43d268c37ce92bfdb9ad4f1fda54f71cdd988e571db435ed3d",
+  "size": 47595,
   "notes": [
-    "Mausmodus: Klicks auf RTL+, Joyn & Co. kommen jetzt an"
+    "Mitschauen fast ohne Verzögerung (WebRTC über MediaMTX, nach einmaliger Einrichtung)",
+    "Mausmodus: Klicks werden jetzt wie echte Mausklicks gesendet"
   ],
   "installer": false
 }

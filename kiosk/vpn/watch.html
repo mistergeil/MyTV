@@ -120,16 +120,40 @@
   let keepT = null, stalls = 0;
   async function start() {
     wait('Starte Übertragung …', 'Das Notebook nimmt das TV-Bild auf, das dauert ein paar Sekunden.');
-    try { const j = await api('/cast/start'); if (!j.ok) { wait('Übertragung nicht möglich', j.error || ''); $('tvon').hidden = false; return; } }
+    let info = null;
+    try { info = await api('/cast/start'); if (!info.ok) { wait('Übertragung nicht möglich', info.error || ''); $('tvon').hidden = false; return; } }
     catch (e) { wait('Notebook nicht erreichbar', 'Bist du im Heim-WLAN?'); return; }
+    RTC = info.transport === 'webrtc' ? (info.webrtcPort || 8889) : 0;
     for (let i = 0; i < 30; i++) {
       await new Promise(r => setTimeout(r, 800));
       let st = null; try { st = await api('/cast/status'); } catch (e) {}
       if (st && st.ready) break;
       if (st && !st.running) { wait('Aufnahme gestoppt', st.log || 'FFmpeg auf dem Notebook prüfen'); return; }
     }
-    play();
+    if (RTC) { const ok = await playRtc(); if (!ok) { wait('Live-Verbindung fehlgeschlagen', 'Firewall-Regel für MediaMTX (TCP 8889, UDP 8189) prüfen'); return; } }
+    else play();
     clearInterval(keepT); keepT = setInterval(() => api('/cast/status').catch(() => {}), 15000);
+  }
+  // WebRTC (MediaMTX on the notebook, WHEP): ~0.3 s delay instead of seconds
+  let RTC = 0, pc = null;
+  async function playRtc() {
+    try {
+      if (pc) pc.close();
+      pc = new RTCPeerConnection({ iceServers: [] });
+      pc.addTransceiver('video', { direction: 'recvonly' }); pc.addTransceiver('audio', { direction: 'recvonly' });
+      const ms = new MediaStream();
+      pc.ontrack = e => { ms.addTrack(e.track); v.srcObject = ms; };
+      pc.onconnectionstatechange = () => { if (['failed', 'disconnected'].includes(pc.connectionState)) setTimeout(() => { if (pc && pc.connectionState !== 'connected') playRtc(); }, 1500); };
+      await pc.setLocalDescription(await pc.createOffer());
+      await new Promise(r => { if (pc.iceGatheringState === 'complete') return r(); pc.onicegatheringstatechange = () => pc.iceGatheringState === 'complete' && r(); setTimeout(r, 1500); });
+      const r = await fetch(`http://${location.hostname}:${RTC}/tv/whep`, { method: 'POST', body: pc.localDescription.sdp,
+        headers: { 'Content-Type': 'application/sdp', Authorization: 'Basic ' + btoa('tv:' + key) } });
+      if (!r.ok) throw new Error('WHEP ' + r.status);
+      await pc.setRemoteDescription({ type: 'answer', sdp: await r.text() });
+      await v.play().catch(() => {});
+      wait(''); idle();
+      return true;
+    } catch (e) { console.warn(e); return false; }
   }
   function play() {
     const src = '/cast/index.m3u8?key=' + q;
@@ -139,11 +163,12 @@
     v.play().then(() => { wait(''); idle(); }).catch(() => { $('start').hidden = false; $('wait').hidden = true; });
   }
   // stay close to live: if we fall more than ~4 s behind, jump forward
-  setInterval(() => { try { const r = v.seekable; if (r.length && r.end(r.length - 1) - v.currentTime > 4) v.currentTime = r.end(r.length - 1) - 1; } catch (e) {} }, 3000);
-  v.addEventListener('waiting', () => { if (++stalls > 3) { stalls = 0; v.src = v.src; v.play().catch(() => {}); } });
+  setInterval(() => { if (RTC) return; try { const r = v.seekable; if (r.length && r.end(r.length - 1) - v.currentTime > 4) v.currentTime = r.end(r.length - 1) - 1; } catch (e) {} }, 3000);
+  v.addEventListener('waiting', () => { if (RTC) return; if (++stalls > 3) { stalls = 0; v.src = v.src; v.play().catch(() => {}); } });
   v.addEventListener('playing', () => { stalls = 0; });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) v.pause();
+    else if (RTC) api('/cast/start').then(playRtc).catch(() => {});
     else if (v.src) api('/cast/start').then(() => { v.src = v.src; v.play().catch(() => {}); }).catch(() => {});
   });
   $('go').addEventListener('click', () => { v.muted = false; start(); });
