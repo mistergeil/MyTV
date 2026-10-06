@@ -36,7 +36,9 @@ def main():
         sys.exit(__doc__)
     else:
         ver, notes = args[0], args[1:]
-    (K / "vpn" / "VERSION").write_text(ver, encoding="ascii")
+    vf = K / "vpn" / "VERSION"
+    if not vf.exists() or vf.read_text(encoding="ascii").strip() != ver:   # don't touch it in CI (would leave a change behind)
+        vf.write_text(ver, encoding="ascii")
     zp = K / "MyTV-Windows.zip"
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:
         for f in FILES:
