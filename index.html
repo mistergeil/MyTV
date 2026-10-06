@@ -853,8 +853,8 @@
       store.set('mytv.channel', ch.number);
       document.title = `${ch.number} · ${ch.name} — MyTV`;
       renderList(); showOsd();
-      const sp = YT.startPos; YT.startPos = 0;
-      loadYt().then(() => { if (channels[index] === ch) ytPlay(ch, sp); });
+      const sid = YT.startId; YT.startId = '';
+      loadYt().then(() => { if (channels[index] === ch) ytPlayId(ch, sid); });
       return;
     }
 
@@ -981,7 +981,7 @@
     if ($('osd').classList.contains('show')) showOsd();
     if ($('guide').classList.contains('open')) renderGuide();
   }
-  const YT = { data: null, loaded: 0, pos: 0, startPos: 0, cache: {} };
+  const YT = { data: null, loaded: 0, pos: 0, startPos: 0, startId: '', cache: {} };
   // YouTube channels have no schedule: their videos (newest first) are shown as 30-min blocks from now on
   function ytProgs(ch) {
     const list = ((YT.data || {})[String(ch.number)] || []);
@@ -991,7 +991,7 @@
     if (YT.cache[ch.number] && YT.cache[ch.number].key === key) return YT.cache[ch.number].ps;
     const ps = list.map((v, i) => {
       const ago = Math.round((Date.now() - Date.parse(v.published)) / 36e5);
-      return { id: 'yt' + v.id, yt: i, start: new Date(base + i * 18e5), end: new Date(base + (i + 1) * 18e5), title: v.title,
+      return { id: 'yt' + v.id, yt: i, ytId: v.id, start: new Date(base + i * 18e5), end: new Date(base + (i + 1) * 18e5), title: v.title,
                sub: (v.by || '') + ' · ' + (ago < 48 ? 'vor ' + ago + ' Std.' : 'vor ' + Math.round(ago / 24) + ' Tagen'),
                text: (i === cur ? 'Läuft gerade. ' : '') + (i === 0 ? 'Neuestes Video. ' : '') + 'OK = dieses Video abspielen',
                img: 'https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg' };
@@ -1590,6 +1590,10 @@
     try { YT.data = await (await fetch('youtube.json?t=' + Math.floor(Date.now() / 6e5))).json(); YT.loaded = Date.now(); } catch (e) { YT.data = YT.data || {}; }
   }
   const ytList = ch => ((YT.data || {})[String(ch.number)] || []);
+  function ytPlayId(ch, id) {              // by video id: robust even if the list was refreshed meanwhile
+    const i = id ? ytList(ch).findIndex(v => v.id === id) : 0;
+    ytPlay(ch, i < 0 ? 0 : i);
+  }
   function ytPlay(ch, pos) {
     const list = ytList(ch);
     if (frame) frame.remove();
@@ -1597,7 +1601,8 @@
     YT.pos = Math.max(0, Math.min(list.length - 1, pos));
     const ids = list.slice(YT.pos).map(v => v.id);
     frame = document.createElement('iframe');
-    frame.src = `https://www.youtube.com/embed/${ids[0]}?autoplay=1&playlist=${ids.slice(1, 25).join(',')}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1${muted ? '&mute=1' : ''}`;
+    // the whole queue as playlist, chosen video first → YouTube starts exactly with it, then continues in order
+    frame.src = `https://www.youtube.com/embed/${ids[0]}?autoplay=1&playlist=${ids.slice(0, 25).join(',')}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1${muted ? '&mute=1' : ''}`;
     frame.allow = 'autoplay; encrypted-media';
     frame.tabIndex = -1;
     frame.style.pointerEvents = 'none';       // remote keys stay with MyTV
@@ -1812,7 +1817,10 @@
       else if (k === 'PageUp') guideMove(-5, 0);
       else if (k === 'PageDown') guideMove(5, 0);
       else if (k === 'Enter') {
-        if (G.sel && G.sel.p && G.sel.p.yt !== undefined) { YT.startPos = G.sel.p.yt; closeGuide(); if (channels[G.row] === channels[index]) ytPlay(channels[index], YT.startPos), YT.startPos = 0; else tune(G.row); }
+        if (G.sel && G.sel.p && G.sel.p.yt !== undefined) {
+          YT.startId = G.sel.p.ytId; const row = G.row; closeGuide();
+          if (channels[row] === channels[index]) { ytPlayId(channels[index], YT.startId); YT.startId = ''; } else tune(row);
+        }
         else if (G.sel && G.sel.p && G.sel.p.start > Date.now() + 60e3) openRMenu(); else { closeGuide(); tune(G.row); }
       }
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'g' || k === 'G' || k === 'Guide') closeGuide();
