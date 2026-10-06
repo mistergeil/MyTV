@@ -76,5 +76,5 @@ window.CHANNELS = [
   { number: 59, name: "Toggo Plus", short: "Toggo", mode: "external", geo: true, xmltv: "TOGGO.plus.de", url: "https://plus.rtl.de/toggo-plus/live" },
 
   // YouTube channels: newest video first, then the next ones (list: youtube.json, built hourly by the GitHub Action)
-  { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut", "@mrgeil"] }
+  { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut"] }
 ];
