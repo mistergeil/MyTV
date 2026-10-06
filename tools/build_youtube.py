@@ -94,6 +94,7 @@ def main():
                                  "by": feed.findtext("a:title", namespaces=NS) or h})
             except Exception as ex:
                 print(f"  {h}: {ex}")
+        seen = set(); vids = [v for v in vids if not (v["id"] in seen or seen.add(v["id"]))]   # same channel listed twice
         vids.sort(key=lambda v: v["published"], reverse=True)
         out[str(num)] = vids[:30] or old.get(str(num), [])
         print(f"channel {num}: {len(vids)} videos from {', '.join(handles)}")
