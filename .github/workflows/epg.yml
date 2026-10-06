@@ -36,5 +36,4 @@ jobs:
           if [ -f highlights.json ]; then git add highlights.json; fi
           if git diff --cached --quiet; then echo "no changes"; exit 0; fi
           git commit -m "Update program guide"
-          git pull --rebase
-          git push
+          for i in 1 2 3 4 5; do git pull --rebase && git push && exit 0; sleep $((i * 7)); done; exit 1   # the other bot may push at the same moment
