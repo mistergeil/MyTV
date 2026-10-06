@@ -755,6 +755,7 @@
   // ---------- tuning ----------
   function tune(i, { remember = true, vpnDone = false } = {}) {
     if (!channels.length) return;
+    RETURN_TO = -1;
     if (typeof GAL !== 'undefined' && GAL.open) { index = ((i % channels.length) + channels.length) % channels.length; return; }   // picture frame on screen: no stream
     if (overlay) {
       i = (i + channels.length) % channels.length;
@@ -1074,6 +1075,14 @@
   }
 
   // ---------- Mediathek launcher ----------
+  let RETURN_TO = -1;      // set when MyTV was opened from an external channel only to show a panel
+  function returnIfIdle() {
+    if (RETURN_TO < 0) return;
+    setTimeout(() => {
+      const anyOpen = ['guide', 'list', 'hl', 'lib', 'help'].some(id => $(id) && $(id).classList.contains('open'));
+      if (!anyOpen && RETURN_TO >= 0) { const i = RETURN_TO; RETURN_TO = -1; tune(i, { remember: false }); }
+    }, 60);
+  }
   const LIBS = [
     { name: 'Galerie',       desc: 'Eure Fotos als Bilderrahmen', gallery: true, native: 'gal', bg: '#5b4636' },
     { name: 'ARD Mediathek', desc: 'Serien, Filme, Tatort, Dokus', native: 'ard',  bg: '#003480' },
@@ -1098,11 +1107,11 @@
     $('libGrid').querySelectorAll('.l-tile').forEach(b => { b.onclick = () => { L.sel = +b.dataset.i; openLib(LIBS[L.sel]); }; });
   }
   function openLibMenu() {
-    if (overlay) { toHost({ type: 'lib' }); return; }
+    if (OV_PANELS_OUT) { toHost({ type: 'go', q: 'lib=1' }); return; }
     clearTimeout(extTimer); toggleList(false); closeGuide(); closeHl();
     $('lib').classList.add('open'); renderLib();
   }
-  function closeLibMenu() { $('lib').classList.remove('open'); }
+  function closeLibMenu() { const was = $('lib').classList.contains('open'); $('lib').classList.remove('open'); if (was) returnIfIdle(); }
   function libMove(dx, dy) {
     const c = libCols(), n = LIBS.length;
     let i = L.sel + dx + dy * c;
@@ -1111,6 +1120,7 @@
   }
   async function openLib(l) {
     if (l.gallery) { closeLibMenu(); openGallery('Allgemein'); return; }
+    if (overlay) { closeLibMenu(); toHost({ type: 'go', q: 'libgo=' + LIBS.indexOf(l) }); return; }   // MyTV itself opens it
     if (l.native) { location.replace('mediathek.html?p=' + l.native); return; }
     if (!kiosk) { window.open(l.url, 'mytv-lib'); return; }
     clearTimeout(extTimer);
@@ -1138,7 +1148,7 @@
     reportUi();
     renderGuide();
   }
-  function closeGuide() { const was = $('guide').classList.contains('open'); $('guide').classList.remove('open'); $('rmenu').classList.remove('open'); RM.open = false; if (was) reportUi(); }
+  function closeGuide() { const was = $('guide').classList.contains('open'); $('guide').classList.remove('open'); $('rmenu').classList.remove('open'); RM.open = false; if (was) { reportUi(); returnIfIdle(); } }
   // Jetzt / Morgen / Übermorgen (buttons on the iPhone remote while the guide is open): same time of day on that day
   function guidePrime() {
     if (!$('guide').classList.contains('open')) openGuide();
@@ -1370,7 +1380,7 @@
       { title: 'Sport', note: 'live & diese Woche', items: byTime('sport') },
       { title: 'Filme im TV', note: 'Prime Time, nach Datum', items: byTime('film') },
       { title: 'Shows & Events', items: byTime('event') },
-      { title: 'Neu in der Mediathek', note: 'Filme & lange Dokus, jederzeit abrufbar', items: mt },
+      { title: 'Neu in der Mediathek', note: 'Filme & lange Dokus, jederzeit abrufbar', items: overlay ? [] : mt },
     ].filter(r => r.items.length);
     HL.c = HL.rows.map((r, i) => Math.min(HL.c[i] || 0, r.items.length - 1));
     HL.r = Math.min(HL.r, Math.max(0, HL.rows.length - 1));
@@ -1442,13 +1452,13 @@
       <div class="h-pic" style="${it.img ? '' : 'background:' + chColor(it.ch)}">${it.img ? `<img src="${esc(it.img)}" alt="" onerror="this.remove()">` : `<span class="big">${esc(it.chName)}</span>`}</div>`;
   }
   async function openHl() {
-    if (overlay) { toHost({ type: 'hl' }); return; }
+    if (OV_PANELS_OUT) { toHost({ type: 'go', q: 'hl=1' }); return; }   // SRF/RTS/RSI only: panels can't show there
     clearTimeout(extTimer); toggleList(false); closeGuide(); closeLibMenu();
     $('hl').classList.add('open');
     buildHlRows(); renderHl();
     await loadHl(); buildHlRows(); renderHl();
   }
-  function closeHl() { $('hl').classList.remove('open'); closeHlMenu(); }
+  function closeHl() { const was = $('hl').classList.contains('open'); $('hl').classList.remove('open'); closeHlMenu(); if (was) returnIfIdle(); }
   function hlMove(dr, dc) {
     if (!HL.rows.length) return;
     if (dr) HL.r = Math.max(0, Math.min(HL.rows.length - 1, HL.r + dr));
@@ -1939,10 +1949,13 @@
     const li = byNum(parseInt(store.get('mytv.lastInternal'), 10));
     if (li >= 0) start = li;
   }
-  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('hl') || params.has('gal') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
+  if (params.has('ch') || params.has('from') || params.has('back') || params.has('guide') || params.has('lib') || params.has('hl') || params.has('gal') || params.has('libgo') || params.has('standby')) history.replaceState(null, '', location.pathname + (kiosk ? '?kiosk=1' : ''));
   renderList();
   if (params.get('standby') === '1') { index = start; renderList(); enterStandby(); }
   else if (params.get('gal')) { index = start; renderList(); }        // Galerie: don't start the TV stream underneath
+  else if (params.get('back') === '1' && !isNaN(pFrom) && byNum(pFrom) >= 0 && ['guide', 'hl', 'lib', 'list'].some(k => params.has(k))) {
+    index = byNum(pFrom); renderList(); RETURN_TO = index;            // panel only - no other channel in the background
+  } else if (params.get('libgo') !== null) { index = start; renderList(); }
   else tune(start, { remember: false });
   prevIndex = prev;
   if (params.get('list') === '1') toggleList(true);
@@ -1950,6 +1963,7 @@
   if (params.get('guide') === '1') openGuide();
   if (params.get('hl') === '1') openHl();
   if (params.get('gal')) openGallery(params.get('gal'));
+  if (params.get('libgo') !== null) { const l = LIBS[parseInt(params.get('libgo'), 10)]; if (l) openLib(l); }
   wake();
 })();
 </script>
