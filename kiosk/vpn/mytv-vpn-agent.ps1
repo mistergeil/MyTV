@@ -381,14 +381,17 @@ public static class MyTVInput {
     INPUT[] a = new INPUT[1]; a[0].type = 0; a[0].u.mi.dx = dx; a[0].u.mi.dy = dy; a[0].u.mi.dwFlags = flags; a[0].u.mi.mouseData = data;
     SendInput(1, a, Marshal.SizeOf(typeof(INPUT)));
   }
-  // moves are sent as real input (the page sees mousemove, exactly like a physical mouse)
+  // screen size: set by the switcher at start (GetSystemMetrics can return 0 in the scheduled task → fallbacks)
+  public static int W = 0, H = 0;
+  // position with SetCursorPos (pixels), then a tiny real move so the page sees mousemove like from a physical mouse
   public static void Move(int dx, int dy) { POINT p; GetCursorPos(out p); AbsPx(p.X + dx, p.Y + dy); }
-  public static void Abs(double x, double y) { AbsPx((int)Math.Round(x * (GetSystemMetrics(0) - 1)), (int)Math.Round(y * (GetSystemMetrics(1) - 1))); }
+  public static void Abs(double x, double y) { AbsPx((int)Math.Round(x * (W - 1)), (int)Math.Round(y * (H - 1))); }
   static void AbsPx(int x, int y) {
-    int w = GetSystemMetrics(0), h = GetSystemMetrics(1);
-    x = Math.Max(0, Math.Min(w - 1, x)); y = Math.Max(0, Math.Min(h - 1, y));
-    Mouse((int)Math.Round(x * 65535.0 / (w - 1)), (int)Math.Round(y * 65535.0 / (h - 1)), 0x0001 | 0x8000, 0);   // MOVE | ABSOLUTE
+    x = Math.Max(0, Math.Min(W - 1, x)); y = Math.Max(0, Math.Min(H - 1, y));
+    SetCursorPos(x, y);
+    Mouse(1, 0, 0x0001, 0); Mouse(-1, 0, 0x0001, 0);                                   // relative MOVE +1/-1
   }
+  public static string Where() { POINT p; GetCursorPos(out p); return p.X + "," + p.Y + " of " + W + "x" + H; }
   public static void Click(bool right) {
     Mouse(0, 0, right ? 0x0008u : 0x0002u, 0); System.Threading.Thread.Sleep(45); Mouse(0, 0, right ? 0x0010u : 0x0004u, 0);
   }
@@ -396,6 +399,13 @@ public static class MyTVInput {
 }
 "@
 [void][MyTVInput]::SetProcessDPIAware()          # real screen pixels, also with Windows display scaling
+# screen size: GetSystemMetrics → Windows Forms → graphics adapter (the scheduled task sometimes gets 0 from the first)
+$sw = [MyTVInput]::GetSystemMetrics(0); $sh = [MyTVInput]::GetSystemMetrics(1)
+if ($sw -le 0 -or $sh -le 0) { try { Add-Type -AssemblyName System.Windows.Forms; $b = [Windows.Forms.Screen]::PrimaryScreen.Bounds; $sw = $b.Width; $sh = $b.Height } catch {} }
+if ($sw -le 0 -or $sh -le 0) { try { $vc = Get-CimInstance Win32_VideoController | Where-Object { $_.CurrentHorizontalResolution } | Select-Object -First 1; $sw = [int]$vc.CurrentHorizontalResolution; $sh = [int]$vc.CurrentVerticalResolution } catch {} }
+if ($sw -le 0 -or $sh -le 0) { $sw = 1920; $sh = 1080 }
+[MyTVInput]::W = $sw; [MyTVInput]::H = $sh
+Write-Log "mouse mode: screen ${sw}x${sh} (GetSystemMetrics $([MyTVInput]::GetSystemMetrics(0))x$([MyTVInput]::GetSystemMetrics(1)))"
 $InputOk = $true
 } catch { Write-Log "mouse mode unavailable: $_" }
 $InputKeys = @{ Enter = 0x0D; Backspace = 0x08; Escape = 0x1B; Tab = 0x09; Up = 0x26; Down = 0x28; Left = 0x25; Right = 0x27; Space = 0x20 }
@@ -540,12 +550,14 @@ while ($true) {
             # a tiny real move first: the page notices the mouse (pointer-hiding sheet goes away) before the click lands
             [MyTVInput]::Move(1, 0); Start-Sleep -Milliseconds 25; [MyTVInput]::Move(-1, 0); Start-Sleep -Milliseconds 70
             [MyTVInput]::Click(([string]$req.QueryString['b'] -eq 'right'))
+            Write-Log "input: click at $([MyTVInput]::Where())"
           }
           '/input/scroll' {
             if ($req.QueryString['x']) { [MyTVInput]::Abs((Get-Num $req 'x' 0 1), (Get-Num $req 'y' 0 1)) }
             [MyTVInput]::Wheel([int](Get-Num $req 'd' -2400 2400))
           }
           '/input/text'   { $t = Get-QS $req 't'; if ($t.Length -gt 200) { throw 'text too long' }; [MyTVInput]::Text($t) }
+          '/input/where'  { $out.where = [MyTVInput]::Where() }
           '/input/key'    { $vk = $InputKeys[[string]$req.QueryString['k']]; if (-not $vk) { throw 'unknown key' }; [MyTVInput]::VK([uint16]$vk) }
           default { throw 'unknown input' }
         }

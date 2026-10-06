@@ -22,4 +22,5 @@ start "" "%CHROME%" ^
   --disable-features=Translate,TranslateUI ^
   --overscroll-history-navigation=0 ^
   --disable-pinch ^
+  --disable-direct-composition-video-overlays ^
   "https://mistergeil.github.io/MyTV/?kiosk=1"

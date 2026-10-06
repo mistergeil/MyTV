@@ -1,11 +1,12 @@
 {
-  "version": "1.12.1",
+  "version": "1.12.2",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "c4598063d4d9a44144874e867182e9fc44e6e6a4202d5e61c96e67dea5aaa478",
-  "size": 47879,
+  "sha256": "fab0977f59b67eaa30431e108d737b81d7fc41b316f68eafac85288e78d0d2b9",
+  "size": 48265,
   "notes": [
-    "Mitschauen: hängengebliebene Aufnahmen werden beim Start/Update automatisch beendet (kein Ton-Stottern mehr)"
+    "Mausmodus: Klicks landen jetzt an der richtigen Stelle (vorher immer oben links)",
+    "Mitschauen: flüssigeres Bild bei Videos (Chrome-Einstellung im Kiosk, nach Neustart des Kiosks)"
   ],
   "installer": false
 }
