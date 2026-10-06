@@ -210,7 +210,7 @@
     $('top').classList.add('dim'); $('handle').classList.add('off'); showPanel(false);
     // back to the remote (same app on the home screen, no Safari bar)
     wait('Beendet', 'Zurück zur Fernbedienung …');
-    setTimeout(() => location.replace('/remote?key=' + q), 400);
+    setTimeout(() => { if (window.parent !== window) window.parent.postMessage({ mytvWatch: 'close' }, location.origin); else location.replace('/remote?key=' + q); }, 400);
   });
   const setMode = m => {
     mode = m; idle();

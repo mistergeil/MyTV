@@ -1,11 +1,11 @@
 {
-  "version": "1.12.5",
+  "version": "1.12.6",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "021d0b011d728adf8c5c92d99bf9c5d7e7403311b7b9dc5080ce44ac0f79bdc8",
-  "size": 48967,
+  "sha256": "cb5004ab67307144bedca7e365c66cec88466ec1d1bda99f7c046a18cf08711d",
+  "size": 49305,
   "notes": [
-    "Mitschauen: ✕ Beenden führt zurück zur Fernbedienung"
+    "Mitschauen öffnet sich direkt in der Fernbedienungs-App (keine Safari-Leiste mehr)"
   ],
   "installer": false
 }
