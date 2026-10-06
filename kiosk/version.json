@@ -1,11 +1,11 @@
 {
-  "version": "1.12.2",
+  "version": "1.12.3",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "d74148b7a626b229b024c481b062c11ac8f8a267ad17e50bdcd647bdd05aac8f",
+  "sha256": "c6c58376dbfd473ee3a47e05c7ce5287edd809d7273dd1168242a0955b0461f5",
   "size": 48325,
   "notes": [
-    "Mausmodus: Klicks landen jetzt genau dort, wo du tippst (vorher immer oben links)"
+    "Mausmodus: Klicks landen jetzt genau dort, wo du tippst (Rundungsfehler behoben)"
   ],
   "installer": false
 }
