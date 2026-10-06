@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""YouTube channels for MyTV (type "youtube" in channels.js, e.g. Zarbex on 60).
+
+For every such channel: resolve the handles in `yt` (e.g. "@zarbex") to channel ids, read their public
+upload feeds (no API key), drop Shorts, merge, newest first → youtube.json { "60": [ {id,title,published,by}, ... ] }.
+MyTV plays the newest video when you zap in, then the next ones; ← → skip.
+"""
+import json, re, urllib.request, xml.etree.ElementTree as ET
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "youtube.json"
+UA = {"User-Agent": "Mozilla/5.0 (MyTV personal TV)", "Accept-Language": "de-DE,de;q=0.9"}
+NS = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015", "media": "http://search.yahoo.com/mrss/"}
+
+def fetch(url, timeout=25):
+    return urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout).read().decode("utf-8", "replace")
+
+def channel_id(handle, cache):
+    if handle.startswith("UC"):
+        return handle
+    if handle in cache:
+        return cache[handle]
+    html = fetch(f"https://www.youtube.com/{handle}")
+    m = re.search(r'"(?:channelId|externalId)":"(UC[\w-]{22})"', html) or re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', html)
+    if not m:
+        raise RuntimeError(f"no channel id for {handle}")
+    cache[handle] = m.group(1)
+    return m.group(1)
+
+def is_short(vid):
+    # /shorts/<id> answers 200 for Shorts and redirects (303) to /watch for normal videos
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **k): return None
+    try:
+        r = urllib.request.build_opener(NoRedirect).open(urllib.request.Request(f"https://www.youtube.com/shorts/{vid}", headers=UA, method="HEAD"), timeout=15)
+        return r.status == 200
+    except urllib.error.HTTPError as e:
+        return False
+    except Exception:
+        return False
+
+def channels():
+    js = (ROOT / "channels.js").read_text(encoding="utf-8")
+    for line in js.splitlines():
+        if 'type: "youtube"' not in line:
+            continue
+        n = re.search(r"number:\s*(\d+)", line); yt = re.search(r"yt:\s*\[([^\]]*)\]", line)
+        if n and yt:
+            yield int(n.group(1)), re.findall(r'"([^"]+)"', yt.group(1))
+
+def main():
+    old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
+    cache = old.get("_ids", {})
+    shorts = set(old.get("_shorts", []))
+    out = {"_ids": cache}
+    for num, handles in channels():
+        vids = []
+        for h in handles:
+            try:
+                cid = channel_id(h, cache)
+                feed = ET.fromstring(fetch(f"https://www.youtube.com/feeds/videos.xml?channel_id={cid}"))
+                for e in feed.findall("a:entry", NS):
+                    vid = e.findtext("yt:videoId", namespaces=NS)
+                    if not vid:
+                        continue
+                    if vid in shorts or is_short(vid):
+                        shorts.add(vid); continue
+                    vids.append({"id": vid, "title": e.findtext("a:title", namespaces=NS) or "", "published": e.findtext("a:published", namespaces=NS) or "",
+                                 "by": feed.findtext("a:title", namespaces=NS) or h})
+            except Exception as ex:
+                print(f"  {h}: {ex}")
+        vids.sort(key=lambda v: v["published"], reverse=True)
+        out[str(num)] = vids[:30] or old.get(str(num), [])
+        print(f"channel {num}: {len(vids)} videos from {', '.join(handles)}")
+    out["_shorts"] = sorted(shorts)[-500:]
+    OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+
+if __name__ == "__main__":
+    main()

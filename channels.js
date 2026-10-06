@@ -73,5 +73,8 @@ window.CHANNELS = [
   // RTL+ (Premium account, VPN DE)
   { number: 57, name: "RTLup",      short: "RTLup", mode: "external", geo: true, xmltv: "RTLup.de",     url: "https://plus.rtl.de/rtlup/live" },
   { number: 58, name: "VOXup",      short: "VOXup", mode: "external", geo: true, xmltv: "VOXup.de",     url: "https://plus.rtl.de/voxup/live" },
-  { number: 59, name: "Toggo Plus", short: "Toggo", mode: "external", geo: true, xmltv: "TOGGO.plus.de", url: "https://plus.rtl.de/toggo-plus/live" }
+  { number: 59, name: "Toggo Plus", short: "Toggo", mode: "external", geo: true, xmltv: "TOGGO.plus.de", url: "https://plus.rtl.de/toggo-plus/live" },
+
+  // YouTube channels: newest video first, then the next ones (list: youtube.json, built hourly by the GitHub Action)
+  { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut"] }
 ];

@@ -649,7 +649,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5/dist/hls.min.js"></script>
-<script src="channels.js?v=19"></script>
+<script src="channels.js?v=20"></script>
 <script src="reminders.js?v=4"></script>
 <script>
 (() => {
@@ -833,6 +833,15 @@
       store.set('mytv.channel', ch.number);
       document.title = `${ch.number} · ${ch.name} — MyTV`;
       renderList(); showOsd();
+      return;
+    }
+
+    if (ch.type === 'youtube') {
+      // YouTube channel: newest video first, then the following ones; ← → skip (list from youtube.json)
+      store.set('mytv.channel', ch.number);
+      document.title = `${ch.number} · ${ch.name} — MyTV`;
+      renderList(); showOsd();
+      loadYt().then(() => { if (channels[index] === ch) ytPlay(ch, 0); });
       return;
     }
 
@@ -1509,6 +1518,35 @@
     return true;
   }
 
+
+  // ---------- YouTube channels ----------
+  const YT = { data: null, loaded: 0, pos: 0 };
+  async function loadYt() {
+    if (YT.data && Date.now() - YT.loaded < 15 * 6e4) return;
+    try { YT.data = await (await fetch('youtube.json?t=' + Math.floor(Date.now() / 6e5))).json(); YT.loaded = Date.now(); } catch (e) { YT.data = YT.data || {}; }
+  }
+  const ytList = ch => ((YT.data || {})[String(ch.number)] || []);
+  function ytPlay(ch, pos) {
+    const list = ytList(ch);
+    if (frame) frame.remove();
+    if (!list.length) { showError(ch); return; }
+    YT.pos = Math.max(0, Math.min(list.length - 1, pos));
+    const ids = list.slice(YT.pos).map(v => v.id);
+    frame = document.createElement('iframe');
+    frame.src = `https://www.youtube-nocookie.com/embed/${ids[0]}?autoplay=1&playlist=${ids.slice(1, 25).join(',')}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1${muted ? '&mute=1' : ''}`;
+    frame.allow = 'autoplay; encrypted-media';
+    frame.tabIndex = -1;
+    frame.style.pointerEvents = 'none';       // remote keys stay with MyTV
+    frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.title = ch.name;
+    frame.addEventListener('load', () => setTimeout(staticOff, 400), { once: true });
+    setTimeout(staticOff, 4000);
+    screen.insertBefore(frame, staticCv);
+    const v = list[YT.pos];
+    const ago = Math.round((Date.now() - Date.parse(v.published)) / 36e5);
+    flash(`${YT.pos === 0 ? '🆕 ' : ''}${v.title} · ${ago < 48 ? 'vor ' + ago + ' Std.' : 'vor ' + Math.round(ago / 24) + ' Tagen'}`);
+  }
+
   // ---------- number entry ----------
   function digit(d) {
     entryBuf = (entryBuf + d).slice(-3);
@@ -1750,6 +1788,8 @@
       case 'GuideDay2': openGuide(2); break;
       case 'GuidePrime': guidePrime(); break;
       case 'b': case 'B': openLibMenu(); break;
+      case 'ArrowRight': if (channels[index] && channels[index].type === 'youtube') ytPlay(channels[index], YT.pos + 1); break;
+      case 'ArrowLeft':  if (channels[index] && channels[index].type === 'youtube') ytPlay(channels[index], YT.pos - 1); break;
       case 'h': case 'H': openHl(); break;
       case 'm': case 'M': toggleMute(); break;
       case 'v': case 'V': if (VPN.bridge) vpnManual(); break;

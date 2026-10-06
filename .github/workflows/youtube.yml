@@ -1,0 +1,38 @@
+name: Update YouTube channels
+
+on:
+  schedule:
+    - cron: "41 * * * *"    # every hour
+  workflow_dispatch:
+  push:
+    paths:
+      - channels.js
+      - tools/build_youtube.py
+      - .github/workflows/youtube.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: youtube
+  cancel-in-progress: true
+
+jobs:
+  youtube:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build youtube.json
+        run: python tools/build_youtube.py
+      - name: Commit if changed
+        run: |
+          git config user.name "mytv-bot"
+          git config user.email "mytv-bot@users.noreply.github.com"
+          git add youtube.json
+          if git diff --cached --quiet; then echo "no changes"; exit 0; fi
+          git commit -m "Update YouTube channels"
+          git pull --rebase
+          git push
