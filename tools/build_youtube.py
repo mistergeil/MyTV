@@ -21,6 +21,13 @@ def channel_id(handle, cache):
         return handle
     if handle in cache:
         return cache[handle]
+    if handle.startswith("v:"):                      # "v:<videoId>" = the channel that uploaded this video
+        html = fetch(f"https://www.youtube.com/watch?v={handle[2:]}")
+        m = re.search(r'"videoDetails":\{.*?"channelId":"(UC[\w-]{22})"', html, re.S) or re.search(r'"channelId":"(UC[\w-]{22})"', html)
+        if not m:
+            raise RuntimeError(f"no channel for video {handle[2:]}")
+        cache[handle] = m.group(1)
+        return m.group(1)
     html = fetch(f"https://www.youtube.com/{handle}")
     m = re.search(r'"(?:channelId|externalId)":"(UC[\w-]{22})"', html) or re.search(r'<link rel="canonical" href="https://www\.youtube\.com/channel/(UC[\w-]{22})"', html)
     if not m:
