@@ -6,7 +6,11 @@ $ErrorActionPreference = 'Stop'
 $Root = Split-Path -Parent $PSScriptRoot
 $script:fails = 0
 function Check([string]$name, [bool]$ok, [string]$detail = '') {
-  if ($ok) { Write-Host "ok    $name" } else { Write-Host "FAIL  $name  $detail" -ForegroundColor Red; $script:fails++ }
+  if ($ok) { Write-Host "ok    $name" }
+  else {
+    Write-Host "FAIL  $name  $detail" -ForegroundColor Red; $script:fails++
+    if ($env:GITHUB_ACTIONS) { Write-Host "::error title=MyTV check::$name $detail" }     # shows up as annotation in GitHub
+  }
 }
 Write-Host "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
 
