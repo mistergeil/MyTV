@@ -1578,7 +1578,7 @@
     YT.pos = Math.max(0, Math.min(list.length - 1, pos));
     const ids = list.slice(YT.pos).map(v => v.id);
     frame = document.createElement('iframe');
-    frame.src = `https://www.youtube-nocookie.com/embed/${ids[0]}?autoplay=1&playlist=${ids.slice(1, 25).join(',')}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1${muted ? '&mute=1' : ''}`;
+    frame.src = `https://www.youtube.com/embed/${ids[0]}?autoplay=1&playlist=${ids.slice(1, 25).join(',')}&rel=0&modestbranding=1&iv_load_policy=3&playsinline=1${muted ? '&mute=1' : ''}`;
     frame.allow = 'autoplay; encrypted-media';
     frame.tabIndex = -1;
     frame.style.pointerEvents = 'none';       // remote keys stay with MyTV
