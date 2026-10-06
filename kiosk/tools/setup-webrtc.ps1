@@ -17,7 +17,7 @@
 $ErrorActionPreference = 'Stop'
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 $Root = 'C:\MyTV'; $Vpn = Join-Path $Root 'vpn'; $Dst = Join-Path $Root 'tools\mediamtx'; $Task = 'MyTV WebRTC'
-function Say($m, $c = 'Gray') { Write-Host $m -ForegroundColor $c }
+function Say($m, $col = 'Gray') { Write-Host $m -ForegroundColor $col }
 
 $id = [Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not (New-Object Security.Principal.WindowsPrincipal $id).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'Please run elevated (as administrator).' }

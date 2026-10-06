@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Build kiosk/MyTV-Windows.zip + kiosk/version.json for the notebook updater.
 
-  python tools/make_release.py 1.1.0 "Fotos-Diashow per NFC-Sticker" "Neue Taste ⚙ in der Fernbedienung"
+  Normal way (since 1.13): edit kiosk/vpn/VERSION + kiosk/vpn/NOTES.txt and push - the GitHub workflow
+  "Release" runs the tests on real Windows PowerShell 5.1 and builds the package (python tools/make_release.py --auto).
+  Manual (emergency only): python tools/make_release.py 1.1.0 "Note 1" "Note 2"
 
 Writes the version into kiosk/vpn/VERSION, zips the notebook files and records the zip's
 SHA-256 in version.json. The notebook only installs after a tap on "Installieren" in the
@@ -19,10 +21,21 @@ FILES = ["MyTV-Kiosk.bat", "MyTV-Setup.bat", "Autostart-Install.bat", "Autostart
          "vpn/mytv-vpn-agent.ps1", "vpn/mytv-update.ps1", "vpn/tv-remote.ps1", "vpn/remote.html", "vpn/watch.html", "vpn/VERSION"]
 
 def main():
-    args = [a for a in sys.argv[1:] if a != "--installer"]
-    if not args:
+    args = [a for a in sys.argv[1:] if a not in ("--installer", "--auto")]
+    if "--auto" in sys.argv:
+        # CI mode (release workflow): version from kiosk/vpn/VERSION, notes from kiosk/vpn/NOTES.txt (one per line)
+        ver = (K / "vpn" / "VERSION").read_text(encoding="ascii").strip()
+        nf = K / "vpn" / "NOTES.txt"
+        notes = [l.strip() for l in nf.read_text(encoding="utf-8").splitlines() if l.strip()] if nf.exists() else []
+        cur = json.loads((K / "version.json").read_text(encoding="utf-8")).get("version") if (K / "version.json").exists() else None
+        if cur == ver:
+            print(f"version.json already at {ver} - nothing to release"); return
+        if cur and tuple(map(int, ver.split("."))) <= tuple(map(int, cur.split("."))):
+            sys.exit(f"VERSION {ver} is not newer than the released {cur} - bump kiosk/vpn/VERSION")
+    elif not args:
         sys.exit(__doc__)
-    ver, notes = args[0], args[1:]
+    else:
+        ver, notes = args[0], args[1:]
     (K / "vpn" / "VERSION").write_text(ver, encoding="ascii")
     zp = K / "MyTV-Windows.zip"
     with zipfile.ZipFile(zp, "w", zipfile.ZIP_DEFLATED) as z:

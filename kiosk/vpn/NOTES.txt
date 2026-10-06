@@ -1,0 +1,2 @@
+Automatische Tests auf echtem Windows vor jedem Update (weniger Fehler auf dem Notebook)
+Interne Aufräumarbeiten

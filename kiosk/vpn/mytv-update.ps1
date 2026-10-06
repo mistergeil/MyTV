@@ -54,10 +54,10 @@ function Start-AgentAndWait($want) {
   return $false
 }
 # copy every file below $from into $Root (same relative path), except protected ones
-function Copy-Tree($from) {
+function Copy-Tree($src) {
   $n = 0
-  Get-ChildItem -Path $from -Recurse -File | ForEach-Object {
-    $rel = $_.FullName.Substring($from.Length).TrimStart('\')
+  Get-ChildItem -Path $src -Recurse -File | ForEach-Object {
+    $rel = $_.FullName.Substring($src.Length).TrimStart('\')
     if (('\' + $rel) -match $Protect) { return }
     $dst = Join-Path $Root $rel
     $dd = Split-Path -Parent $dst

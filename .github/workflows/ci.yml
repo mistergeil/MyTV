@@ -1,0 +1,29 @@
+name: Tests
+
+on:
+  push:
+    paths-ignore: ["epg.json", "highlights.json", "youtube.json", "kiosk/MyTV-Windows.zip", "kiosk/version.json"]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:          # used by the release workflow
+
+jobs:
+  windows-powershell-5:
+    name: Notebook scripts (Windows PowerShell 5.1)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run tests/ps.tests.ps1
+        shell: powershell          # Windows PowerShell 5.1 = the notebook's PowerShell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tests\ps.tests.ps1
+  web:
+    name: Pages, remote, userscripts (JavaScript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - run: node tests/web.test.js
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python -m py_compile tools/*.py

@@ -220,9 +220,9 @@ function Get-Rems {
   $cut = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - 15 * 60000
   return @(Expand-Items $raw | Where-Object { $_.PSObject.Properties['ch'] -and $_.PSObject.Properties['start'] -and [int64]$_.end -gt $cut })
 }
-function Save-Rems($l) {
-  $json = ConvertTo-Json -InputObject @($l) -Depth 4 -Compress
-  if (-not $l -or @($l).Count -eq 0) { $json = '[]' }
+function Save-Rems($list) {
+  $json = ConvertTo-Json -InputObject @($list) -Depth 4 -Compress
+  if (-not $list -or @($list).Count -eq 0) { $json = '[]' }
   [IO.File]::WriteAllText($RemFile, $json, (New-Object Text.UTF8Encoding $false))
 }
 # query value decoded as UTF-8 (HttpListener's own QueryString may use the ANSI code page → broken umlauts)
@@ -233,7 +233,7 @@ function Get-QS($req, $name) {
   }
   return ''
 }
-function Find-Rem($l, $ch, $start) { return @($l | Where-Object { [int]$_.ch -eq $ch -and [int64]$_.start -eq $start }) }
+function Find-Rem($list, $ch, $start) { return @($list | Where-Object { [int]$_.ch -eq $ch -and [int64]$_.start -eq $start }) }
 # ---- Galerie: albums are folders in C:\MyTV\photos, settings per album in album.json ----
 $PhotoRoot = Join-Path (Split-Path -Parent $Dir) 'photos'
 $ImgRe = '\.(jpe?g|png|webp|gif)$'
@@ -241,9 +241,9 @@ function Get-AlbumDir($a) {
   if ([string]$a -notmatch '^[A-Za-z0-9_-]{1,32}$') { throw 'Albumname: nur Buchstaben, Ziffern, - und _' }
   return (Join-Path $PhotoRoot $a)
 }
-function Get-AlbumSettings($dir) {
-  $st = [ordered]@{ title = (Split-Path -Leaf $dir); type = 'photos'; style = 'print'; seconds = 20; order = 'shuffle' }
-  $f = Join-Path $dir 'album.json'
+function Get-AlbumSettings($adir) {
+  $st = [ordered]@{ title = (Split-Path -Leaf $adir); type = 'photos'; style = 'print'; seconds = 20; order = 'shuffle' }
+  $f = Join-Path $adir 'album.json'
   if (Test-Path $f) { try { (Get-Content $f -Raw -Encoding UTF8 | ConvertFrom-Json).PSObject.Properties | ForEach-Object { $st[$_.Name] = $_.Value } } catch {} }
   return $st
 }
@@ -256,7 +256,7 @@ function Get-Albums {
 }
 # upload: downscale to max 2560 px, apply the iPhone rotation (EXIF), save as JPEG
 Add-Type -AssemblyName System.Drawing
-function Save-Photo([byte[]]$bytes, $dir, $name) {
+function Save-Photo([byte[]]$bytes, $adir, $name) {
   $ms = New-Object IO.MemoryStream(, $bytes)
   try { $img = [Drawing.Image]::FromStream($ms) } catch { throw 'Kein lesbares Bild (HEIC? iPhone: Einstellungen → Kamera → Formate → Maximale Kompatibilität)' }
   try {
@@ -284,8 +284,8 @@ function Save-Photo([byte[]]$bytes, $dir, $name) {
     if (-not $base) { $base = 'foto' }
     $file = (Get-Date -Format 'yyyyMMdd-HHmmss') + '_' + $base.Substring(0, [Math]::Min(40, $base.Length)) + '.jpg'
     $stem = [IO.Path]::GetFileNameWithoutExtension($file); $k = 2
-    while (Test-Path -LiteralPath (Join-Path $dir $file)) { $file = "${stem}_$k.jpg"; $k++ }
-    $bmp.Save((Join-Path $dir $file), $enc, $ep); $bmp.Dispose()
+    while (Test-Path -LiteralPath (Join-Path $adir $file)) { $file = "${stem}_$k.jpg"; $k++ }
+    $bmp.Save((Join-Path $adir $file), $enc, $ep); $bmp.Dispose()
     return $file
   } finally { $img.Dispose(); $ms.Dispose() }
 }
