@@ -1,11 +1,12 @@
 {
-  "version": "1.12.6",
+  "version": "1.13.0",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "cb5004ab67307144bedca7e365c66cec88466ec1d1bda99f7c046a18cf08711d",
-  "size": 49305,
+  "sha256": "29f1fc08e8932cd45ded5dd1c7e9bf3a7fe179a0c23858ab3a2c0abae086e862",
+  "size": 49312,
   "notes": [
-    "Mitschauen öffnet sich direkt in der Fernbedienungs-App (keine Safari-Leiste mehr)"
+    "Automatische Tests auf echtem Windows vor jedem Update (weniger Fehler auf dem Notebook)",
+    "Interne Aufräumarbeiten"
   ],
   "installer": false
 }
