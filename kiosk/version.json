@@ -1,11 +1,11 @@
 {
-  "version": "1.12.3",
+  "version": "1.12.4",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "c6c58376dbfd473ee3a47e05c7ce5287edd809d7273dd1168242a0955b0461f5",
-  "size": 48325,
+  "sha256": "390e57d9b567c6238db3ff188d69ecc49f2bdfe3ae52ab58043bd8fa12a72d63",
+  "size": 48932,
   "notes": [
-    "Mausmodus: Klicks landen jetzt genau dort, wo du tippst (Rundungsfehler behoben)"
+    "Mitschauen: ✕ Beenden-Taste, Steuerung liegt im schwarzen Rand statt über dem Bild (oder blendet sich aus)"
   ],
   "installer": false
 }

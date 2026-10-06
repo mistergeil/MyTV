@@ -30,7 +30,15 @@
   /* top-right capsule: mode switch, keyboard, panel - dims when idle, never disappears */
   #top { position: fixed; top: calc(env(safe-area-inset-top) + 12px); right: calc(env(safe-area-inset-right) + 12px); z-index: 4; display: flex; align-items: center; gap: 4px;
          padding: 4px; border-radius: 999px; transition: opacity .5s; }
-  #top.dim { opacity: .28; }
+  #top.dim { opacity: 0; pointer-events: none; transform: translateY(-8px); }
+  #top { transition: opacity .4s, transform .4s; }
+  #top.inbar { top: auto; right: auto; left: 50%; bottom: calc(var(--barpad, 0px)); transform: translateX(-50%); }
+  #top.inbar.dim { opacity: 1; pointer-events: auto; transform: translateX(-50%); }     /* in the black bar it covers nothing → stays */
+  #handle { position: fixed; top: calc(env(safe-area-inset-top) + 6px); left: 50%; transform: translateX(-50%); width: 120px; height: 28px; z-index: 4;
+            display: grid; place-items: center; }
+  #handle i { width: 44px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.35); }
+  #handle.off { display: none; }
+  #top .ib.x { color: #ff453a; }
   .seg { display: flex; padding: 2px; border-radius: 999px; background: rgba(120,120,128,.24); }
   .seg button, #top .ib { border: 0; background: transparent; color: #fff; font: inherit; }
   .seg button { height: 34px; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; color: rgba(235,235,245,.7); display: flex; align-items: center; gap: 6px; }
@@ -87,7 +95,9 @@
   <div class="seg"><button class="on" data-m="remote"><svg class="i"><use href="#i-remote"/></svg>Fernbedienung</button><button data-m="mouse"><svg class="i"><use href="#i-mouse"/></svg>Maus</button></div>
   <button class="ib" id="kbBtn" aria-label="Tastatur"><svg class="i"><use href="#i-kb"/></svg></button>
   <button class="ib" id="menuBtn" aria-label="Mehr"><svg class="i"><use href="#i-menu"/></svg></button>
+  <button class="ib x" id="endBtn" aria-label="Beenden">✕</button>
 </div>
+<div id="handle" class="off" aria-label="Steuerung zeigen"><i></i></div>
 
 <div id="panel" class="glass">
   <button data-k="Backspace">‹ Zurück</button><button data-k="g">Guide</button><button data-k="h">★</button>
@@ -176,7 +186,31 @@
 
   // ---------------- controls ----------------
   let mode = 'remote', idleT = null, panelT = null;
-  const idle = () => { $('top').classList.remove('dim'); clearTimeout(idleT); idleT = setTimeout(() => $('top').classList.add('dim'), 4000); };
+  // controls: in the black bar below the picture if there is one (covers nothing), otherwise they hide
+  // completely after 3 s and a small handle at the top brings them back
+  function place() {
+    const vw = v.videoWidth || 16, vh = v.videoHeight || 9, W = innerWidth, H = innerHeight;
+    const bar = (H - Math.min(W / vw, H / vh) * vh) / 2;
+    const inBar = bar >= 60;
+    $('top').classList.toggle('inbar', inBar);
+    document.documentElement.style.setProperty('--barpad', Math.max(8, (bar - 50) / 2) + 'px');
+    $('handle').classList.toggle('off', inBar || !$('top').classList.contains('dim'));
+  }
+  const idle = () => {
+    $('top').classList.remove('dim'); place(); clearTimeout(idleT);
+    idleT = setTimeout(() => { $('top').classList.add('dim'); place(); }, 3000);
+  };
+  addEventListener('resize', place); v.addEventListener('loadedmetadata', place); v.addEventListener('resize', place);
+  $('handle').addEventListener('click', e => { e.stopPropagation(); idle(); });
+  $('endBtn').addEventListener('click', async () => {
+    clearInterval(keepT); try { if (pc) pc.close(); } catch (e) {} pc = null;
+    v.pause(); v.removeAttribute('src'); v.srcObject = null; v.load();
+    get('/cast/stop').catch(() => {});
+    $('top').classList.add('dim'); $('handle').classList.add('off'); showPanel(false);
+    $('start').hidden = false; $('wait').hidden = true;
+    document.querySelector('#start .t').textContent = 'Beendet';
+    document.querySelector('#start .s').textContent = '▶︎ tippen, um wieder mitzuschauen.';
+  });
   const setMode = m => {
     mode = m; idle();
     document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
@@ -203,7 +237,8 @@
   let p0 = null, last = null, moved = 0, lpT = null, scrollAcc = 0, scrollBusy = false;
   const STEP = 60;
   touch.addEventListener('pointerdown', e => {
-    touch.setPointerCapture(e.pointerId); idle(); showPanel(false);
+    touch.setPointerCapture(e.pointerId); showPanel(false);
+    if (e.clientY < 50) idle();                                      // touch at the top edge = controls
     p0 = last = { x: e.clientX, y: e.clientY, t: Date.now() }; moved = 0; scrollAcc = 0;
     clearTimeout(lpT);
     if (mode === 'remote') lpT = setTimeout(() => { if (!moved) { sendKey('Backspace'); fb('‹ Zurück'); moved = -1; } }, 650);
