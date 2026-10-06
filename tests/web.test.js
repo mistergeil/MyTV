@@ -3,15 +3,20 @@ const fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 let fails = 0;
 const check = (name, fn) => { try { fn(); console.log('ok    ' + name); } catch (e) { fails++; console.log('FAIL  ' + name + '  ' + e.message); } };
-for (const f of ['index.html', 'mediathek.html', 'streamtest.html', 'kiosk/vpn/remote.html', 'kiosk/vpn/watch.html', 'kiosk/index.html']) {
+for (const f of ['index.html', 'mediathek.html', 'streamtest.html', 'notebook/remote/remote.html', 'notebook/remote/watch.html', 'kiosk/index.html']) {
   const p = path.join(root, f); if (!fs.existsSync(p)) continue;
   const html = fs.readFileSync(p, 'utf8');
   const scripts = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
   scripts.forEach((js, i) => check(`${f} script ${i + 1}`, () => new Function(js)));
 }
 for (const f of ['channels.js', 'reminders.js']) check(f, () => new Function(fs.readFileSync(path.join(root, f), 'utf8')));
-for (const f of fs.readdirSync(path.join(root, 'kiosk')).filter(n => n.endsWith('.user.js')))
-  check(f, () => new Function('GM_xmlhttpRequest', 'GM_getValue', 'GM_setValue', 'GM_info', fs.readFileSync(path.join(root, 'kiosk', f), 'utf8')));
+for (const f of fs.readdirSync(path.join(root, 'userscripts')).filter(n => n.endsWith('.user.js'))) {
+  check(f, () => new Function('GM_xmlhttpRequest', 'GM_getValue', 'GM_setValue', 'GM_info', fs.readFileSync(path.join(root, 'userscripts', f), 'utf8')));
+  // Tampermonkey updates from kiosk/<name> (published copy) - must be identical to the source
+  check(f + ' published copy in kiosk/ is up to date (python tools/sync_published.py)', () => {
+    if (fs.readFileSync(path.join(root, 'kiosk', f), 'utf8') !== fs.readFileSync(path.join(root, 'userscripts', f), 'utf8')) throw new Error('kiosk/' + f + ' differs');
+  });
+}
 // channels.js: unique numbers, required fields
 check('channels.js: unique numbers + fields', () => {
   const w = {}; new Function('window', fs.readFileSync(path.join(root, 'channels.js'), 'utf8'))(w);
@@ -23,7 +28,7 @@ check('channels.js: unique numbers + fields', () => {
   }
 });
 // userscripts: @version must be a plain x.y.z
-for (const f of fs.readdirSync(path.join(root, 'kiosk')).filter(n => n.endsWith('.user.js')))
-  check(f + ' @version', () => { if (!/@version\s+\d+\.\d+\.\d+\s/.test(fs.readFileSync(path.join(root, 'kiosk', f), 'utf8'))) throw new Error('no x.y.z @version'); });
+for (const f of fs.readdirSync(path.join(root, 'userscripts')).filter(n => n.endsWith('.user.js')))
+  check(f + ' @version', () => { if (!/@version\s+\d+\.\d+\.\d+\s/.test(fs.readFileSync(path.join(root, 'userscripts', f), 'utf8'))) throw new Error('no x.y.z @version'); });
 console.log(fails ? `\n${fails} check(s) failed` : '\nall checks passed');
 process.exit(fails ? 1 : 0);

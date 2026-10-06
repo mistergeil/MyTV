@@ -9,7 +9,7 @@ import json, re, urllib.request, xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "youtube.json"
+OUT = ROOT / "data" / "youtube.json"
 UA = {"User-Agent": "Mozilla/5.0 (MyTV personal TV)", "Accept-Language": "de-DE,de;q=0.9"}
 NS = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015", "media": "http://search.yahoo.com/mrss/"}
 

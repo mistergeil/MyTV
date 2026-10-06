@@ -15,7 +15,7 @@ function Check([string]$name, [bool]$ok, [string]$detail = '') {
 Write-Host "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
 
 # ---- 1. every script parses
-$files = @(Get-ChildItem (Join-Path $Root 'kiosk') -Recurse -Filter *.ps1) + @(Get-ChildItem (Join-Path $Root 'tests') -Filter *.ps1)
+$files = @(Get-ChildItem (Join-Path $Root 'notebook') -Recurse -Filter *.ps1) + @(Get-ChildItem (Join-Path $Root 'tests') -Filter *.ps1)
 $asts = @{}
 foreach ($f in $files) {
   $e = $null; $t = $null
@@ -53,7 +53,7 @@ foreach ($k in $asts.Keys) {
 }
 
 # ---- 4. behaviour of the switcher's helpers (loaded from the real file)
-$agentPath = Join-Path $Root 'kiosk\vpn\mytv-vpn-agent.ps1'
+$agentPath = Join-Path $Root 'notebook\app\mytv-vpn-agent.ps1'
 $agent = $asts[(Get-Item $agentPath).FullName]
 foreach ($fn in $agent.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $args[0].Name -in @('Get-Num', 'Get-QS', 'Expand-Items', 'Get-Rems', 'Save-Rems', 'Find-Rem', 'Get-Configs', 'Get-ServerIdx', 'Set-ServerIdx', 'Get-ServerInfo', 'Get-Favs', 'Set-Fav') }, $true)) {
   . ([ScriptBlock]::Create($fn.Extent.Text))

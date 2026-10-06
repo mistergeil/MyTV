@@ -849,7 +849,7 @@
     }
 
     if (ch.type === 'youtube') {
-      // YouTube channel: newest video first, then the following ones; ← → skip (list from youtube.json)
+      // YouTube channel: newest video first, then the following ones; ← → skip (list from data/youtube.json)
       store.set('mytv.channel', ch.number);
       document.title = `${ch.number} · ${ch.name} — MyTV`;
       renderList(); showOsd();
@@ -950,7 +950,7 @@
     // 1) ZDF + private channels: epg.json in this repo (built by a GitHub Action from a public XMLTV guide)
     if (channels.some(c => c.xmltv)) {
       try {
-        const j = await (await fetch('epg.json?t=' + Math.floor(Date.now() / 6e5))).json();
+        const j = await (await fetch('data/epg.json?t=' + Math.floor(Date.now() / 6e5))).json();
         for (const [id, list] of Object.entries(j.channels || {})) {
           EPG['x:' + id] = list.map((p, n) => ({ id: id + n, start: new Date(p.s * 1000), end: new Date(p.e * 1000), title: p.t, sub: p.st || '', text: p.d || '', img: p.i || '' }));
         }
@@ -1347,7 +1347,7 @@
   async function loadHl(force) {
     if (!force && HL.data && Date.now() - HL.loaded < 10 * 6e4) return;
     try {
-      const j = await (await fetch('highlights.json?t=' + Math.floor(Date.now() / 6e5))).json();
+      const j = await (await fetch('data/highlights.json?t=' + Math.floor(Date.now() / 6e5))).json();
       HL.data = j; HL.loaded = Date.now();
     } catch (e) { HL.data = HL.data || { tv: [], mediathek: [] }; }
   }
@@ -1587,7 +1587,7 @@
   // ---------- YouTube channels ----------
   async function loadYt() {
     if (YT.data && Date.now() - YT.loaded < 15 * 6e4) return;
-    try { YT.data = await (await fetch('youtube.json?t=' + Math.floor(Date.now() / 6e5))).json(); YT.loaded = Date.now(); } catch (e) { YT.data = YT.data || {}; }
+    try { YT.data = await (await fetch('data/youtube.json?t=' + Math.floor(Date.now() / 6e5))).json(); YT.loaded = Date.now(); } catch (e) { YT.data = YT.data || {}; }
   }
   const ytList = ch => ((YT.data || {})[String(ch.number)] || []);
   function ytPlayId(ch, id) {              // by video id: robust even if the list was refreshed meanwhile

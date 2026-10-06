@@ -1,10 +1,10 @@
 name: Release
 
-# Release = change kiosk/vpn/VERSION (+ NOTES.txt) and push. The package is only built if all tests pass.
+# Release = change notebook/app/VERSION (+ NOTES.txt) and push. The package is only built if all tests pass.
 on:
   push:
     branches: [main]
-    paths: ["kiosk/vpn/VERSION"]
+    paths: ["notebook/app/VERSION"]
   workflow_dispatch:
 
 permissions:
@@ -33,5 +33,5 @@ jobs:
           git config user.email "mytv-release@users.noreply.github.com"
           git add kiosk/MyTV-Windows.zip kiosk/version.json
           if git diff --cached --quiet; then echo "nothing to release"; exit 0; fi
-          git commit -m "Release $(cat kiosk/vpn/VERSION)"
+          git commit -m "Release $(cat notebook/app/VERSION)"
           for i in 1 2 3 4 5; do git pull --rebase && git push && exit 0; sleep $((i * 7)); done; exit 1

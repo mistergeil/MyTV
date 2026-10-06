@@ -6,7 +6,7 @@
 //           (omitted)  → iframe embed
 //   geo:    true / "CH" / "AT" → only available in Germany / Switzerland / Austria (VPN switches automatically)
 //   epg:    channel id in the ARD program API (programm-api.ard.de) → program guide
-//   xmltv:  channel id in epg.json (built every 6 h by .github/workflows/epg.yml from epgshare01)
+//   xmltv:  channel id in data/epg.json (built every 6 h by .github/workflows/epg.yml from epgshare01)
 //   mode:   "external" → provider blocks embedding; opens its player in a new tab
 // Tested from Canada on 2026-10-02.
 window.CHANNELS = [
@@ -75,7 +75,7 @@ window.CHANNELS = [
   { number: 58, name: "VOXup",      short: "VOXup", mode: "external", geo: true, xmltv: "VOXup.de",     url: "https://plus.rtl.de/voxup/live" },
   { number: 59, name: "Toggo Plus", short: "Toggo", mode: "external", geo: true, xmltv: "TOGGO.plus.de", url: "https://plus.rtl.de/toggo-plus/live" },
 
-  // YouTube channels: newest video first, then the next ones (list: youtube.json, built hourly by the GitHub Action)
+  // YouTube channels: newest video first, then the next ones (list: data/youtube.json, built hourly by the GitHub Action)
   { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut", "v:Ybre8Q-iBWw", "UCqUkIkT0NvKxRQP-5_CMR3Q"] },
   { number: 61, name: "Gym",        short: "GYM",   type: "youtube", yt: ["@JesseJamesWest", "UCxiub44lXA3uQg_OaA9yheg", "@UrsKalecinski", "@WillTennyson", "@JeffNippard"] }
 ];

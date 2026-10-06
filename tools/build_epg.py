@@ -101,8 +101,8 @@ def finish(ids, out, seen_channels, now):
         out[k].sort(key=lambda p: p["s"])
         print(f"{k}: {len(out[k])} programmes")
     doc = {"generated": int(now), "source": "epgshare01.online (DE1, CH1, AT1)", "channels": out}
-    (ROOT / "epg.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
-    print("wrote epg.json", (ROOT / "epg.json").stat().st_size, "bytes")
+    (ROOT / "data" / "epg.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print("wrote epg.json", (ROOT / "data" / "epg.json").stat().st_size, "bytes")
 
 if __name__ == "__main__":
     main()

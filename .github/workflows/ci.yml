@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    paths-ignore: ["epg.json", "highlights.json", "youtube.json", "kiosk/MyTV-Windows.zip", "kiosk/version.json"]
+    paths-ignore: ["data/**", "kiosk/MyTV-Windows.zip", "kiosk/version.json"]
   pull_request:
   workflow_dispatch:
   workflow_call:          # used by the release workflow

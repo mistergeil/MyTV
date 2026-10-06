@@ -25,13 +25,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build youtube.json
+      - name: Build data/youtube.json
         run: python tools/build_youtube.py
       - name: Commit if changed
         run: |
           git config user.name "mytv-bot"
           git config user.email "mytv-bot@users.noreply.github.com"
-          git add youtube.json
+          git add data/youtube.json
           if git diff --cached --quiet; then echo "no changes"; exit 0; fi
           git commit -m "Update YouTube channels"
           for i in 1 2 3 4 5; do git pull --rebase && git push && exit 0; sleep $((i * 7)); done; exit 1   # the other bot may push at the same moment

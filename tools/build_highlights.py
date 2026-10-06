@@ -310,14 +310,14 @@ def build(xmltv_progs, use_network=True):
         keep += group
     keep.sort(key=lambda x: x["s"])
     doc = {"generated": now, "tv": keep, "mediathek": mediathek(now) if use_network else []}
-    (ROOT / "highlights.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (ROOT / "data" / "highlights.json").write_text(json.dumps(doc, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"wrote highlights.json: {sum(i['kind']=='film' for i in keep)} films, {sum(i['kind']=='sport' for i in keep)} sport, "
           f"{sum(i['kind']=='event' for i in keep)} shows, {len(doc['mediathek'])} mediathek")
     return doc
 
 if __name__ == "__main__":
     if "--from-epg" in sys.argv:          # offline test with the existing epg.json
-        j = json.loads((ROOT / "epg.json").read_text(encoding="utf-8"))
+        j = json.loads((ROOT / "data" / "epg.json").read_text(encoding="utf-8"))
         build(j["channels"], use_network=False)
     else:
         print("run via build_epg.py (needs the XMLTV download), or with --from-epg for a quick offline test")
