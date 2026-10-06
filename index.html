@@ -984,13 +984,15 @@
   // YouTube channels have no schedule: their videos (newest first) are shown as 30-min blocks from now on
   function ytProgs(ch) {
     const list = ((YT.data || {})[String(ch.number)] || []);
-    const base = Math.floor((Date.now() - 10 * 6e4) / 3e5) * 3e5, key = ch.number + ':' + base + ':' + list.length;
+    // the video that is playing right now (on this channel) is the "LÄUFT" block, older/newer ones before/after it
+    const cur = channels[index] === ch ? YT.pos : 0;
+    const base = Math.floor((Date.now() - 10 * 6e4) / 3e5) * 3e5 - cur * 18e5, key = ch.number + ':' + base + ':' + list.length + ':' + cur;
     if (YT.cache[ch.number] && YT.cache[ch.number].key === key) return YT.cache[ch.number].ps;
     const ps = list.map((v, i) => {
       const ago = Math.round((Date.now() - Date.parse(v.published)) / 36e5);
       return { id: 'yt' + v.id, yt: i, start: new Date(base + i * 18e5), end: new Date(base + (i + 1) * 18e5), title: v.title,
                sub: (v.by || '') + ' · ' + (ago < 48 ? 'vor ' + ago + ' Std.' : 'vor ' + Math.round(ago / 24) + ' Tagen'),
-               text: i === 0 ? 'Neuestes Video – läuft, sobald du den Sender wählst.' : 'OK = dieses Video abspielen',
+               text: (i === cur ? 'Läuft gerade. ' : '') + (i === 0 ? 'Neuestes Video. ' : '') + 'OK = dieses Video abspielen',
                img: 'https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg' };
     });
     YT.cache[ch.number] = { key, ps };
