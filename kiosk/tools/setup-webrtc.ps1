@@ -71,7 +71,7 @@ moq: no
 webrtc: yes
 webrtcAddress: :8889
 webrtcEncryption: no
-webrtcAllowOrigin: '*'
+webrtcAllowOrigins: ['*']
 webrtcLocalUDPAddress: :8189
 webrtcIPsFromInterfaces: yes
 authMethod: internal

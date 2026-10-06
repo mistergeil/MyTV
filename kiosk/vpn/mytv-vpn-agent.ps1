@@ -412,7 +412,8 @@ $InputKeys = @{ Enter = 0x0D; Backspace = 0x08; Escape = 0x1B; Tab = 0x09; Up = 
 function Get-Num($req, $n, $min, $max) {
   $v = 0.0
   if (-not [double]::TryParse([string]$req.QueryString[$n], [Globalization.NumberStyles]::Float, [Globalization.CultureInfo]::InvariantCulture, [ref]$v)) { throw "$n missing" }
-  return [Math]::Max($min, [Math]::Min($max, $v))
+  # all doubles: with int limits PowerShell picks Math.Min(int,int) and turns 0.5 into 0 (every click landed top-left)
+  return [Math]::Max([double]$min, [Math]::Min([double]$max, [double]$v))
 }
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {

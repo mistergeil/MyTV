@@ -2,11 +2,10 @@
   "version": "1.12.2",
   "date": "06.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "fab0977f59b67eaa30431e108d737b81d7fc41b316f68eafac85288e78d0d2b9",
-  "size": 48265,
+  "sha256": "d74148b7a626b229b024c481b062c11ac8f8a267ad17e50bdcd647bdd05aac8f",
+  "size": 48325,
   "notes": [
-    "Mausmodus: Klicks landen jetzt an der richtigen Stelle (vorher immer oben links)",
-    "Mitschauen: flüssigeres Bild bei Videos (Chrome-Einstellung im Kiosk, nach Neustart des Kiosks)"
+    "Mausmodus: Klicks landen jetzt genau dort, wo du tippst (vorher immer oben links)"
   ],
   "installer": false
 }
