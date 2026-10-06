@@ -510,6 +510,14 @@
   .gal-msg { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2; text-align: center; color: rgba(255,255,255,.8);
              font-size: var(--t-head); font-weight: 600; line-height: 1.4; max-width: 60vw; }
   .gal-msg small { display: block; font-size: var(--t-call); color: rgba(255,255,255,.5); font-weight: 500; margin-top: .6vw; }
+  /* guide artwork (selected programme), same style as Highlights */
+  #guide .g-back { position: absolute; top: 0; right: 0; width: 62vw; height: 46vh; background-size: cover; background-position: center 25%; pointer-events: none;
+                   -webkit-mask-image: linear-gradient(to left, #000 40%, transparent 100%), linear-gradient(to top, transparent 0%, #000 50%);
+                   -webkit-mask-composite: source-in; mask-image: linear-gradient(to left, #000 40%, transparent 100%), linear-gradient(to top, transparent 0%, #000 50%);
+                   mask-composite: intersect; opacity: 0; transition: opacity .5s ease; z-index: 0; }
+  #guide .g-back.on { opacity: .75; }
+  #guide .g-head, #guide .g-grid, #guide .g-hint { position: relative; z-index: 1; }
+  #guide .g-title, #guide .g-sub { text-shadow: 0 2px 18px rgba(0,0,0,.7); }
   @media (max-width: 800px) {
     #osd { width: calc(100vw - 32px); padding: 14px 16px; }
     #list { min-width: 0; width: calc(100vw - 32px); right: 16px; }
@@ -537,6 +545,7 @@
 </div>
 
 <div id="guide" role="dialog" aria-label="Programmführer">
+  <div class="g-back" id="gBack"></div>
   <div class="g-head">
     <div class="g-detail">
       <div class="g-when" id="gWhen"></div>
@@ -841,7 +850,8 @@
       store.set('mytv.channel', ch.number);
       document.title = `${ch.number} · ${ch.name} — MyTV`;
       renderList(); showOsd();
-      loadYt().then(() => { if (channels[index] === ch) ytPlay(ch, 0); });
+      const sp = YT.startPos; YT.startPos = 0;
+      loadYt().then(() => { if (channels[index] === ch) ytPlay(ch, sp); });
       return;
     }
 
@@ -939,7 +949,7 @@
       try {
         const j = await (await fetch('epg.json?t=' + Math.floor(Date.now() / 6e5))).json();
         for (const [id, list] of Object.entries(j.channels || {})) {
-          EPG['x:' + id] = list.map((p, n) => ({ id: id + n, start: new Date(p.s * 1000), end: new Date(p.e * 1000), title: p.t, sub: p.st || '', text: p.d || '' }));
+          EPG['x:' + id] = list.map((p, n) => ({ id: id + n, start: new Date(p.s * 1000), end: new Date(p.e * 1000), title: p.t, sub: p.st || '', text: p.d || '', img: p.i || '' }));
         }
       } catch (e) { /* no guide file yet */ }
     }
@@ -955,7 +965,9 @@
         for (const sl of (c.timeSlots || []).flat()) {
           const start = new Date(sl.broadcastedOn), end = new Date(sl.broadcastEnd);
           if (isNaN(start) || isNaN(end) || end <= start) continue;
-          arr.push({ id: sl.id, start, end, title: sl.coreTitle || sl.title || '', sub: sl.coreSubline || '', text: sl.synopsis || '' });
+          const im = sl.images && (sl.images.aspect16x9 || sl.images.aspect16x7 || Object.values(sl.images)[0]);
+          arr.push({ id: sl.id, start, end, title: sl.coreTitle || sl.title || '', sub: sl.coreSubline || '', text: sl.synopsis || '',
+                     img: im && im.src ? im.src.replace('{width}', '960') : '' });
         }
       }
     }
@@ -966,7 +978,26 @@
     if ($('osd').classList.contains('show')) showOsd();
     if ($('guide').classList.contains('open')) renderGuide();
   }
-  function progsOf(ch) { return (ch && ((ch.epg && EPG[ch.epg]) || (ch.xmltv && EPG['x:' + ch.xmltv]))) || []; }
+  const YT = { data: null, loaded: 0, pos: 0, startPos: 0, cache: {} };
+  // YouTube channels have no schedule: their videos (newest first) are shown as 30-min blocks from now on
+  function ytProgs(ch) {
+    const list = ((YT.data || {})[String(ch.number)] || []);
+    const base = Math.floor((Date.now() - 10 * 6e4) / 3e5) * 3e5, key = ch.number + ':' + base + ':' + list.length;
+    if (YT.cache[ch.number] && YT.cache[ch.number].key === key) return YT.cache[ch.number].ps;
+    const ps = list.map((v, i) => {
+      const ago = Math.round((Date.now() - Date.parse(v.published)) / 36e5);
+      return { id: 'yt' + v.id, yt: i, start: new Date(base + i * 18e5), end: new Date(base + (i + 1) * 18e5), title: v.title,
+               sub: (v.by || '') + ' · ' + (ago < 48 ? 'vor ' + ago + ' Std.' : 'vor ' + Math.round(ago / 24) + ' Tagen'),
+               text: i === 0 ? 'Neuestes Video – läuft, sobald du den Sender wählst.' : 'OK = dieses Video abspielen',
+               img: 'https://i.ytimg.com/vi/' + v.id + '/hqdefault.jpg' };
+    });
+    YT.cache[ch.number] = { key, ps };
+    return ps;
+  }
+  function progsOf(ch) {
+    if (ch && ch.type === 'youtube') return ytProgs(ch);
+    return (ch && ((ch.epg && EPG[ch.epg]) || (ch.xmltv && EPG['x:' + ch.xmltv]))) || [];
+  }
   function nowNext(ch, t = new Date()) {
     const ps = progsOf(ch);
     const i = ps.findIndex(p => p.start <= t && t < p.end);
@@ -974,6 +1005,8 @@
   }
   loadEpg();
   setInterval(loadEpg, 30 * 60 * 1000);
+  setTimeout(() => loadYt().then(() => { if ($('guide').classList.contains('open')) renderGuide(); }), 500);
+  setInterval(loadYt, 30 * 60 * 1000);
 
   // ---------- OSD ----------
   function clock() { return new Date().toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }); }
@@ -1092,7 +1125,7 @@
   const floor30 = d => { const x = new Date(d); x.setMinutes(x.getMinutes() < 30 ? 0 : 30, 0, 0); return x; };
   function openGuide(day = 0) {
     if (OV_PANELS_OUT) { toHost({ type: 'go', q: 'guide=1' }); return; }
-    toggleList(false); closeHl(); loadFavs();
+    toggleList(false); closeHl(); loadFavs(); loadHl().then(() => { if ($('guide').classList.contains('open')) renderGuide(); });
     // open at the top (favorites first); the cursor sits on the current channel if it's on the first page, else on the first channel
     G.row = index;                         // cursor on what's playing, centred
     const t = new Date(); t.setDate(t.getDate() + day);
@@ -1192,12 +1225,25 @@
       const live = s.p.start <= now && now < s.p.end;
       $('gWhen').textContent = `${s.ch.number} ${s.ch.name} · ${s.p.start.toLocaleDateString('de-CH', { weekday: 'short' })} ${hm(s.p.start)}–${hm(s.p.end)}${live ? ' · LÄUFT' : ''}`;
       $('gTitle').textContent = s.p.title; $('gSub').textContent = s.p.sub; $('gText').textContent = (s.p.text || '').replace(/\\n/g, ' ');
+      let img = s.p.img || '';
+      if (!img && HL.data) { const h = (HL.data.tv || []).find(x => x.ch === s.ch.number && Math.abs(x.s * 1000 - s.p.start) < 6e4 && x.img); if (h) img = h.img; }
+      guideBack(img);
     } else {
       const ch = channels[G.row];
       $('gWhen').textContent = `${ch.number} ${ch.name}`;
       $('gTitle').textContent = progsOf(ch).length ? 'Keine Sendung in diesem Zeitraum' : 'Keine Programmdaten';
       $('gSub').textContent = ''; $('gText').textContent = (ch.epg || ch.xmltv) ? '' : 'Für diesen Sender gibt es (noch) keine Programmdaten.';
+      guideBack('');
     }
+  }
+  // artwork of the selected programme behind the guide header (like the Apple TV app / Highlights)
+  function guideBack(src) {
+    const bk = $('gBack'); src = (src || '').replace(/^http:/, 'https:');
+    if (bk.dataset.src === src) return;
+    bk.dataset.src = src; bk.classList.remove('on');
+    if (!src) return;
+    clearTimeout(bk._t);
+    bk._t = setTimeout(() => { const im = new Image(); im.onload = () => { if (bk.dataset.src === src) { bk.style.backgroundImage = `url("${src.replace(/"/g, '')}")`; bk.classList.add('on'); } }; im.src = src; }, 120);
   }
   function guideMove(dRow, dProg) {
     if (dRow) {
@@ -1520,7 +1566,6 @@
 
 
   // ---------- YouTube channels ----------
-  const YT = { data: null, loaded: 0, pos: 0 };
   async function loadYt() {
     if (YT.data && Date.now() - YT.loaded < 15 * 6e4) return;
     try { YT.data = await (await fetch('youtube.json?t=' + Math.floor(Date.now() / 6e5))).json(); YT.loaded = Date.now(); } catch (e) { YT.data = YT.data || {}; }
@@ -1747,7 +1792,10 @@
       else if (k === 'ArrowRight') guideMove(0, 1);
       else if (k === 'PageUp') guideMove(-5, 0);
       else if (k === 'PageDown') guideMove(5, 0);
-      else if (k === 'Enter') { if (G.sel && G.sel.p && G.sel.p.start > Date.now() + 60e3) openRMenu(); else { closeGuide(); tune(G.row); } }
+      else if (k === 'Enter') {
+        if (G.sel && G.sel.p && G.sel.p.yt !== undefined) { YT.startPos = G.sel.p.yt; closeGuide(); if (channels[G.row] === channels[index]) ytPlay(channels[index], YT.startPos), YT.startPos = 0; else tune(G.row); }
+        else if (G.sel && G.sel.p && G.sel.p.start > Date.now() + 60e3) openRMenu(); else { closeGuide(); tune(G.row); }
+      }
       else if (k === 'Escape' || k === 'Backspace' || k === 'BrowserBack' || k === 'g' || k === 'G' || k === 'Guide') closeGuide();
       else if (k === 'b' || k === 'B') { closeGuide(); openLibMenu(); }
       else if (k === 'l' || k === 'L') { closeGuide(); toggleList(true); }

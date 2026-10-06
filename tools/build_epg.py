@@ -71,7 +71,11 @@ def parse(data, ids, lo, hi, out, seen_channels, wide, now):
                 st = (el.findtext("sub-title") or "").strip()
                 d = (el.findtext("desc") or "").strip()
                 if len(d) > 400: d = d[:397].rstrip() + "…"
-                out[cid].append({"s": s, "e": e, "t": t, "st": st, "d": d})
+                item = {"s": s, "e": e, "t": t, "st": st, "d": d}
+                ic = el.find("icon")
+                if ic is not None and e - s >= 40 * 60 and ic.get("src", "").startswith("http"):
+                    item["i"] = ic.get("src").replace("http://", "https://", 1)     # artwork behind the guide
+                out[cid].append(item)
             if e > now and s < now + 8 * 86400 and e - s >= 25 * 60:
                 t = (el.findtext("title") or "").strip()
                 st = (el.findtext("sub-title") or "").strip()
