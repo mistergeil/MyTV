@@ -77,9 +77,11 @@ Check 'reminders: single item stays a list' ($r1.Count -eq 1 -and (Get-Content $
 
 $Dir = $tmp; $RunDir = Join-Path $tmp 'run'
 'DE.conf', 'DE02.conf', 'DE-berlin.conf', 'DEBUG.conf', 'CH.conf' | ForEach-Object { Set-Content (Join-Path $tmp $_) 'x' }
-Check 'VPN configs: DE.conf first, DEBUG.conf ignored' (((Get-Configs 'DE') | ForEach-Object Name) -join ',' -eq 'DE.conf,DE-berlin.conf,DE02.conf')
-Set-ServerIdx 'DE' 2; Check 'VPN server remembered by name' ((Get-ServerInfo 'DE').name -eq 'DE02')
-Set-Content (Join-Path $tmp 'DE-a.conf') 'x'; Check 'VPN server still right after a new file' ((Get-ServerInfo 'DE').name -eq 'DE02')
+$names = @((Get-Configs 'DE') | ForEach-Object Name)    # order of the rest depends on the OS's sort rules
+Check 'VPN configs: DE.conf first, DEBUG.conf ignored' ($names[0] -eq 'DE.conf' -and $names.Count -eq 3 -and $names -notcontains 'DEBUG.conf' -and $names -contains 'DE02.conf' -and $names -contains 'DE-berlin.conf') ($names -join ',')
+$pick = [array]::IndexOf($names, 'DE02.conf')
+Set-ServerIdx 'DE' $pick; Check 'VPN server remembered by name' ((Get-ServerInfo 'DE').name -eq 'DE02') ((Get-ServerInfo 'DE').name)
+Set-Content (Join-Path $tmp 'DE-a.conf') 'x'; Check 'VPN server still right after a new file' ((Get-ServerInfo 'DE').name -eq 'DE02') ((Get-ServerInfo 'DE').name)
 
 $FavFile = Join-Path $tmp 'favorites.txt'
 Check 'favorites add/remove' (((Set-Fav 22 $true) -join ',') -eq '22' -and ((Set-Fav 2 $true) -join ',') -eq '2,22' -and ((Set-Fav 22 $false) -join ',') -eq '2')
