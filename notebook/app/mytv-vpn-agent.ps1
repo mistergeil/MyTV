@@ -325,12 +325,15 @@ function Start-Cast {
     'h264_amf'   { '-usage lowlatency -quality speed' }
     default      { '' }
   }
-  $audioIn = if ($c.audio) { "-thread_queue_size 512 -f dshow -audio_buffer_size 50 -i audio=`"$($c.audio)`"" } else { '' }
+  # sound gets wall-clock timestamps like the picture → no drift between them
+  $audioIn = if ($c.audio) { "-use_wallclock_as_timestamps 1 -thread_queue_size 1024 -f dshow -audio_buffer_size 40 -i audio=`"$($c.audio)`"" } else { '' }
   $rtc = ([string]$c.transport -eq 'webrtc')
-  $audioOut = if (-not $c.audio) { '-an' } elseif ($rtc) { '-c:a libopus -b:a 128k -ar 48000 -ac 2' } else { '-c:a aac -b:a 160k -ar 48000' }
+  # aresample async: stretches/squeezes the sound a tiny bit so it stays on the picture's clock (after hiccups too)
+  $aSync = '-af aresample=async=1000:first_pts=0'
+  $audioOut = if (-not $c.audio) { '-an' } elseif ($rtc) { "$aSync -c:a libopus -b:a 128k -ar 48000 -ac 2 -application lowdelay" } else { "$aSync -c:a aac -b:a 160k -ar 48000" }
   # capture: ddagrab (Desktop Duplication, much faster on a 4K desktop) or gdigrab (works everywhere, slow)
   if ([string]$c.capture -eq 'ddagrab') {
-    $vin = "-thread_queue_size 512 -f lavfi -i ddagrab=output_idx=0:framerate=${fps}:draw_mouse=0"
+    $vin = "-thread_queue_size 1024 -f lavfi -i ddagrab=output_idx=0:framerate=${fps}:draw_mouse=0"
     $vf  = "hwdownload,format=bgra,scale=$($c.width):$($c.height):flags=fast_bilinear,format=$vfmt"
   } else {
     $vin = "-thread_queue_size 512 -f gdigrab -framerate $fps -draw_mouse 0 -i desktop"
@@ -342,7 +345,7 @@ function Start-Cast {
                     "-hls_segment_filename `"$(Join-Path $CastDir 'seg%05d.ts')`" `"$(Join-Path $CastDir 'index.m3u8')`"" }
   $ffArgs = "-hide_banner -loglevel warning $vin $audioIn " +
           "-vf $vf -c:v $enc $encOpts -bf 0 -b:v $($c.bitrate) -maxrate $($c.bitrate) -bufsize $($c.bitrate) " +
-          "-g $fps -keyint_min $fps $scOpt $audioOut $outArgs"
+          "-g $fps -keyint_min $fps $scOpt -fps_mode cfr $audioOut -max_interleave_delta 0 $outArgs"
   $script:CastStart = [DateTime]::UtcNow
   # FFmpeg's messages go to a file (no event handlers: those would run outside PowerShell's thread and crash the switcher)
   $script:CastProc = Start-Process -FilePath $c.ffmpeg -ArgumentList $ffArgs -WindowStyle Hidden -PassThru `

@@ -1,2 +1,1 @@
-Selbsttest nach jedem Update: schlägt ein wichtiger Test fehl, kommt automatisch die alte Version zurück
-Einstellungen → System → „Selbsttest starten“ zeigt den Zustand aller Teile
+Mitschauen: Ton und Bild bleiben synchron, auch nach kurzen Aussetzern

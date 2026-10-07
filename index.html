@@ -808,7 +808,10 @@
         v.src = ch.url; start();                    // Safari: native HLS
         v.addEventListener('error', () => showError(ch, !!ch.geo), { once: true });
       } else if (window.Hls && Hls.isSupported()) {
-        hls = new Hls({ lowLatencyMode: false, backBufferLength: 30 });
+        // a bit more buffer against short stalls; if it falls behind live it catches up by playing slightly
+        // faster (inaudible) instead of staying behind; far behind → jump to live
+        hls = new Hls({ lowLatencyMode: false, backBufferLength: 30, liveSyncDurationCount: 4, liveMaxLatencyDurationCount: 10,
+                        maxLiveSyncPlaybackRate: 1.08, maxBufferLength: 30, nudgeMaxRetry: 6, highBufferWatchdogPeriod: 2 });
         hls.loadSource(ch.url); hls.attachMedia(v);
         hls.on(Hls.Events.MANIFEST_PARSED, start);
         hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => pickAudio(hls));
