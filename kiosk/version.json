@@ -1,12 +1,12 @@
 {
-  "version": "1.13.0",
-  "date": "06.10.2026",
+  "version": "1.14.0",
+  "date": "07.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "29f1fc08e8932cd45ded5dd1c7e9bf3a7fe179a0c23858ab3a2c0abae086e862",
-  "size": 49312,
+  "sha256": "a02ec54fa460cd194f437754e669b5d47e7b6cff0a2e0e2f227a0c29261d163a",
+  "size": 51077,
   "notes": [
-    "Automatische Tests auf echtem Windows vor jedem Update (weniger Fehler auf dem Notebook)",
-    "Interne Aufräumarbeiten"
+    "Selbsttest nach jedem Update: schlägt ein wichtiger Test fehl, kommt automatisch die alte Version zurück",
+    "Einstellungen → System → „Selbsttest starten“ zeigt den Zustand aller Teile"
   ],
   "installer": false
 }
