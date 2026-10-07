@@ -53,6 +53,30 @@ function Start-AgentAndWait($want) {
   }
   return $false
 }
+# after the new switcher is up: its own checks + the remote from outside (LAN port with key, remote page)
+# returns @{ ok; msg }  (ok = no critical failure)
+function Test-NewAgent {
+  $fail = @(); $warn = @()
+  try {
+    $st = Invoke-RestMethod -Uri 'http://127.0.0.1:8765/selftest' -TimeoutSec 20
+    foreach ($c in @($st.checks)) {
+      if (-not $c.ok) { if ($c.critical) { $fail += "$($c.name): $($c.detail)" } else { $warn += "$($c.name): $($c.detail)" } }
+    }
+  } catch {
+    # a switcher before 1.14 has no /selftest - then only the outside checks count
+    if ($_.Exception.Response -and [int]$_.Exception.Response.StatusCode -ne 404) { $fail += "Selbsttest: $($_.Exception.Message)" }
+  }
+  $kf = Join-Path $Dir 'remote.key'
+  if (Test-Path $kf) {
+    $k = [Uri]::EscapeDataString((Get-Content $kf -Raw).Trim())
+    try { $p = Invoke-RestMethod -Uri "http://127.0.0.1:8766/ping?key=$k" -TimeoutSec 5; if (-not $p.ok) { $fail += 'Fernbedienung: keine Antwort' } }
+    catch { $fail += "Fernbedienung (Port 8766): $($_.Exception.Message)" }
+    try { $h = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8766/remote?key=$k" -TimeoutSec 5; if ($h.Content -notmatch 'MyTV') { $fail += 'Fernbedienungs-Seite leer' } }
+    catch { $fail += "Fernbedienungs-Seite: $($_.Exception.Message)" }
+  }
+  Write-Log ("self-test: " + $(if ($fail.Count) { 'FAILED ' + ($fail -join ' | ') } else { 'ok' }) + $(if ($warn.Count) { ' / warnings: ' + ($warn -join ' | ') } else { '' }))
+  return @{ ok = ($fail.Count -eq 0); fail = $fail; warn = $warn }
+}
 # copy every file below $from into $Root (same relative path), except protected ones
 function Copy-Tree($src) {
   $n = 0
@@ -129,18 +153,22 @@ try {
   Stop-Agent
   $n = Copy-Tree $x
   Write-Log "copied $n files"
-  if (Start-AgentAndWait $newVer) {
+  $up = Start-AgentAndWait $newVer
+  $test = if ($up) { Set-State 'running' "Selbsttest $newVer ..." @{ from = $from; to = $newVer }; Start-Sleep -Seconds 2; Test-NewAgent } else { $null }
+  if ($up -and $test.ok) {
     $note = if ($v.installer) { ' - bitte einmal VPN-Install.bat am Notebook ausführen' } else { '' }
-    Set-State 'ok' "Aktualisiert auf $newVer$note" @{ from = $from; to = $newVer }
+    $wn = if ($test.warn.Count) { " (Selbsttest ok, Hinweise: $($test.warn -join '; '))" } else { ' (Selbsttest ok)' }
+    Set-State 'ok' "Aktualisiert auf $newVer$wn$note" @{ from = $from; to = $newVer }
     try { $p = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowHandle -ne 0 } | Select-Object -First 1
           if ($p) { [void](New-Object -ComObject WScript.Shell).AppActivate($p.Id) } } catch {}
   } else {
-    # new switcher did not come up -> put the old files back
-    Write-Log 'new version did not answer - rolling back'
+    # new switcher did not come up, or its self-test failed -> put the old files back
+    $why = if (-not $up) { 'startete nicht' } else { 'Selbsttest fehlgeschlagen: ' + ($test.fail -join '; ') }
+    Write-Log "new version $why - rolling back"
     Stop-Agent
     [void](Copy-Tree $bk)
     $ok = Start-AgentAndWait $null
-    Set-State 'rolled_back' ("$newVer startete nicht - $from wiederhergestellt" + $(if ($ok) { '' } else { ' (Umschalter antwortet nicht, Notebook neu starten)' })) @{ from = $from; to = $from }
+    Set-State 'rolled_back' ("$newVer $why - $from wiederhergestellt" + $(if ($ok) { '' } else { ' (Umschalter antwortet nicht, Notebook neu starten)' })) @{ from = $from; to = $from }
   }
 } catch {
   Set-State 'failed' "$_" @{ from = $from }

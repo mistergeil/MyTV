@@ -1,2 +1,2 @@
-Automatische Tests auf echtem Windows vor jedem Update (weniger Fehler auf dem Notebook)
-Interne Aufräumarbeiten
+Selbsttest nach jedem Update: schlägt ein wichtiger Test fehl, kommt automatisch die alte Version zurück
+Einstellungen → System → „Selbsttest starten“ zeigt den Zustand aller Teile

@@ -16,6 +16,7 @@
 #    GET /cast/start|stop|status?key=KEY, /cast/index.m3u8?key=KEY, /cast/segNNNNN.ts?key=KEY
 #    GET /input/move?dx=&dy= | /input/abs?x=&y= (0..1) | /input/click?[x=&y=][&b=right] | /input/scroll?d= |
 #        /input/text?t= | /input/key?k=Enter|Backspace|Escape|Tab|Up|Down|Left|Right   (LAN, key) -> mouse mode
+#    GET /selftest            -> internal health checks (local + LAN with key); the updater runs it after every update
 #    GET /pipe/test, /pipe/result?ok=1&where=  -> "Verbindung testen" (remote -> notebook -> MyTV -> notebook)
 #    GET /ui?guide=1|0        -> MyTV reports what is on screen (remote shows Jetzt/Morgen/Übermorgen while the guide is open)
 #
@@ -415,6 +416,40 @@ function Get-Num($req, $n, $min, $max) {
   # all doubles: with int limits PowerShell picks Math.Min(int,int) and turns 0.5 into 0 (every click landed top-left)
   return [Math]::Max([double]$min, [Math]::Min([double]$max, [double]$v))
 }
+# ---- self-test: every part of the switcher once, without changing anything ----
+# critical = the update is rolled back if it fails; warnings are only reported
+function Invoke-SelfTest {
+  $r = New-Object System.Collections.ArrayList
+  function T($name, [bool]$critical, [scriptblock]$check) {
+    $ok = $false; $detail = ''
+    try { $res = & $check; if ($res -is [string]) { $ok = $false; $detail = $res } elseif ($res -eq $false) { $ok = $false } else { $ok = $true } }
+    catch { $ok = $false; $detail = $_.Exception.Message }
+    [void]$r.Add([ordered]@{ name = $name; ok = $ok; critical = $critical; detail = $detail })
+  }
+  T 'Version' $true { if ($Version -and $Version -ne '0') { $true } else { 'VERSION fehlt' } }
+  T 'Fernbedienungs-Seiten' $true {
+    foreach ($f in 'remote.html', 'watch.html') { if (-not (Test-Path (Join-Path $Dir $f))) { return "$f fehlt" } }
+    if ((Get-Content (Join-Path $Dir 'remote.html') -Raw) -notmatch 'MyTV') { return 'remote.html beschädigt' }
+    $true }
+  T 'Fernbedienungs-Schlüssel' $true { if ($Key) { $true } else { 'remote.key fehlt' } }
+  T 'Mausmodus' $true { if ($InputOk) { $true } else { 'Mausmodus nicht geladen (agent.log)' } }
+  T 'Erinnerungen lesbar' $true { [void]@(Get-Rems); $true }
+  T 'Favoriten lesbar' $true { [void]@(Get-Favs); $true }
+  T 'VPN-Status' $true { [void](Get-Active); $true }
+  T 'VPN-Profile' $false { $n = @('DE', 'CH', 'AT' | Where-Object { @(Get-Configs $_).Count }).Count; if ($n) { $true } else { 'keine .conf gefunden' } }
+  T 'Galerie-Ordner' $false { [void]@(Get-Albums); $true }
+  T 'Mitschauen (FFmpeg)' $false {
+    $c = Get-CastCfg
+    if (-not (Test-Path (Join-Path $Dir 'cast.json'))) { return 'nicht eingerichtet' }
+    if (-not $c.ffmpeg -or -not (Test-Path $c.ffmpeg)) { return 'ffmpeg.exe nicht gefunden' }
+    $true }
+  T 'Mitschauen (WebRTC)' $false {
+    if ([string](Get-CastCfg).transport -ne 'webrtc') { return $true }
+    try { Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:8889/tv/' -TimeoutSec 3 | Out-Null; $true }
+    catch { if ($_.Exception.Response) { $true } else { 'MediaMTX antwortet nicht' } } }
+  T 'Update-Aufgabe' $false { if (Get-ScheduledTask -TaskName $UpdTask -ErrorAction SilentlyContinue) { $true } else { 'Aufgabe "MyTV Updater" fehlt' } }
+  return ,$r
+}
 # ---- updates (only ever installed after a tap on the iPhone remote) ----
 function Get-UpdateInfo($force) {
   if ($force -or -not $script:UpdInfo -or ([DateTime]::UtcNow - $script:UpdChecked).TotalHours -ge 6) {
@@ -595,6 +630,10 @@ while ($true) {
         if ($Allowed -notcontains $c) { throw 'VPN ist aus - erst einen Sender mit VPN wählen' }
         $out.country = Switch-Server $c; $out.server = Get-ServerInfo $c; $out.ok = ($out.country -eq $c)
         if ($out.ok) { Add-Cmd 'reload' '' '' }          # the channel on the TV reloads with the new server
+      } elseif ($path -eq '/selftest') {
+        $checks = Invoke-SelfTest
+        $out.checks = @($checks); $out.version = $Version
+        $out.ok = -not @($checks | Where-Object { $_.critical -and -not $_.ok }).Count
       } elseif ($path -eq '/photos/albums') {
         $out.ok = $true; $out.albums = @(Get-Albums)
       } elseif ($path -eq '/photos/create') {
@@ -718,6 +757,10 @@ while ($true) {
         }
         try { ConvertTo-Json -InputObject $Scripts -Compress -Depth 4 | Set-Content -Path $ScriptsFile -Encoding ascii } catch {}
         $out.ok = $true
+      } elseif ($path -eq '/selftest') {
+        $checks = Invoke-SelfTest
+        $out.checks = @($checks); $out.version = $Version
+        $out.ok = -not @($checks | Where-Object { $_.critical -and -not $_.ok }).Count
       } elseif ($path -eq '/pipe/test') {
         $out.ok = $true; $out.pong = $true; $out.version = $Version
       } elseif ($path -eq '/pipe/result') {

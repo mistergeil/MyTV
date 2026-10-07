@@ -235,6 +235,12 @@
     <div class="cell"><span class="nm">MyTV Helper</span><span class="val" id="tHelper">–</span></div>
   </div>
   <div class="note" id="tNote">Die Helper-Version wird gemeldet, sobald ein Sender wie Joyn, RTL+ oder ORF läuft.</div>
+  <h2>System</h2>
+  <div class="group">
+    <button class="cell primary" id="sSelf">Selbsttest starten</button>
+  </div>
+  <div class="group" id="sSelfRes" style="margin-top:8px" hidden></div>
+  <div class="note">Prüft alle Teile auf dem Notebook. Läuft nach jedem Update automatisch – schlägt ein wichtiger Test fehl, kommt die alte Version zurück.</div>
   <h2>Verbindung</h2>
   <div class="group">
     <button class="cell primary" id="sPipe">Verbindung testen</button>
@@ -531,6 +537,15 @@
     $('sInstall').disabled = $('sRollback').disabled = false;
   }
   $('sCheck').addEventListener('click', () => check(true));
+  $('sSelf').addEventListener('click', async () => {
+    haptic(); const box = $('sSelfRes'); box.hidden = false;
+    box.innerHTML = '<div class="cell"><span class="nm" style="color:var(--muted)">Teste …</span></div>';
+    try {
+      const j = await api('/selftest');
+      box.innerHTML = (j.checks || []).map(c => `<div class="cell"><span class="nm">${c.name}</span><span class="val" style="color:${c.ok ? 'var(--green)' : (c.critical ? 'var(--red)' : 'var(--orange)')}">${c.ok ? '✓' : (c.detail || '✗')}</span></div>`).join('')
+        || '<div class="cell"><span class="nm" style="color:var(--muted)">Selbsttest ab Version 1.14 verfügbar</span></div>';
+    } catch (e) { box.innerHTML = '<div class="cell"><span class="nm" style="color:var(--red)">Notebook nicht erreichbar</span></div>'; }
+  });
   $('sPipe').addEventListener('click', async () => {
     haptic(); $('sPipeRes').textContent = 'Teste …';
     try { await api('/cmd', '&do=test'); } catch (e) { $('sPipeRes').textContent = '✗ Notebook nicht erreichbar'; return; }
