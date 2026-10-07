@@ -1,12 +1,11 @@
 {
-  "version": "1.14.0",
+  "version": "1.14.1",
   "date": "07.10.2026",
   "zip": "MyTV-Windows.zip",
-  "sha256": "a02ec54fa460cd194f437754e669b5d47e7b6cff0a2e0e2f227a0c29261d163a",
-  "size": 51077,
+  "sha256": "5779e832b472f0687688fbb4fbecd6edb8b3ee19b17f5b8c26b4e812324e0140",
+  "size": 51296,
   "notes": [
-    "Selbsttest nach jedem Update: schlägt ein wichtiger Test fehl, kommt automatisch die alte Version zurück",
-    "Einstellungen → System → „Selbsttest starten“ zeigt den Zustand aller Teile"
+    "Mitschauen: Ton und Bild bleiben synchron, auch nach kurzen Aussetzern"
   ],
   "installer": false
 }
