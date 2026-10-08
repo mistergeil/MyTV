@@ -77,5 +77,7 @@ window.CHANNELS = [
 
   // YouTube channels: newest video first, then the next ones (list: data/youtube.json, built hourly by the GitHub Action)
   { number: 60, name: "Zarbex",     short: "ZRBX",  type: "youtube", yt: ["@zarbex", "@zarbexuncut", "v:Ybre8Q-iBWw", "UCqUkIkT0NvKxRQP-5_CMR3Q"] },
-  { number: 61, name: "Gym",        short: "GYM",   type: "youtube", yt: ["@JesseJamesWest", "UCxiub44lXA3uQg_OaA9yheg", "@UrsKalecinski", "@WillTennyson", "@JeffNippard"] }
+  { number: 61, name: "Gym",        short: "GYM",   type: "youtube", yt: ["@JesseJamesWest", "UCxiub44lXA3uQg_OaA9yheg", "@UrsKalecinski", "@WillTennyson", "@JeffNippard"] },
+  // geo "OFF" = needs a Canadian IP → the VPN is switched off for this channel (NHL rights)
+  { number: 62, name: "Hockey",     short: "NHL",   type: "youtube", geo: "OFF", yt: ["@Sportsnet"], match: "(?=.*(Canucks|Oilers|Flames|Jets|Maple Leafs|Leafs|Senators|Canadiens))(?=.*highlight)" }
 ];

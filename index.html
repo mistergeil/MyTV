@@ -724,7 +724,7 @@
     if (d.country) VPN.country = d.country;
     const r = VPN.pending.get(d.id); if (r) { VPN.pending.delete(d.id); r(d); }
   });
-  const needCountry = ch => (ch.geo === 'CH' || ch.geo === 'AT') ? ch.geo : ch.geo ? 'DE' : null;
+  const needCountry = ch => (ch.geo === 'CH' || ch.geo === 'AT' || ch.geo === 'OFF') ? ch.geo : ch.geo ? 'DE' : null;   // OFF = own (Canadian) IP
   function vpnCard(ch, text) {
     if (frame) frame.remove();
     frame = document.createElement('div');

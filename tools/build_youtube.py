@@ -70,15 +70,17 @@ def channels():
         if 'type: "youtube"' not in line:
             continue
         n = re.search(r"number:\s*(\d+)", line); yt = re.search(r"yt:\s*\[([^\]]*)\]", line)
+        m = re.search(r'match:\s*"((?:[^"\\]|\\.)*)"', line)       # optional title filter (regex, case-insensitive)
         if n and yt:
-            yield int(n.group(1)), re.findall(r'"([^"]+)"', yt.group(1))
+            yield int(n.group(1)), re.findall(r'"([^"]+)"', yt.group(1)), (m.group(1).replace('\\\\', '\\') if m else None)
 
 def main():
     old = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     cache = old.get("_ids", {})
     shorts = set(old.get("_shorts", []))
     out = {"_ids": cache}
-    for num, handles in channels():
+    for num, handles, match in channels():
+        rx = re.compile(match, re.I) if match else None
         vids = []
         for h in handles:
             try:
@@ -88,15 +90,20 @@ def main():
                     vid = e.findtext("yt:videoId", namespaces=NS)
                     if not vid:
                         continue
+                    if rx and not rx.search(e.findtext("a:title", namespaces=NS) or ""):
+                        continue                                  # e.g. only highlights of the Canadian teams
                     if vid in shorts or is_short(vid):
                         shorts.add(vid); continue
                     vids.append({"id": vid, "title": e.findtext("a:title", namespaces=NS) or "", "published": e.findtext("a:published", namespaces=NS) or "",
                                  "by": feed.findtext("a:title", namespaces=NS) or h})
             except Exception as ex:
                 print(f"  {h}: {ex}")
+        # keep what was found before: busy channels (Sportsnet) push matching videos out of their 15-item feed quickly
+        prev = [v for v in old.get(str(num), []) if not rx or rx.search(v.get("title", ""))]
+        vids += prev
         seen = set(); vids = [v for v in vids if not (v["id"] in seen or seen.add(v["id"]))]   # same channel listed twice
         vids.sort(key=lambda v: v["published"], reverse=True)
-        out[str(num)] = vids[:30] or old.get(str(num), [])
+        out[str(num)] = vids[:30]
         print(f"channel {num}: {len(vids)} videos from {', '.join(handles)}")
     out["_shorts"] = sorted(shorts)[-500:]
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
