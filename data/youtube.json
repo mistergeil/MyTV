@@ -7,7 +7,8 @@
   "@JesseJamesWest": "UCEjIjshJ8bvvCkGNk0pkYcA",
   "@UrsKalecinski": "UCpTQ3wtr2BSG1J9VESsDOwA",
   "@WillTennyson": "UCB2wtYpfbCpYDc5TeTwuqFA",
-  "@JeffNippard": "UC68TLK0mAEzUyHx5x5k-S1Q"
+  "@JeffNippard": "UC68TLK0mAEzUyHx5x5k-S1Q",
+  "@Sportsnet": "UCVhibwHk4WKw4leUt6JfRLg"
  },
  "60": [
   {
@@ -371,6 +372,20 @@
    "title": "I Spent 24 Hours On A Billionaire's Island",
    "published": "2026-05-02T16:08:12+00:00",
    "by": "Jesse James East"
+  }
+ ],
+ "62": [
+  {
+   "id": "WDDbuX0hGTw",
+   "title": "NHL Highlights | Oilers vs. Ducks - October 7, 2026",
+   "published": "2026-10-08T05:21:40+00:00",
+   "by": "SPORTSNET"
+  },
+  {
+   "id": "Rk6g90DF-6Y",
+   "title": "NHL Highlights | Avalanche vs. Jets - October 7, 2026",
+   "published": "2026-10-08T02:58:38+00:00",
+   "by": "SPORTSNET"
   }
  ],
  "_shorts": [
